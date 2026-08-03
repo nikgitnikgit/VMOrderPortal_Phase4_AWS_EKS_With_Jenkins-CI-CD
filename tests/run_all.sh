@@ -412,6 +412,8 @@ t T14.21 "smoke test respects NetworkPolicy (goes via frontend, not backend)" ba
   grep -q "8080/api/health" Jenkinsfile &&
   ! grep -q "svc backend .* clusterIP" Jenkinsfile'
 
+t T14.22 "every kubectl resource the pipeline requests is granted in RBAC" python3 tests/check_rbac_usage.py
+
 echo ""
 echo "=============================================="
 echo "  RESULT: $PASS passed, $FAIL failed"

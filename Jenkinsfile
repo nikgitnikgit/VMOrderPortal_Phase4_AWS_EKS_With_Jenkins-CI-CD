@@ -286,8 +286,14 @@ EOF
                             -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}' || true
                         echo ""
 
+                        # NOT `kubectl get all`: that expands to a fixed list
+                        # including replicationcontrollers, daemonsets,
+                        # statefulsets, jobs and cronjobs. The app uses none of
+                        # them and Jenkins is deliberately not permitted to list
+                        # them, so `get all` errors out. Ask for what exists.
                         echo "=== Cluster state ==="
-                        kubectl get all -n "$NAMESPACE"
+                        kubectl get deployment,replicaset,pod,service,ingress,hpa \
+                            -n "$NAMESPACE"
                     '''
                 }
             }
@@ -301,7 +307,8 @@ EOF
                     // are the copy you keep during the cycle; download anything
                     // you need for submission before running destroy.sh.
                     sh '''
-                        kubectl get all -n "$NAMESPACE" > cluster-state.txt || true
+                        kubectl get deployment,replicaset,pod,service,ingress,hpa \
+                            -n "$NAMESPACE" > cluster-state.txt || true
                         for f in trivy-frontend.txt trivy-backend.txt trivy-worker.txt cluster-state.txt; do
                             [ -f "$f" ] && aws s3 cp "$f" "s3://${S3_BUCKET}/builds/${TAG}/" || true
                         done
