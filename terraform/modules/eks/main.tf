@@ -1,6 +1,6 @@
 # modules/eks/main.tf
 # EKS control plane + TWO managed node groups + OIDC provider (IRSA foundation)
-# Phase 4: app nodes (t3.small ×3) stay cheap; Jenkins gets its own t3.medium
+# Phase 4: app nodes (t3.small ×3) stay cheap; Jenkins gets its own larger
 # node, tainted so app pods can't land on it. See cookbook §4.1.
 
 locals {
@@ -100,7 +100,8 @@ resource "aws_eks_node_group" "app" {
 # ---------- Node group 2: Jenkins node (bigger, tainted) ----------
 # Tainted so ONLY pods with a matching toleration land here (Jenkins
 # controller + build agents). App pods physically cannot reach this node.
-# t3.medium (4 GiB) gives the Jenkins controller and BuildKit agents room.
+# m7i-flex.large (2 vCPU / 8 GiB) gives the controller and BuildKit room.
+# NOTE: instance type must be FREE-TIER ELIGIBLE on post-2025-07-15 accounts.
 resource "aws_eks_node_group" "jenkins" {
   cluster_name    = aws_eks_cluster.main.name
   node_group_name = "${var.cluster_name}-jenkins-nodes"

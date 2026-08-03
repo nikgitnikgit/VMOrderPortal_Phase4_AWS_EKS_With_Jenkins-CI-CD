@@ -18,6 +18,11 @@ metadata:
     jenkins/agent: "true"
 spec:
   serviceAccountName: jenkins-agent
+  # emptyDir volumes mount root-owned by default. The tools container runs
+  # as UID 1000, so without fsGroup it cannot write config.json or the
+  # workspace, and the build fails with "Permission denied".
+  securityContext:
+    fsGroup: 1000
   tolerations:
     - key: "role"
       operator: "Equal"
@@ -31,8 +36,6 @@ spec:
       command: ["sleep"]
       args: ["infinity"]
       volumeMounts:
-        - name: workspace
-          mountPath: /home/jenkins/agent
         - name: docker-config
           mountPath: /home/jenkins/.docker
     - name: buildkit
@@ -48,20 +51,19 @@ spec:
         - name: DOCKER_CONFIG
           value: /home/jenkins/.docker
       volumeMounts:
-        - name: workspace
-          mountPath: /home/jenkins/agent
         - name: docker-config
           mountPath: /home/jenkins/.docker
     - name: trivy
       image: aquasec/trivy:0.58.2
       command: ["sleep"]
       args: ["infinity"]
-      volumeMounts:
-        - name: workspace
-          mountPath: /home/jenkins/agent
   volumes:
-    - name: workspace
-      emptyDir: {}
+    # NOTE: do NOT declare a workspace volume here. The Kubernetes plugin
+    # injects its own `workspace-volume` at /home/jenkins/agent and shares it
+    # across every container. Declaring a second volume at the same path gives
+    # jnlp and the tool containers DIFFERENT disks, so the durable-task control
+    # files jnlp writes are invisible to `tools`, and every sh step dies with
+    # "process apparently never started".
     - name: docker-config
       emptyDir:
         # RAM-backed: the ECR token never touches the node's disk, and it

@@ -39,5 +39,13 @@ variable "node_max" {
 variable "jenkins_node_instance_type" {
   description = "Instance type for the Jenkins node group (needs more RAM than app nodes)"
   type        = string
-  default     = "t3.medium" # 4 GiB — room for controller + BuildKit agent
+  # m7i-flex.large = 2 vCPU / 8 GiB.
+  # Chosen because it is FREE-TIER ELIGIBLE. AWS accounts created on or after
+  # 2025-07-15 are hard-restricted to: t3.micro, t3.small, t4g.micro,
+  # t4g.small, c7i-flex.large, m7i-flex.large. Anything else fails at launch
+  # with InvalidParameterCombination and the node group times out after ~30
+  # minutes with an empty health.issues list — a slow, confusing failure.
+  # t3.medium (the obvious choice) is NOT on that list.
+  # On an unrestricted account, t3.medium or m7i-flex.large both work.
+  default = "m7i-flex.large"
 }

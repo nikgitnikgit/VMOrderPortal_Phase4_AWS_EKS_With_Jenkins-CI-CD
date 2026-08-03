@@ -41,7 +41,8 @@ echo "=== T2: Static syntax ==="
 t T2.1 "all shell scripts: bash -n" bash -c '
   for f in scripts/*.sh terraform/bootstrap-state.sh; do bash -n "$f" || exit 1; done'
 t T2.2 "all shell scripts: shellcheck" bash -c '
-  /usr/local/bin/shellcheck scripts/*.sh terraform/bootstrap-state.sh'
+  command -v shellcheck >/dev/null || { echo "shellcheck not installed"; exit 1; }
+  shellcheck scripts/*.sh terraform/bootstrap-state.sh'
 t T2.3 "all YAML files parse" python3 -c "
 import yaml, glob
 for f in glob.glob('.github/**/*.yml', recursive=True) + glob.glob('k8s/*.yaml') + glob.glob('helm/*/Chart.yaml') + glob.glob('helm/*/values.yaml') + glob.glob('jenkins/*.yaml'):
@@ -345,6 +346,46 @@ k8s=re.search(r'variable \"kubernetes_version\".*?default\s*=\s*\"([\d.]+)\"', t
 df=open('jenkins/agent-tools/Dockerfile').read()
 kc=re.search(r'ARG KUBECTL_MINOR=([\d.]+)', df).group(1)
 assert k8s==kc, f'skew: cluster {k8s} vs agent kubectl {kc}'"
+
+t T14.14 "node instance types are free-tier eligible" python3 -c "
+import re
+FREE={'t3.micro','t3.small','t4g.micro','t4g.small','c7i-flex.large','m7i-flex.large'}
+v=open('terraform/modules/eks/variables.tf').read()
+for name in ['node_instance_type','jenkins_node_instance_type']:
+    m=re.search(r'variable \"'+name+r'\".*?default\s*=\s*\"([\w.-]+)\"', v, re.S)
+    assert m, name
+    assert m.group(1) in FREE, f'{name}={m.group(1)} is not free-tier eligible'"
+
+t T14.15 "ALB controller is restarted after upgrade (webhook cert mismatch)" bash -c '
+  grep -q "rollout restart deployment/aws-load-balancer-controller" scripts/bootstrap-platform.sh'
+
+t T14.16 "JCasC has no conflicting or chart-owned keys" python3 tests/check_jcasc.py
+
+t T14.17 "every Ingress uses pathType Prefix (ALB treats / as exact otherwise)" python3 -c "
+import yaml, glob, sys
+bad=[]
+v=yaml.safe_load(open('jenkins/values.yaml'))
+ing=v['controller'].get('ingress',{})
+if ing.get('enabled') and ing.get('pathType')!='Prefix':
+    bad.append('jenkins/values.yaml: pathType=%s' % ing.get('pathType'))
+for f in glob.glob('helm/*/templates/ingress.yaml'):
+    t=open(f).read()
+    if 'path:' in t and 'pathType: Prefix' not in t:
+        bad.append(f)
+assert not bad, bad"
+
+t T14.18 "agent pod declares no volume clashing with the plugin workspace" python3 -c "
+import re, yaml
+y=re.search(r'yaml \"\"\"\n(.*?)\n\"\"\"', open('Jenkinsfile').read(), re.S).group(1)
+y=re.sub(r'\\\\$\{env\.\w+\}','X',y)
+pod=yaml.safe_load(y)
+paths={}
+for c in pod['spec']['containers']:
+    for m in c.get('volumeMounts',[]):
+        paths.setdefault(m['mountPath'],set()).add(m['name'])
+for path,names in paths.items():
+    assert len(names)==1, f'{path} mounted from different volumes: {names}'
+assert '/home/jenkins/agent' not in paths, 'do not mount over the plugin workspace'"
 
 echo ""
 echo "=============================================="

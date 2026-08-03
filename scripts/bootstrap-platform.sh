@@ -90,7 +90,18 @@ helm upgrade --install aws-load-balancer-controller eks/aws-load-balancer-contro
     --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="$ALB_ROLE_ARN"
 
 echo "Waiting for the load balancer controller..."
-kubectl rollout status deployment/aws-load-balancer-controller -n kube-system --timeout=180s
+# The chart regenerates its self-signed webhook CA on every `helm upgrade`,
+# which updates the caBundle in the webhook configuration. Pods that are
+# already running keep serving the OLD certificate, so the API server then
+# rejects every Service/Ingress with "x509: certificate signed by unknown
+# authority". Restarting forces the pods onto the current cert. Harmless on
+# a first install, essential on any re-run.
+kubectl rollout restart deployment/aws-load-balancer-controller -n kube-system
+kubectl rollout status deployment/aws-load-balancer-controller -n kube-system --timeout=300s
+
+# Give the webhook endpoints a moment to register before anything creates a
+# Service or Ingress.
+sleep 10
 
 # --- 4. Jenkins namespace, RBAC, agent ServiceAccount ---
 echo ""
@@ -121,7 +132,16 @@ fi
 # --- 6. Install Jenkins ---
 echo ""
 echo "Step 6: Installing Jenkins (chart pinned)..."
-JENKINS_CHART_VERSION="5.7.14"   # PINNED — same lesson as the ALB controller
+JENKINS_CHART_VERSION=$(tr -d '[:space:]' < "$REPO_ROOT/jenkins/CHART_VERSION")
+echo "  chart version: ${JENKINS_CHART_VERSION}"
+if ! helm search repo "jenkins/jenkins" --version "$JENKINS_CHART_VERSION" 2>/dev/null | grep -q "$JENKINS_CHART_VERSION"; then
+    echo "" >&2
+    echo "ERROR: Jenkins chart version '${JENKINS_CHART_VERSION}' not found in the repo." >&2
+    echo "Pick a current one and write it to jenkins/CHART_VERSION:" >&2
+    echo "" >&2
+    helm search repo jenkins/jenkins --versions 2>/dev/null | head -6 >&2
+    exit 1
+fi
 
 MY_IP=$(curl -s https://checkip.amazonaws.com)
 echo "  Restricting Jenkins ALB to your IP: ${MY_IP}/32"
@@ -142,6 +162,9 @@ controller:
       alb.ingress.kubernetes.io/inbound-cidrs: "${MY_IP}/32"
   JCasC:
     configScripts:
+      # NOTE: only keys the chart does not already own may appear here.
+      # Anything the chart also sets (numExecutors, securityRealm,
+      # authorizationStrategy, clouds) causes ConfiguratorConflictException.
       env: |
         jenkins:
           globalNodeProperties:
@@ -161,10 +184,12 @@ controller:
                     value: "${WORKER_ROLE_ARN}"
                   - key: S3_BUCKET
                     value: "${S3_BUCKET}"
+      # Replaces the placeholder job in values.yaml with the real repo URL.
       job: |
         jobs:
           - script: >
               pipelineJob('vm-order-cicd') {
+                description('Build, scan, push, and deploy the VM Order Portal')
                 definition {
                   cpsScm {
                     scm {

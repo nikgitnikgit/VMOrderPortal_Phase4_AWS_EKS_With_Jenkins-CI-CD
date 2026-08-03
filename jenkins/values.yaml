@@ -1,18 +1,36 @@
 # jenkins/values.yaml — Phase 4: Jenkins Configuration as Code
 # Everything Jenkins needs to come up fully configured: plugins, system
-# settings, cloud (dynamic pod agents), and the pipeline job — all defined
-# here, never clicked in the UI. destroy → apply → Jenkins is identical.
+# settings, dynamic pod agents, and the pipeline job — all defined here,
+# never clicked in the UI. destroy -> apply -> Jenkins is identical.
+#
+# IMPORTANT LESSON (learned the hard way):
+# The chart generates its OWN JCasC config from controller.* values. If a
+# custom configScript sets a key the chart already sets, JCasC merges both
+# sources, finds a conflict, and refuses to start with
+# ConfiguratorConflictException. So: prefer the chart's native values, and
+# use configScripts ONLY for things the chart does not model.
 
 controller:
-  # --- Plugins: pinned versions, never "latest" ---
+  # --- Plugins ---
+  # Deliberately NOT version-pinned. The plugin installer resolves each
+  # plugin's DEPENDENCIES to their latest versions, and those require a
+  # recent Jenkins core. Pinning plugins against an older core produces a
+  # crash-looping init container full of "requires a greater version of
+  # Jenkins" errors. The version that matters is the CHART version (which
+  # determines the core), pinned in jenkins/CHART_VERSION.
   installPlugins:
-    - kubernetes:4246.v5a_12b_1fe120e
-    - workflow-aggregator:596.v8c21c963d92d
-    - git:5.2.2
-    - configuration-as-code:1850.va_a_8c31d3158b_
-    - pipeline-stage-view:2.34
+    - kubernetes              # dynamic pod agents
+    - workflow-aggregator     # declarative pipeline
+    - git                     # clone the repo
+    - configuration-as-code   # JCasC itself
+    - job-dsl                 # REQUIRED for the `jobs:` root element below
+    - pipeline-stage-view     # the stage view in the UI
 
-  # --- Resources: controller is coordination only, not running builds ---
+  # --- Set via the chart's own values, NOT a configScript ---
+  # All builds run on agent pods; the controller coordinates only.
+  numExecutors: 0
+
+  # --- Resources ---
   resources:
     requests:
       cpu: 500m
@@ -32,9 +50,14 @@ controller:
       alb.ingress.kubernetes.io/healthcheck-path: /login
       # CRITICAL: restrict to your public IP. An open Jenkins is a security
       # incident waiting to happen — scanners find them within hours.
-      # Value is injected at deploy time by bootstrap-platform.sh (never in Git).
+      # Injected at deploy time by bootstrap-platform.sh (never in Git).
       alb.ingress.kubernetes.io/inbound-cidrs: "REPLACE_AT_DEPLOY"
     path: /
+    # MUST be Prefix. The default (ImplementationSpecific) lets the ALB
+    # controller decide, and it treats "/" as an EXACT match — so the root
+    # URL works but /login, /job/... and every static asset return a bare
+    # 404 from the ALB before ever reaching Jenkins.
+    pathType: Prefix
 
   # --- Schedule on the Jenkins node only (tainted) ---
   tolerations:
@@ -43,46 +66,34 @@ controller:
       value: "jenkins"
       effect: "NoSchedule"
   # nodeSelector is injected at deploy time by bootstrap-platform.sh.
-  # The label EKS actually sets is `eks.amazonaws.com/nodegroup`
-  # (there is no `-name` suffix).
+  # The label EKS actually sets is `eks.amazonaws.com/nodegroup`.
 
-  # --- JCasC: Configuration as Code ---
+  # --- JCasC: only what the chart does NOT already model ---
+  # NOT set here, because the chart owns them and duplicating causes
+  # ConfiguratorConflictException:
+  #   jenkins.numExecutors        -> controller.numExecutors (above)
+  #   jenkins.securityRealm       -> chart default (local, signup disabled)
+  #   jenkins.authorizationStrategy -> chart default
+  #   jenkins.clouds (kubernetes) -> chart builds this from agent.* values
   JCasC:
     configScripts:
-      system: |
+      welcome: |
         jenkins:
-          systemMessage: "VM Order Portal — Phase 4 CI/CD (fully automated setup)"
-          numExecutors: 0
-          securityRealm:
-            local:
-              allowsSignup: false
+          systemMessage: "VM Order Portal — Phase 4 CI/CD (configured by JCasC)"
 
-      cloud: |
-        jenkins:
-          clouds:
-            - kubernetes:
-                name: "kubernetes"
-                namespace: "jenkins"
-                jenkinsUrl: "http://jenkins.jenkins.svc:8080"
-                podLabels:
-                  - key: "jenkins/agent"
-                    value: "true"
-
+      # The `jobs:` root element is contributed by the job-dsl plugin.
+      # GITHUB_REPO_URL is substituted by bootstrap-platform.sh, which
+      # appends this block as a generated overrides file.
       job: |
         jobs:
           - script: >
               pipelineJob('vm-order-cicd') {
                 description('Build, scan, push, and deploy the VM Order Portal')
-                parameters {
-                  stringParam('IMAGE_TAG', '', 'Image tag (auto: 1.0.BUILD_NUMBER)')
-                }
                 definition {
                   cpsScm {
                     scm {
                       git {
-                        remote {
-                          url('${GITHUB_REPO_URL}')
-                        }
+                        remote { url('PLACEHOLDER') }
                         branches('*/main')
                       }
                     }
@@ -102,9 +113,8 @@ serviceAccount:
   create: true
   name: jenkins
 
-# --- Agent defaults ---
+# --- Agents ---
+# The chart builds the Kubernetes cloud from this section. The Jenkinsfile
+# supplies its own podTemplate per build, so we only set defaults here.
 agent:
-  # Agents are defined in the Jenkinsfile podTemplate, not here.
-  # This section just sets global defaults.
-  podName: "jenkins-agent"
   namespace: "jenkins"

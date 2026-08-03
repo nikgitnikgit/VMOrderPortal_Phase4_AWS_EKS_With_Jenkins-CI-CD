@@ -1,3 +1,11 @@
 #!/bin/bash
 echo "helm $*" >> "$MOCK_LOG"
+case "$*" in
+  *"search repo"*)
+    # emulate the real output so the version guard can match
+    VER=$(tr -d '[:space:]' < "$(dirname "${BASH_SOURCE[0]}")/../../jenkins/CHART_VERSION" 2>/dev/null || echo "0.0.0")
+    echo "NAME             CHART VERSION   APP VERSION   DESCRIPTION"
+    echo "jenkins/jenkins  ${VER}          2.999.9       Jenkins - Build great things"
+    ;;
+esac
 exit 0
