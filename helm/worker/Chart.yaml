@@ -1,0 +1,6 @@
+apiVersion: v2
+name: worker
+description: VM Order Portal — worker notification service (Flask + SNS/SES)
+type: application
+version: 0.1.0        # chart version
+appVersion: "1.0.0"   # image version it deploys by default

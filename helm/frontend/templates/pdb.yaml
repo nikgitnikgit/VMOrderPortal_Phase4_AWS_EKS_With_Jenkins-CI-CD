@@ -1,0 +1,11 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: frontend
+  labels:
+    app: frontend
+spec:
+  minAvailable: 1   # during node drains/upgrades, never below 1 running pod
+  selector:
+    matchLabels:
+      app: frontend

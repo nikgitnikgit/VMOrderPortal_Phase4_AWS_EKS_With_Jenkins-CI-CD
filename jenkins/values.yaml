@@ -1,0 +1,110 @@
+# jenkins/values.yaml — Phase 4: Jenkins Configuration as Code
+# Everything Jenkins needs to come up fully configured: plugins, system
+# settings, cloud (dynamic pod agents), and the pipeline job — all defined
+# here, never clicked in the UI. destroy → apply → Jenkins is identical.
+
+controller:
+  # --- Plugins: pinned versions, never "latest" ---
+  installPlugins:
+    - kubernetes:4246.v5a_12b_1fe120e
+    - workflow-aggregator:596.v8c21c963d92d
+    - git:5.2.2
+    - configuration-as-code:1850.va_a_8c31d3158b_
+    - pipeline-stage-view:2.34
+
+  # --- Resources: controller is coordination only, not running builds ---
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "1"
+      memory: 2Gi
+
+  # --- Expose Jenkins via ALB Ingress, restricted to your IP ---
+  serviceType: ClusterIP
+  ingress:
+    enabled: true
+    ingressClassName: alb
+    annotations:
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/healthcheck-path: /login
+      # CRITICAL: restrict to your public IP. An open Jenkins is a security
+      # incident waiting to happen — scanners find them within hours.
+      # Value is injected at deploy time by bootstrap-platform.sh (never in Git).
+      alb.ingress.kubernetes.io/inbound-cidrs: "REPLACE_AT_DEPLOY"
+    path: /
+
+  # --- Schedule on the Jenkins node only (tainted) ---
+  tolerations:
+    - key: "role"
+      operator: "Equal"
+      value: "jenkins"
+      effect: "NoSchedule"
+  # nodeSelector is injected at deploy time by bootstrap-platform.sh.
+  # The label EKS actually sets is `eks.amazonaws.com/nodegroup`
+  # (there is no `-name` suffix).
+
+  # --- JCasC: Configuration as Code ---
+  JCasC:
+    configScripts:
+      system: |
+        jenkins:
+          systemMessage: "VM Order Portal — Phase 4 CI/CD (fully automated setup)"
+          numExecutors: 0
+          securityRealm:
+            local:
+              allowsSignup: false
+
+      cloud: |
+        jenkins:
+          clouds:
+            - kubernetes:
+                name: "kubernetes"
+                namespace: "jenkins"
+                jenkinsUrl: "http://jenkins.jenkins.svc:8080"
+                podLabels:
+                  - key: "jenkins/agent"
+                    value: "true"
+
+      job: |
+        jobs:
+          - script: >
+              pipelineJob('vm-order-cicd') {
+                description('Build, scan, push, and deploy the VM Order Portal')
+                parameters {
+                  stringParam('IMAGE_TAG', '', 'Image tag (auto: 1.0.BUILD_NUMBER)')
+                }
+                definition {
+                  cpsScm {
+                    scm {
+                      git {
+                        remote {
+                          url('${GITHUB_REPO_URL}')
+                        }
+                        branches('*/main')
+                      }
+                    }
+                    scriptPath('Jenkinsfile')
+                  }
+                }
+              }
+
+# --- Persistence: Jenkins home on an EBS volume via PVC ---
+persistence:
+  enabled: true
+  size: 8Gi
+  storageClass: gp2
+
+# --- ServiceAccount: controller uses this for agent management ---
+serviceAccount:
+  create: true
+  name: jenkins
+
+# --- Agent defaults ---
+agent:
+  # Agents are defined in the Jenkinsfile podTemplate, not here.
+  # This section just sets global defaults.
+  podName: "jenkins-agent"
+  namespace: "jenkins"

@@ -1,0 +1,96 @@
+# jenkins/rbac.yaml — Phase 4 RBAC for Jenkins
+# Two Roles, both namespaced — never cluster-admin.
+# See cookbook section 6 for the reasoning behind each permission.
+#
+# Two ServiceAccounts are involved, and the split matters:
+#   jenkins        — the CONTROLLER. Schedules and deletes agent pods.
+#   jenkins-agent  — the AGENT pod. Runs helm/kubectl during a build.
+
+---
+# Role 1: manage agent pods in the jenkins namespace (controller only)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: jenkins-agent-manager
+  namespace: jenkins
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["create", "delete", "get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: jenkins-agent-manager
+  namespace: jenkins
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: jenkins-agent-manager
+subjects:
+  - kind: ServiceAccount
+    name: jenkins
+    namespace: jenkins
+
+---
+# Role 2: deploy the application into devops-app
+# NOTE: secrets is deliberately NOT listed — Jenkins deploys an app
+# whose Secret it cannot read. This is the containment argument.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: jenkins-deployer
+  namespace: devops-app
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["services", "configmaps", "serviceaccounts", "persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses", "networkpolicies"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["policy"]
+    resources: ["poddisruptionbudgets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: jenkins-deployer
+  namespace: devops-app
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: jenkins-deployer
+subjects:
+  # ONLY the agent. The agent pod is what runs `helm upgrade` and `kubectl`.
+  # The controller is deliberately NOT listed: it has numExecutors: 0, so it
+  # never runs build steps and therefore never needs to touch devops-app.
+  - kind: ServiceAccount
+    name: jenkins-agent
+    namespace: jenkins

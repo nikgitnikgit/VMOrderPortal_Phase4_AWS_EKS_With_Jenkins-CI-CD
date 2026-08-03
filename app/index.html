@@ -1,0 +1,1512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Configure Your Virtual Server</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0e0f11;
+    --bg2: #16181c;
+    --bg3: #1e2026;
+    --border: rgba(255,255,255,0.08);
+    --border-hover: rgba(255,255,255,0.16);
+    --accent: #00e5a0;
+    --accent2: #00b87a;
+    --text: #f0f0f0;
+    --text2: #9aa0b0;
+    --text3: #5a6070;
+    --error: #ff5c5c;
+    --warning: #ffaa00;
+    --success: #00e5a0;
+    --card-radius: 16px;
+    --input-radius: 10px;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 2rem 1rem 4rem;
+  }
+
+  .page-wrap {
+    max-width: 760px;
+    margin: 0 auto;
+  }
+
+  .page-header {
+    text-align: center;
+    margin-bottom: 3rem;
+    padding-top: 1rem;
+  }
+
+  .page-header .tag {
+    display: inline-block;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    border: 1px solid rgba(0,229,160,0.3);
+    border-radius: 100px;
+    padding: 4px 14px;
+    margin-bottom: 1.2rem;
+    text-transform: uppercase;
+  }
+
+  .page-header h1 {
+    font-size: clamp(1.6rem, 4vw, 2.4rem);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    color: var(--text);
+    margin-bottom: 0.75rem;
+  }
+
+  .page-header h1 span {
+    color: var(--accent);
+  }
+
+  .page-header p {
+    font-size: 15px;
+    color: var(--text2);
+    max-width: 440px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  .progress-bar {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    margin-bottom: 2.5rem;
+  }
+
+  .progress-bar .step {
+    height: 3px;
+    width: 40px;
+    border-radius: 100px;
+    background: var(--bg3);
+    transition: background 0.3s;
+  }
+
+  .progress-bar .step.active { background: var(--accent); }
+  .progress-bar .step.done { background: var(--accent2); opacity: 0.5; }
+
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--card-radius);
+    padding: 1.75rem 2rem;
+    margin-bottom: 1rem;
+    transition: border-color 0.2s;
+  }
+
+  .card:hover { border-color: var(--border-hover); }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 1.5rem;
+  }
+
+  .card-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: rgba(0,229,160,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .card-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .card-subtitle {
+    font-size: 12px;
+    color: var(--text3);
+    margin-top: 1px;
+  }
+
+  .section-num {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--accent);
+    background: rgba(0,229,160,0.1);
+    border-radius: 6px;
+    padding: 2px 7px;
+    margin-left: auto;
+  }
+
+  .field { margin-bottom: 1.25rem; }
+  .field:last-child { margin-bottom: 0; }
+
+  label.field-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text2);
+    margin-bottom: 7px;
+    letter-spacing: 0.01em;
+  }
+
+  input[type="text"],
+  input[type="email"],
+  input[type="number"],
+  select,
+  textarea {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--input-radius);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    padding: 10px 14px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    appearance: none;
+  }
+
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,229,160,0.12);
+  }
+
+  input.error, select.error { border-color: var(--error); }
+  input.success { border-color: var(--success); }
+
+  .field-hint {
+    font-size: 12px;
+    margin-top: 6px;
+    min-height: 18px;
+    color: var(--text3);
+  }
+
+  .field-hint.error { color: var(--error); }
+  .field-hint.success { color: var(--success); }
+  .field-hint.warning { color: var(--warning); }
+
+  .name-suggestions {
+    display: none;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+
+  .name-suggestions.visible { display: flex; }
+
+  .suggestion-chip {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 4px 12px;
+    font-size: 12px;
+    font-family: 'Space Mono', monospace;
+    color: var(--accent);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .suggestion-chip:hover {
+    background: rgba(0,229,160,0.1);
+    border-color: var(--accent);
+  }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+
+  @media (max-width: 520px) { .two-col { grid-template-columns: 1fr; } }
+
+  .os-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+
+  @media (max-width: 520px) { .os-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .os-option {
+    position: relative;
+  }
+
+  .os-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .os-option label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 8px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--input-radius);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text2);
+    text-align: center;
+  }
+
+  .os-option label .os-icon {
+    font-size: 22px;
+    line-height: 1;
+  }
+
+  .os-option input:checked + label {
+    border-color: var(--accent);
+    background: rgba(0,229,160,0.08);
+    color: var(--accent);
+  }
+
+  .os-option label:hover {
+    border-color: var(--border-hover);
+    color: var(--text);
+  }
+
+  .storage-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+
+  @media (max-width: 520px) { .storage-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .storage-option { position: relative; }
+
+  .storage-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .storage-option label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 10px 6px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--input-radius);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    text-align: center;
+  }
+
+  .storage-option label .storage-sub {
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--text3);
+    font-family: 'Space Mono', monospace;
+  }
+
+  .storage-option input:checked + label {
+    border-color: var(--accent);
+    background: rgba(0,229,160,0.08);
+    color: var(--accent);
+  }
+
+  .env-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .env-option { position: relative; }
+
+  .env-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .env-option label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--input-radius);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text2);
+  }
+
+  .env-option label .env-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text3);
+    flex-shrink: 0;
+    transition: background 0.15s;
+  }
+
+  .env-option input:checked + label {
+    border-color: var(--accent);
+    background: rgba(0,229,160,0.08);
+    color: var(--text);
+  }
+
+  .env-option input:checked + label .env-dot { background: var(--accent); }
+
+  .env-desc {
+    font-size: 11px;
+    color: var(--text3);
+    margin-top: 1px;
+    font-weight: 400;
+  }
+
+  .services-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .service-option { position: relative; }
+
+  .service-option input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .service-option label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--input-radius);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text2);
+  }
+
+  .service-option label .svc-icon { font-size: 18px; }
+
+  .service-check {
+    margin-left: auto;
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    border: 1.5px solid var(--text3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+
+  .service-option input:checked + label {
+    border-color: var(--accent);
+    background: rgba(0,229,160,0.08);
+    color: var(--text);
+  }
+
+  .service-option input:checked + label .service-check {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .service-option input:checked + label .service-check::after {
+    content: '';
+    width: 10px;
+    height: 6px;
+    border-left: 2px solid #0e0f11;
+    border-bottom: 2px solid #0e0f11;
+    transform: rotate(-45deg) translateY(-1px);
+  }
+
+  .other-field {
+    margin-top: 10px;
+    display: none;
+  }
+
+  .other-field.visible { display: block; }
+
+  .range-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  input[type="range"] {
+    flex: 1;
+    height: 4px;
+    background: var(--bg3);
+    border: none;
+    border-radius: 100px;
+    outline: none;
+    padding: 0;
+    cursor: pointer;
+    accent-color: var(--accent);
+  }
+
+  .range-val {
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    color: var(--accent);
+    min-width: 70px;
+    text-align: right;
+  }
+
+  .region-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+
+  .region-option { position: relative; }
+
+  .region-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .region-option label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 12px 8px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--input-radius);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text2);
+    text-align: center;
+  }
+
+  .region-option label .flag { font-size: 22px; line-height: 1; }
+  .region-option label .region-sub { font-size: 10px; color: var(--text3); font-family: 'Space Mono', monospace; }
+
+  .region-option input:checked + label {
+    border-color: var(--accent);
+    background: rgba(0,229,160,0.08);
+    color: var(--accent);
+  }
+
+  .submit-area {
+    margin-top: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .btn-submit {
+    width: 100%;
+    max-width: 360px;
+    padding: 15px 32px;
+    background: var(--accent);
+    color: #0a0a0a;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    border: none;
+    border-radius: 100px;
+    cursor: pointer;
+    letter-spacing: 0.01em;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-submit:hover { background: #00f0ac; transform: translateY(-1px); }
+  .btn-submit:active { transform: translateY(0); }
+  .btn-submit:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  .submit-note {
+    font-size: 12px;
+    color: var(--text3);
+    text-align: center;
+  }
+
+  .summary-card {
+    background: rgba(0,229,160,0.05);
+    border: 1px solid rgba(0,229,160,0.2);
+    border-radius: var(--card-radius);
+    padding: 1.5rem 2rem;
+    margin-top: 1rem;
+    display: none;
+  }
+
+  .summary-card.visible { display: block; }
+
+  .summary-card h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 1rem;
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 0.05em;
+  }
+
+  .summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: 13px;
+  }
+
+  .summary-row:last-child { border-bottom: none; }
+  .summary-row .key { color: var(--text3); }
+  .summary-row .val { color: var(--text); font-weight: 500; }
+
+  .success-screen {
+    display: none;
+    text-align: center;
+    padding: 3rem 2rem;
+  }
+
+  .success-screen.visible { display: block; }
+
+  .success-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: rgba(0,229,160,0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+    font-size: 28px;
+  }
+
+  .success-screen h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 0.75rem;
+  }
+
+  .success-screen p {
+    font-size: 14px;
+    color: var(--text2);
+    max-width: 380px;
+    margin: 0 auto 1.5rem;
+    line-height: 1.6;
+  }
+
+  .ticket-id {
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    color: var(--accent);
+    background: rgba(0,229,160,0.1);
+    border-radius: 8px;
+    padding: 8px 16px;
+    display: inline-block;
+    margin-bottom: 1.5rem;
+  }
+
+  .spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(0,0,0,0.2);
+    border-top-color: #0a0a0a;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 8px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .checking-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text3);
+  }
+
+  .dot-pulse {
+    display: inline-flex;
+    gap: 3px;
+  }
+
+  .dot-pulse span {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--text3);
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+
+  .dot-pulse span:nth-child(2) { animation-delay: 0.2s; }
+  .dot-pulse span:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes pulse { 0%,80%,100%{opacity:0.2} 40%{opacity:1} }
+
+  select option { background: #1e2026; }
+</style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <div class="page-header">
+    <div class="tag">&#x2699; VM Order Portal</div>
+    <h1>Configure Your<br><span>Virtual Server</span></h1>
+    <p>Fill in your requirements and our team will provision your server within 24 hours.</p>
+  </div>
+
+  <div class="progress-bar" id="progressBar">
+    <div class="step active" data-step="1"></div>
+    <div class="step" data-step="2"></div>
+    <div class="step" data-step="3"></div>
+    <div class="step" data-step="4"></div>
+    <div class="step" data-step="5"></div>
+    <div class="step" data-step="6"></div>
+    <div class="step" data-step="7"></div>
+  </div>
+
+  <form id="vmForm" novalidate>
+
+    <!-- 1. Machine Name -->
+    <div class="card" id="card1">
+      <div class="card-header">
+        <div class="card-icon">&#x1F5A5;</div>
+        <div>
+          <div class="card-title">Machine name</div>
+          <div class="card-subtitle">A unique identifier for your server</div>
+        </div>
+        <div class="section-num">01</div>
+      </div>
+      <div class="field">
+        <label class="field-label" for="machineName">Server name</label>
+        <input type="text" id="machineName" placeholder="e.g. my-web-server" autocomplete="off" maxlength="30" />
+        <div class="field-hint" id="nameHint">Letters, numbers and hyphens only</div>
+        <div class="name-suggestions" id="nameSuggestions"></div>
+      </div>
+    </div>
+
+    <!-- 2. Operating System -->
+    <div class="card" id="card2">
+      <div class="card-header">
+        <div class="card-icon">&#x1F4BB;</div>
+        <div>
+          <div class="card-title">Operating system</div>
+          <div class="card-subtitle">Choose your preferred OS</div>
+        </div>
+        <div class="section-num">02</div>
+      </div>
+      <div class="field">
+        <div class="os-grid">
+          <div class="os-option">
+            <input type="radio" name="os" id="os-ubuntu" value="Ubuntu">
+            <label for="os-ubuntu"><span class="os-icon">🐧</span>Ubuntu</label>
+          </div>
+          <div class="os-option">
+            <input type="radio" name="os" id="os-centos" value="CentOS">
+            <label for="os-centos"><span class="os-icon">🎩</span>CentOS</label>
+          </div>
+          <div class="os-option">
+            <input type="radio" name="os" id="os-debian" value="Debian">
+            <label for="os-debian"><span class="os-icon">🌀</span>Debian</label>
+          </div>
+          <div class="os-option">
+            <input type="radio" name="os" id="os-fedora" value="Fedora">
+            <label for="os-fedora"><span class="os-icon">🔵</span>Fedora</label>
+          </div>
+          <div class="os-option">
+            <input type="radio" name="os" id="os-amazon" value="Amazon Linux">
+            <label for="os-amazon"><span class="os-icon">☁️</span>Amazon Linux</label>
+          </div>
+          <div class="os-option">
+            <input type="radio" name="os" id="os-windows" value="Windows">
+            <label for="os-windows"><span class="os-icon">🪟</span>Windows</label>
+          </div>
+        </div>
+        <div class="field-hint" id="osHint"></div>
+      </div>
+    </div>
+
+    <!-- 3. Hardware -->
+    <div class="card" id="card3">
+      <div class="card-header">
+        <div class="card-icon">&#x26A1;</div>
+        <div>
+          <div class="card-title">Hardware specs</div>
+          <div class="card-subtitle">CPU, memory and storage</div>
+        </div>
+        <div class="section-num">03</div>
+      </div>
+      <div class="field">
+        <label class="field-label">vCPUs</label>
+        <div class="range-wrap">
+          <input type="range" id="cpuRange" min="1" max="64" value="2" step="1">
+          <div class="range-val" id="cpuVal">2 vCPUs</div>
+        </div>
+        <div class="field-hint" id="cpuHint"></div>
+      </div>
+      <div class="field">
+        <label class="field-label">RAM</label>
+        <div class="range-wrap">
+          <input type="range" id="ramRange" min="1" max="512" value="4" step="1">
+          <div class="range-val" id="ramVal">4 GB</div>
+        </div>
+        <div class="field-hint" id="ramHint"></div>
+      </div>
+      <div class="field">
+        <label class="field-label">Storage</label>
+        <div class="storage-grid">
+          <div class="storage-option">
+            <input type="radio" name="storage" id="st-20" value="20">
+            <label for="st-20">20 GB<span class="storage-sub">basic</span></label>
+          </div>
+          <div class="storage-option">
+            <input type="radio" name="storage" id="st-50" value="50" checked>
+            <label for="st-50">50 GB<span class="storage-sub">standard</span></label>
+          </div>
+          <div class="storage-option">
+            <input type="radio" name="storage" id="st-100" value="100">
+            <label for="st-100">100 GB<span class="storage-sub">pro</span></label>
+          </div>
+          <div class="storage-option">
+            <input type="radio" name="storage" id="st-200" value="200">
+            <label for="st-200">200 GB<span class="storage-sub">max</span></label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. Region -->
+    <div class="card" id="card4">
+      <div class="card-header">
+        <div class="card-icon">&#x1F30D;</div>
+        <div>
+          <div class="card-title">Region</div>
+          <div class="card-subtitle">Where should your server be located?</div>
+        </div>
+        <div class="section-num">04</div>
+      </div>
+      <div class="field">
+        <div class="region-grid">
+          <div class="region-option">
+            <input type="radio" name="region" id="reg-us" value="US">
+            <label for="reg-us"><span class="flag">🇺🇸</span>United States<span class="region-sub">us-east-1</span></label>
+          </div>
+          <div class="region-option">
+            <input type="radio" name="region" id="reg-eu" value="Europe">
+            <label for="reg-eu"><span class="flag">🇪🇺</span>Europe<span class="region-sub">eu-west-1</span></label>
+          </div>
+          <div class="region-option">
+            <input type="radio" name="region" id="reg-as" value="Asia">
+            <label for="reg-as"><span class="flag">🌏</span>Asia Pacific<span class="region-sub">ap-southeast-1</span></label>
+          </div>
+        </div>
+        <div class="field-hint" id="regionHint"></div>
+      </div>
+    </div>
+
+    <!-- 5. Environment -->
+    <div class="card" id="card5">
+      <div class="card-header">
+        <div class="card-icon">&#x1F6E0;</div>
+        <div>
+          <div class="card-title">Purpose / environment</div>
+          <div class="card-subtitle">How will this server be used?</div>
+        </div>
+        <div class="section-num">05</div>
+      </div>
+      <div class="field">
+        <div class="env-grid">
+          <div class="env-option">
+            <input type="radio" name="env" id="env-dev" value="Development">
+            <label for="env-dev">
+              <span class="env-dot"></span>
+              <div><div>Development</div><div class="env-desc">Building & testing code</div></div>
+            </label>
+          </div>
+          <div class="env-option">
+            <input type="radio" name="env" id="env-test" value="Testing">
+            <label for="env-test">
+              <span class="env-dot"></span>
+              <div><div>Testing</div><div class="env-desc">QA & staging</div></div>
+            </label>
+          </div>
+          <div class="env-option">
+            <input type="radio" name="env" id="env-prod" value="Production">
+            <label for="env-prod">
+              <span class="env-dot"></span>
+              <div><div>Production</div><div class="env-desc">Live, real users</div></div>
+            </label>
+          </div>
+          <div class="env-option">
+            <input type="radio" name="env" id="env-priv" value="Private Usage">
+            <label for="env-priv">
+              <span class="env-dot"></span>
+              <div><div>Private usage</div><div class="env-desc">Personal use</div></div>
+            </label>
+          </div>
+        </div>
+        <div class="field-hint" id="envHint"></div>
+      </div>
+    </div>
+
+    <!-- 6. Applications -->
+    <div class="card" id="card6">
+      <div class="card-header">
+        <div class="card-icon">&#x1F4E6;</div>
+        <div>
+          <div class="card-title">Applications to install</div>
+          <div class="card-subtitle">Select everything you need (optional)</div>
+        </div>
+        <div class="section-num">06</div>
+      </div>
+      <div class="field">
+        <div class="services-grid">
+          <div class="service-option">
+            <input type="checkbox" id="svc-wp" value="WordPress">
+            <label for="svc-wp"><span class="svc-icon">📝</span>WordPress<span class="service-check"></span></label>
+          </div>
+          <div class="service-option">
+            <input type="checkbox" id="svc-woo" value="WooCommerce">
+            <label for="svc-woo"><span class="svc-icon">🛒</span>WooCommerce<span class="service-check"></span></label>
+          </div>
+          <div class="service-option">
+            <input type="checkbox" id="svc-nc" value="Nextcloud">
+            <label for="svc-nc"><span class="svc-icon">☁️</span>Nextcloud<span class="service-check"></span></label>
+          </div>
+          <div class="service-option">
+            <input type="checkbox" id="svc-mc" value="Minecraft Server">
+            <label for="svc-mc"><span class="svc-icon">⛏️</span>Minecraft Server<span class="service-check"></span></label>
+          </div>
+          <div class="service-option">
+            <input type="checkbox" id="svc-ts" value="TeamSpeak">
+            <label for="svc-ts"><span class="svc-icon">🎙️</span>TeamSpeak<span class="service-check"></span></label>
+          </div>
+          <div class="service-option">
+            <input type="checkbox" id="svc-other" value="Other">
+            <label for="svc-other"><span class="svc-icon">✏️</span>Other...<span class="service-check"></span></label>
+          </div>
+        </div>
+        <div class="other-field" id="otherField">
+          <label class="field-label" for="otherApps">Describe what you need</label>
+          <input type="text" id="otherApps" placeholder="e.g. GitLab, Jenkins, custom app..." maxlength="200" />
+          <div class="field-hint" id="otherHint">Separate multiple apps with commas</div>
+        </div>
+        <div class="field-hint" id="windowsAppsWarning"></div>
+      </div>
+    </div>
+
+    <!-- 7. Contact -->
+    <div class="card" id="card7">
+      <div class="card-header">
+        <div class="card-icon">&#x1F464;</div>
+        <div>
+          <div class="card-title">Contact info</div>
+          <div class="card-subtitle">We'll send your confirmation here</div>
+        </div>
+        <div class="section-num">07</div>
+      </div>
+      <div class="two-col">
+        <div class="field">
+          <label class="field-label" for="userName">Your name</label>
+          <input type="text" id="userName" placeholder="John Smith" maxlength="50" />
+          <div class="field-hint" id="userNameHint"></div>
+        </div>
+        <div class="field">
+          <label class="field-label" for="userEmail">Email address</label>
+          <input type="email" id="userEmail" placeholder="you@example.com" maxlength="100" />
+          <div class="field-hint" id="emailHint"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="summary-card" id="summaryCard">
+      <h3>&#x2714; Order summary</h3>
+      <div id="summaryContent"></div>
+    </div>
+
+    <div class="submit-area">
+      <button type="submit" class="btn-submit" id="submitBtn">Submit order</button>
+      <div class="submit-note">Your request will be processed within 24 hours. You'll receive a confirmation email.</div>
+    </div>
+
+  </form>
+
+  <!-- Success screen -->
+  <div class="success-screen" id="successScreen">
+    <div class="success-icon">✅</div>
+    <h2>Order submitted!</h2>
+    <p>Your VM request has been received. We've saved your specs and you'll get a confirmation email shortly.</p>
+    <div class="ticket-id" id="ticketId"></div>
+  </div>
+
+</div>
+
+<script>
+const BACKEND_URL = '/api'; // proxied through nginx to backend
+const LINUX_ONLY_APPS = ['Minecraft Server', 'TeamSpeak'];
+
+let nameCheckTimeout = null;
+
+async function checkNameAvailability(name) {
+  const hint = document.getElementById('nameHint');
+  const input = document.getElementById('machineName');
+  const suggestionsEl = document.getElementById('nameSuggestions');
+
+  if (!name) {
+    hint.textContent = 'Server name cannot be empty';
+    hint.className = 'field-hint error';
+    input.className = 'error';
+    suggestionsEl.className = 'name-suggestions';
+    return;
+  }
+
+  if (name.length < 3) {
+    hint.textContent = '✗ Name must be at least 3 characters';
+    hint.className = 'field-hint error';
+    input.className = 'error';
+    suggestionsEl.className = 'name-suggestions';
+    return;
+  }
+
+  if (name.length > 30) {
+    hint.textContent = '✗ Name cannot exceed 30 characters';
+    hint.className = 'field-hint error';
+    input.className = 'error';
+    suggestionsEl.className = 'name-suggestions';
+    return;
+  }
+
+  if (!/^[a-zA-Z0-9-]+$/.test(name)) {
+    hint.textContent = '✗ Only letters, numbers and hyphens allowed';
+    hint.className = 'field-hint error';
+    input.className = 'error';
+    suggestionsEl.className = 'name-suggestions';
+    return;
+  }
+
+  // Show checking animation
+  hint.innerHTML = '<span class="checking-badge">Checking availability <span class="dot-pulse"><span></span><span></span><span></span></span></span>';
+  hint.className = 'field-hint';
+  input.className = '';
+  suggestionsEl.className = 'name-suggestions';
+
+  try {
+    const response = await fetch(`${BACKEND_URL}/check-name?name=${encodeURIComponent(name)}`);
+    const data = await response.json();
+
+    if (data.taken) {
+      hint.textContent = '✗ "' + name + '" is already taken';
+      hint.className = 'field-hint error';
+      input.className = 'error';
+      const suggestions = data.suggestions || [];
+      if (suggestions.length > 0) {
+        suggestionsEl.innerHTML = '<span style="font-size:12px;color:var(--text3);align-self:center;">Try:</span>' +
+          suggestions.map(s => `<span class="suggestion-chip" onclick="useSuggestion('${s}')">${s}</span>`).join('');
+        suggestionsEl.className = 'name-suggestions visible';
+      }
+    } else {
+      hint.textContent = '✓ "' + name + '" is available!';
+      hint.className = 'field-hint success';
+      input.className = 'success';
+      suggestionsEl.className = 'name-suggestions';
+    }
+  } catch (error) {
+    // If backend is unreachable just allow the name
+    console.error('Name check failed:', error);
+    hint.textContent = '⚠ Could not verify name availability';
+    hint.className = 'field-hint warning';
+    input.className = '';
+  }
+  updateSummary();
+}
+
+function useSuggestion(name) {
+  document.getElementById('machineName').value = name;
+  checkNameAvailability(name);
+}
+
+function checkWindowsAppsWarning() {
+  const osWindows = document.getElementById('os-windows').checked;
+  const hint = document.getElementById('windowsAppsWarning');
+  if (!hint) return;
+  if (!osWindows) { hint.textContent = ''; hint.className = 'field-hint'; return; }
+  const checkedApps = [...document.querySelectorAll('input[type="checkbox"]:checked')].map(el => el.value);
+  const conflicting = checkedApps.filter(a => LINUX_ONLY_APPS.includes(a));
+  if (conflicting.length > 0) {
+    hint.textContent = '⚠ ' + conflicting.join(' and ') + ' work better on Linux. Are you sure you want Windows?';
+    hint.className = 'field-hint warning';
+  } else {
+    hint.textContent = '';
+    hint.className = 'field-hint';
+  }
+}
+
+document.getElementById('machineName').addEventListener('input', function() {
+  clearTimeout(nameCheckTimeout);
+  const val = this.value.trim();
+  if (val.length === 0) {
+    document.getElementById('nameHint').textContent = 'Server name cannot be empty';
+    document.getElementById('nameHint').className = 'field-hint error';
+    this.className = 'error';
+    document.getElementById('nameSuggestions').className = 'name-suggestions';
+    return;
+  }
+  nameCheckTimeout = setTimeout(() => checkNameAvailability(val), 600);
+});
+
+document.getElementById('machineName').addEventListener('blur', function() {
+  if (!this.value.trim()) {
+    document.getElementById('nameHint').textContent = '✗ Server name cannot be empty';
+    document.getElementById('nameHint').className = 'field-hint error';
+    this.className = 'error';
+  }
+});
+
+document.getElementById('cpuRange').addEventListener('input', function() {
+  const val = parseInt(this.value);
+  document.getElementById('cpuVal').textContent = val + ' vCPUs';
+  const hint = document.getElementById('cpuHint');
+  if (hint) {
+    if (val > 32) {
+      hint.textContent = '⚠ High CPU count — are you sure you need ' + val + ' vCPUs?';
+      hint.className = 'field-hint warning';
+    } else {
+      hint.textContent = '';
+      hint.className = 'field-hint';
+    }
+  }
+  updateSummary();
+});
+
+document.getElementById('ramRange').addEventListener('input', function() {
+  const val = parseInt(this.value);
+  document.getElementById('ramVal').textContent = val + ' GB';
+  const hint = document.getElementById('ramHint');
+  if (hint) {
+    if (val > 256) {
+      hint.textContent = '⚠ High RAM amount — are you sure you need ' + val + ' GB?';
+      hint.className = 'field-hint warning';
+    } else {
+      hint.textContent = '';
+      hint.className = 'field-hint';
+    }
+  }
+  updateSummary();
+});
+
+document.getElementById('svc-other').addEventListener('change', function() {
+  const f = document.getElementById('otherField');
+  f.className = this.checked ? 'other-field visible' : 'other-field';
+  if (!this.checked) {
+    document.getElementById('otherApps').value = '';
+    document.getElementById('otherHint').textContent = 'Separate multiple apps with commas';
+    document.getElementById('otherHint').className = 'field-hint';
+  }
+  checkWindowsAppsWarning();
+});
+
+document.getElementById('otherApps').addEventListener('input', function() {
+  const val = this.value.trim();
+  const hint = document.getElementById('otherHint');
+  if (document.getElementById('svc-other').checked) {
+    if (!val) {
+      hint.textContent = '✗ Please describe what you need';
+      hint.className = 'field-hint error';
+      this.className = 'error';
+    } else if (val.length < 3) {
+      hint.textContent = '✗ Description too short';
+      hint.className = 'field-hint error';
+      this.className = 'error';
+    } else {
+      hint.textContent = '✓ Got it!';
+      hint.className = 'field-hint success';
+      this.className = 'success';
+    }
+  }
+});
+
+document.querySelectorAll('input[name="os"]').forEach(el => {
+  el.addEventListener('change', function() {
+    const hint = document.getElementById('osHint');
+    if (hint.className === 'field-hint error') {
+      hint.textContent = '';
+      hint.className = 'field-hint';
+    }
+    checkWindowsAppsWarning();
+    updateSummary();
+  });
+});
+
+document.querySelectorAll('input[type="checkbox"]').forEach(el => {
+  el.addEventListener('change', function() {
+    checkWindowsAppsWarning();
+    updateSummary();
+  });
+});
+
+document.querySelectorAll('input[name="region"]').forEach(el => {
+  el.addEventListener('change', function() {
+    document.getElementById('regionHint').textContent = '';
+    document.getElementById('regionHint').className = 'field-hint';
+    updateSummary();
+  });
+});
+
+document.querySelectorAll('input[name="env"]').forEach(el => {
+  el.addEventListener('change', function() {
+    document.getElementById('envHint').textContent = '';
+    document.getElementById('envHint').className = 'field-hint';
+    updateSummary();
+  });
+});
+
+document.querySelectorAll('input[name="storage"]').forEach(el => {
+  el.addEventListener('change', updateSummary);
+});
+
+let nameInputTimeout = null;
+let emailInputTimeout = null;
+
+document.getElementById('userName').addEventListener('input', function() {
+  clearTimeout(nameInputTimeout);
+  const val = this.value.trim();
+  const hint = document.getElementById('userNameHint');
+  hint.textContent = '';
+  hint.className = 'field-hint';
+  this.className = '';
+  nameInputTimeout = setTimeout(() => {
+    if (!val) return;
+    if (val.length < 2) {
+      hint.textContent = '✗ Name must be at least 2 characters';
+      hint.className = 'field-hint error';
+      this.className = 'error';
+    } else if (/\d/.test(val)) {
+      hint.textContent = '✗ Name cannot contain numbers';
+      hint.className = 'field-hint error';
+      this.className = 'error';
+    } else {
+      hint.textContent = '✓';
+      hint.className = 'field-hint success';
+      this.className = 'success';
+    }
+    updateSummary();
+  }, 800);
+  updateSummary();
+});
+
+document.getElementById('userName').addEventListener('blur', function() {
+  clearTimeout(nameInputTimeout);
+  const val = this.value.trim();
+  const hint = document.getElementById('userNameHint');
+  if (!val) {
+    hint.textContent = '✗ Name cannot be empty';
+    hint.className = 'field-hint error';
+    this.className = 'error';
+  } else if (val.length < 2) {
+    hint.textContent = '✗ Name must be at least 2 characters';
+    hint.className = 'field-hint error';
+    this.className = 'error';
+  } else if (/\d/.test(val)) {
+    hint.textContent = '✗ Name cannot contain numbers';
+    hint.className = 'field-hint error';
+    this.className = 'error';
+  } else {
+    hint.textContent = '✓';
+    hint.className = 'field-hint success';
+    this.className = 'success';
+  }
+});
+
+document.getElementById('userEmail').addEventListener('input', function() {
+  clearTimeout(emailInputTimeout);
+  const val = this.value.trim();
+  const hint = document.getElementById('emailHint');
+  hint.textContent = '';
+  hint.className = 'field-hint';
+  this.className = '';
+  emailInputTimeout = setTimeout(() => {
+    if (!val) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+      hint.textContent = '✗ Please enter a valid email';
+      hint.className = 'field-hint error';
+      this.className = 'error';
+    } else {
+      hint.textContent = '✓';
+      hint.className = 'field-hint success';
+      this.className = 'success';
+    }
+    updateSummary();
+  }, 800);
+  updateSummary();
+});
+
+document.getElementById('userEmail').addEventListener('blur', function() {
+  clearTimeout(emailInputTimeout);
+  const val = this.value.trim();
+  const hint = document.getElementById('emailHint');
+  if (!val) {
+    hint.textContent = '✗ Email cannot be empty';
+    hint.className = 'field-hint error';
+    this.className = 'error';
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+    hint.textContent = '✗ Please enter a valid email';
+    hint.className = 'field-hint error';
+    this.className = 'error';
+  } else {
+    hint.textContent = '✓';
+    hint.className = 'field-hint success';
+    this.className = 'success';
+  }
+});
+
+function getFormData() {
+  const os = document.querySelector('input[name="os"]:checked');
+  const storage = document.querySelector('input[name="storage"]:checked');
+  const region = document.querySelector('input[name="region"]:checked');
+  const env = document.querySelector('input[name="env"]:checked');
+  const services = [...document.querySelectorAll('input[type="checkbox"]:checked')]
+    .map(el => el.value).filter(v => v !== 'Other');
+  const otherVal = document.getElementById('otherApps').value.trim();
+  if (document.getElementById('svc-other').checked && otherVal) {
+    services.push('Other: ' + otherVal);
+  }
+  return {
+    name: document.getElementById('machineName').value.trim(),
+    os: os ? os.value : '',
+    cpu: document.getElementById('cpuRange').value,
+    ram: document.getElementById('ramRange').value,
+    storage: storage ? storage.value + ' GB' : '',
+    region: region ? region.value : '',
+    environment: env ? env.value : '',
+    services: services,
+    contactName: document.getElementById('userName').value.trim(),
+    contactEmail: document.getElementById('userEmail').value.trim()
+  };
+}
+
+function updateSummary() {
+  const d = getFormData();
+  const card = document.getElementById('summaryCard');
+  const content = document.getElementById('summaryContent');
+  const hasAny = d.name || d.os || d.region || d.environment || d.contactName;
+  if (!hasAny) { card.className = 'summary-card'; return; }
+  card.className = 'summary-card visible';
+  const rows = [
+    ['Machine name', d.name || '—'],
+    ['OS', d.os || '—'],
+    ['CPU', d.cpu + ' vCPUs'],
+    ['RAM', d.ram + ' GB'],
+    ['Storage', d.storage || '—'],
+    ['Region', d.region || '—'],
+    ['Environment', d.environment || '—'],
+    ['Applications', d.services.length ? d.services.join(', ') : 'None'],
+    ['Contact', d.contactName ? d.contactName + (d.contactEmail ? ' · ' + d.contactEmail : '') : '—']
+  ];
+  content.innerHTML = rows.map(([k, v]) =>
+    `<div class="summary-row"><span class="key">${k}</span><span class="val">${v}</span></div>`
+  ).join('');
+}
+
+function validateForm() {
+  let valid = true;
+  let firstErrorEl = null;
+  const d = getFormData();
+
+  const nameInput = document.getElementById('machineName');
+  const nameHint = document.getElementById('nameHint');
+  if (!d.name) {
+    nameHint.textContent = '✗ Server name cannot be empty';
+    nameHint.className = 'field-hint error';
+    nameInput.className = 'error';
+    valid = false;
+    if (!firstErrorEl) firstErrorEl = nameInput;
+  } else if (nameInput.className === 'error') {
+    valid = false;
+    if (!firstErrorEl) firstErrorEl = nameInput;
+  }
+
+  if (!d.os) {
+    document.getElementById('osHint').textContent = '✗ Please select an operating system';
+    document.getElementById('osHint').className = 'field-hint error';
+    valid = false;
+    if (!firstErrorEl) firstErrorEl = document.getElementById('card2');
+  }
+
+  if (!d.region) {
+    document.getElementById('regionHint').textContent = '✗ Please select a region';
+    document.getElementById('regionHint').className = 'field-hint error';
+    valid = false;
+    if (!firstErrorEl) firstErrorEl = document.getElementById('card4');
+  }
+
+  if (!d.environment) {
+    document.getElementById('envHint').textContent = '✗ Please select a purpose';
+    document.getElementById('envHint').className = 'field-hint error';
+    valid = false;
+    if (!firstErrorEl) firstErrorEl = document.getElementById('card5');
+  }
+
+  if (document.getElementById('svc-other').checked) {
+    const otherVal = document.getElementById('otherApps').value.trim();
+    if (!otherVal || otherVal.length < 3) {
+      document.getElementById('otherHint').textContent = '✗ Please describe what you need (min 3 characters)';
+      document.getElementById('otherHint').className = 'field-hint error';
+      document.getElementById('otherApps').className = 'error';
+      valid = false;
+      if (!firstErrorEl) firstErrorEl = document.getElementById('otherApps');
+    }
+  }
+
+  const nameVal = d.contactName;
+  const nameHintEl = document.getElementById('userNameHint');
+  if (!nameVal) {
+    nameHintEl.textContent = '✗ Name cannot be empty';
+    nameHintEl.className = 'field-hint error';
+    document.getElementById('userName').className = 'error';
+    valid = false;
+    if (!firstErrorEl) firstErrorEl = document.getElementById('userName');
+  } else if (nameVal.length < 2) {
+    nameHintEl.textContent = '✗ Name must be at least 2 characters';
+    nameHintEl.className = 'field-hint error';
+    document.getElementById('userName').className = 'error';
+    valid = false;
+    if (!firstErrorEl) firstErrorEl = document.getElementById('userName');
+  } else if (/\d/.test(nameVal)) {
+    nameHintEl.textContent = '✗ Name cannot contain numbers';
+    nameHintEl.className = 'field-hint error';
+    document.getElementById('userName').className = 'error';
+    valid = false;
+    if (!firstErrorEl) firstErrorEl = document.getElementById('userName');
+  }
+
+  if (!d.contactEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.contactEmail)) {
+    document.getElementById('emailHint').textContent = !d.contactEmail ? '✗ Email cannot be empty' : '✗ Please enter a valid email';
+    document.getElementById('emailHint').className = 'field-hint error';
+    document.getElementById('userEmail').className = 'error';
+    valid = false;
+    if (!firstErrorEl) firstErrorEl = document.getElementById('userEmail');
+  }
+
+  if (!valid && firstErrorEl) {
+    firstErrorEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  return valid;
+}
+
+function sanitizeInput(str) {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+    .replace(/\//g, '&#x2F;')
+    .trim();
+}
+
+function sanitizeAllInputs() {
+  const textFields = ['machineName', 'otherApps', 'userName', 'userEmail'];
+  textFields.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.value) {
+      el.value = sanitizeInput(el.value);
+    }
+  });
+}
+async function submitForm() {
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Submitting...';
+
+  const d = getFormData();
+  const payload = {
+    machine_name:  d.name,
+    os:            d.os,
+    cpu:           parseInt(d.cpu),
+    ram:           parseInt(d.ram),
+    storage:       parseInt(d.storage),
+    region:        d.region,
+    environment:   d.environment,
+    applications:  d.services.join(', '),
+    contact_name:  d.contactName,
+    contact_email: d.contactEmail
+  };
+
+  try {
+    const response = await fetch(`${BACKEND_URL}/submit-order`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await response.json();
+    if (data.success) {
+      document.getElementById('vmForm').style.display = 'none';
+      document.getElementById('progressBar').style.display = 'none';
+      document.getElementById('ticketId').textContent = 'Ticket: ' + data.ticket_id;
+      document.getElementById('successScreen').className = 'success-screen visible';
+    } else {
+      btn.disabled = false;
+      btn.innerHTML = 'Submit order';
+      alert('Submission failed: ' + (data.errors ? data.errors.join(', ') : data.error));
+    }
+  } catch (error) {
+    console.error('Submit error:', error);
+    btn.disabled = false;
+    btn.innerHTML = 'Submit order';
+    alert('Could not reach the server. Please try again.');
+  }
+}
+
+document.getElementById('vmForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  sanitizeAllInputs();
+  const result = validateForm();
+  if (!result) {
+    console.log('Validation failed');
+    return;
+  }
+  submitForm();
+});
+
+updateSummary();
+</script>
+</body>
+</html>

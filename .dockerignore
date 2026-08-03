@@ -1,0 +1,12 @@
+# Keep images small and guarantee no secrets/junk are ever baked in
+**/venv/
+**/__pycache__/
+**/*.pyc
+**/.env
+**/*.md
+.git/
+terraform/
+helm/
+k8s/
+docs/
+scripts/

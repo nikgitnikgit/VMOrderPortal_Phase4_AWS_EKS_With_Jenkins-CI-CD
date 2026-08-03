@@ -1,0 +1,84 @@
+# .github/workflows/ci.yml
+# Phase 4: GitHub Actions guards the pull request (lint/validate only).
+# Jenkins owns build and deploy (inside the cluster, with IRSA — no keys).
+# AWS access keys have been removed: the no-keys claim is now true end to end.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  terraform-checks:
+    name: Terraform fmt & validate
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: terraform } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with: { terraform_version: "1.9.0" }
+      - run: terraform fmt -check -recursive
+      - run: terraform init -backend=false
+      - run: terraform validate
+
+  helm-checks:
+    name: Helm lint (3 charts)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with: { version: "v3.15.0" }
+      - run: helm lint helm/backend helm/worker helm/frontend
+      - name: Render templates (catches template errors early)
+        run: |
+          for c in backend worker frontend; do
+            helm template "$c" "helm/$c" \
+              --set image.registry=dummy.ecr.aws \
+              --set serviceAccount.roleArn=arn:aws:iam::000000000000:role/dummy > /dev/null
+          done
+
+  dockerfile-lint:
+    name: Dockerfile lint (hadolint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hadolint/hadolint-action@v3.1.0
+        with: { dockerfile: docker/backend/Dockerfile }
+      - uses: hadolint/hadolint-action@v3.1.0
+        with: { dockerfile: docker/worker/Dockerfile }
+      - uses: hadolint/hadolint-action@v3.1.0
+        with: { dockerfile: docker/frontend/Dockerfile }
+      - uses: hadolint/hadolint-action@v3.1.0
+        with: { dockerfile: jenkins/agent-tools/Dockerfile }
+
+  shellcheck:
+    name: Shell script lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get install -y shellcheck
+      - run: shellcheck scripts/*.sh terraform/bootstrap-state.sh
+
+  yaml-lint:
+    name: YAML validity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install pyyaml
+      - run: python3 -c "
+          import yaml, glob;
+          files = glob.glob('jenkins/*.yaml') + glob.glob('helm/*/values.yaml') + glob.glob('.github/**/*.yml', recursive=True);
+          [yaml.safe_load(open(f)) for f in files];
+          print(f'Validated {len(files)} YAML files')"
+
+  jenkinsfile-check:
+    name: Jenkinsfile syntax
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Jenkinsfile is not empty and has pipeline block
+        run: |
+          [ -f Jenkinsfile ] || { echo "Jenkinsfile missing"; exit 1; }
+          grep -q "^pipeline {" Jenkinsfile || grep -q "pipeline {" Jenkinsfile || { echo "No pipeline block found"; exit 1; }

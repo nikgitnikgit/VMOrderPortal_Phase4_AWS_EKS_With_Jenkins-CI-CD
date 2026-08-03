@@ -1,0 +1,42 @@
+# helm/frontend/values.yaml
+image:
+  registry: ""                  # (deploy.sh)
+  repository: vm-order-frontend
+  tag: "1.0.0"
+
+replicas: 2
+
+serviceAccount:
+  name: frontend-sa
+  roleArn: ""                   # stays EMPTY on purpose: nginx needs ZERO
+                                # AWS access — least privilege includes
+                                # granting nothing when nothing is needed
+
+service:
+  port: 8080                    # non-root nginx cannot bind below 1024
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi
+
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 4
+  targetCPU: 70
+
+ingress:
+  enabled: true
+  # AWS Load Balancer Controller reads these annotations and creates a real ALB
+  scheme: internet-facing
+  healthcheckPath: /healthz
+
+existingSecret: ""              # frontend needs NO secrets at all
+
+networkPolicy:
+  enabled: true
+  vpcCidr: 10.23.0.0/16         # ALB traffic arrives from inside the VPC

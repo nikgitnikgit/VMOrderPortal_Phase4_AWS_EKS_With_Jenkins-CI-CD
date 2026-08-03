@@ -1,0 +1,7 @@
+# terraform.tfvars.example — copy to terraform.tfvars and fill in
+# (same single-source-of-truth philosophy as phase 2)
+db_password        = "CHANGE_ME_strong_password"
+s3_bucket_name     = "vm-order-prod-s3-orders-CHANGEME" # lowercase only!
+notification_email = "your-email@example.com"
+ses_sender         = "your-verified-ses@email.com"
+github_repo_url    = "https://github.com/YOUR_USER/vm-order-portal-phase4.git"

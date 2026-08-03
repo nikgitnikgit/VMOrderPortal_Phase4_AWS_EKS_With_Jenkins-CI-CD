@@ -1,0 +1,4 @@
+#!/bin/bash
+echo "docker $*" >> "$MOCK_LOG"
+[ "$1" = "login" ] && cat > /dev/null   # consume the piped password
+exit 0

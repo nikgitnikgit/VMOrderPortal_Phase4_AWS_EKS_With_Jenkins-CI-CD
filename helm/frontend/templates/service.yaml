@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  # The Service NAME is the DNS name other pods use: http://backend:5000
+  name: frontend
+  labels:
+    app: frontend
+spec:
+  type: ClusterIP   # internal only — never exposed to the internet
+  selector:
+    app: frontend
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.port }}

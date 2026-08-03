@@ -1,0 +1,45 @@
+# helm/worker/values.yaml
+image:
+  registry: ""                  # (deploy.sh)
+  repository: vm-order-worker
+  tag: "1.0.0"
+
+replicas: 2                     # OUR DESIGN DECISION: 2 for availability —
+                                # push-driven service, no duplicate-email risk,
+                                # survives node failure with zero downtime
+
+serviceAccount:
+  name: worker-sa
+  roleArn: ""                   # (deploy.sh) IRSA: SNS Publish + SES only
+
+service:
+  port: 5001
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 96Mi
+  limits:
+    cpu: 300m
+    memory: 192Mi
+
+hpa:
+  enabled: false                # DOCUMENTED DECISION: email volume is tiny;
+                                # autoscaling here would be decoration.
+  # Values below are inactive while enabled=false, but defined so that
+  # flipping the switch later produces a valid HPA immediately:
+  minReplicas: 2
+  maxReplicas: 4
+  targetCPU: 70
+
+config:
+  AWS_REGION: us-east-1         # (deploy.sh)
+  DB_USER: vmadmin
+  DB_NAME: vmorders
+  PYTHONDONTWRITEBYTECODE: "1"
+
+existingSecret: app-secrets
+
+networkPolicy:
+  enabled: true
+  vpcCidr: 10.23.0.0/16

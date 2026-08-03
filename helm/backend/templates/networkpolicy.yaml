@@ -1,0 +1,46 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: backend
+  labels:
+    app: backend
+spec:
+  podSelector:
+    matchLabels:
+      app: backend
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    # ONLY frontend pods may call the backend, only on its port
+    - from:
+        - podSelector:
+            matchLabels:
+              app: frontend
+      ports:
+        - port: 5000
+  egress:
+    # DNS (resolve Service names)
+    - to: []
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # Worker service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: worker
+      ports:
+        - port: 5001
+    # RDS PostgreSQL inside the VPC
+    - to:
+        - ipBlock:
+            cidr: {{ .Values.networkPolicy.vpcCidr }}
+      ports:
+        - port: 5432
+    # AWS APIs (S3) over HTTPS
+    - to: []
+      ports:
+        - port: 443
+{{- end }}

@@ -1,0 +1,45 @@
+# helm/backend/values.yaml — the control panel of the backend service.
+# Values marked (deploy.sh) are injected from Terraform outputs at install.
+
+image:
+  registry: ""                  # (deploy.sh) e.g. 123456789.dkr.ecr.us-east-1.amazonaws.com
+  repository: vm-order-backend
+  tag: "1.0.0"                  # pinned — never latest
+
+replicas: 2                     # baseline; HPA takes over from here
+
+serviceAccount:
+  name: backend-sa
+  roleArn: ""                   # (deploy.sh) IRSA role ARN — keyless AWS access
+
+service:
+  port: 5000
+
+resources:
+  requests:                     # baseline for HPA percentage math
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPU: 70                 # % of requested CPU
+
+config:                         # non-secret config → ConfigMap
+  AWS_REGION: us-east-1         # (deploy.sh)
+  DB_PORT: "5432"
+  DB_USER: vmadmin
+  DB_NAME: vmorders
+  S3_BUCKET: ""                 # (deploy.sh)
+  WORKER_URL: http://worker:5001   # K8s Service DNS — no IPs! (code appends /notify itself)
+  PYTHONDONTWRITEBYTECODE: "1"  # nothing tries to write into the read-only image
+
+existingSecret: app-secrets     # created by scripts/create-secret.sh, NOT by Helm
+
+networkPolicy:
+  enabled: true
+  vpcCidr: 10.23.0.0/16         # RDS lives inside the VPC

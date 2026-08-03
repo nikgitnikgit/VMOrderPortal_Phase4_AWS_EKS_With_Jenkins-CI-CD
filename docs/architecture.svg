@@ -1,0 +1,167 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="980" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#37474f"/></marker>
+    <marker id="ag" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#2e7d32"/></marker>
+  </defs>
+  <rect width="1280" height="980" fill="#fafafa"/>
+  <text x="640" y="32" text-anchor="middle" font-size="22" font-weight="bold" fill="#263238">VM Order Portal — Phase 3: Kubernetes on EKS</text>
+
+  <!-- User + ALB -->
+  <rect x="40" y="60" width="140" height="52" rx="8" fill="#eceff1" stroke="#546e7a" stroke-width="2"/>
+  <text x="110" y="83" text-anchor="middle" font-size="14" font-weight="bold" fill="#263238">User</text>
+  <text x="110" y="101" text-anchor="middle" font-size="11" fill="#455a64">HTTP :80</text>
+
+  <rect x="250" y="60" width="250" height="52" rx="8" fill="#fff3e0" stroke="#ef6c00" stroke-width="2"/>
+  <text x="375" y="83" text-anchor="middle" font-size="14" font-weight="bold" fill="#e65100">ALB (internet-facing)</text>
+  <text x="375" y="101" text-anchor="middle" font-size="11" fill="#795548">created by AWS LB Controller from Ingress</text>
+  <line x1="180" y1="86" x2="248" y2="86" stroke="#37474f" stroke-width="2" marker-end="url(#a)"/>
+
+  <!-- VPC -->
+  <rect x="30" y="140" width="900" height="800" rx="12" fill="none" stroke="#5e35b1" stroke-width="2.5" stroke-dasharray="8,4"/>
+  <text x="45" y="165" font-size="15" font-weight="bold" fill="#5e35b1">VPC 10.23.0.0/16 — 2 availability zones (Terraform)</text>
+
+  <!-- Public subnets strip -->
+  <rect x="50" y="185" width="860" height="70" rx="10" fill="#e8f5e9" stroke="#2e7d32" stroke-width="2"/>
+  <text x="65" y="208" font-size="13" font-weight="bold" fill="#1b5e20">Public Subnets ×2 (10.23.1.0/24 AZ-a, 10.23.5.0/24 AZ-b) — PUBLIC boundary</text>
+  <text x="65" y="228" font-size="12" fill="#33691e">ALB endpoints · NAT Gateway · tagged kubernetes.io/role/elb</text>
+  <line x1="375" y1="112" x2="375" y2="183" stroke="#37474f" stroke-width="2" marker-end="url(#a)"/>
+
+  <!-- EKS cluster -->
+  <rect x="50" y="280" width="860" height="560" rx="12" fill="#ede7f6" stroke="#4527a0" stroke-width="2.5"/>
+  <text x="65" y="305" font-size="15" font-weight="bold" fill="#311b92">EKS Cluster — K8s 1.31 · node group: 3× t3.small in PRIVATE subnets (10.23.4.0/24, 10.23.6.0/24)</text>
+
+  <!-- Namespace -->
+  <rect x="70" y="325" width="820" height="430" rx="10" fill="#ffffff" stroke="#7e57c2" stroke-width="2" stroke-dasharray="6,3"/>
+  <text x="85" y="348" font-size="14" font-weight="bold" fill="#4527a0">namespace: devops-app (never default)</text>
+
+  <!-- Frontend deployment -->
+  <rect x="90" y="365" width="240" height="150" rx="8" fill="#e3f2fd" stroke="#1565c0" stroke-width="2"/>
+  <text x="210" y="388" text-anchor="middle" font-size="13" font-weight="bold" fill="#0d47a1">Deployment: frontend</text>
+  <rect x="105" y="400" width="95" height="44" rx="6" fill="#ffffff" stroke="#1565c0"/>
+  <text x="152" y="418" text-anchor="middle" font-size="11" fill="#0d47a1">pod: nginx</text>
+  <text x="152" y="434" text-anchor="middle" font-size="10" fill="#78909c">:8080 non-root</text>
+  <rect x="215" y="400" width="95" height="44" rx="6" fill="#ffffff" stroke="#1565c0"/>
+  <text x="262" y="418" text-anchor="middle" font-size="11" fill="#0d47a1">pod: nginx</text>
+  <text x="262" y="434" text-anchor="middle" font-size="10" fill="#78909c">:8080 non-root</text>
+  <text x="210" y="465" text-anchor="middle" font-size="10" fill="#455a64">SA: frontend-sa (no AWS role)</text>
+  <text x="210" y="481" text-anchor="middle" font-size="10" fill="#455a64">HPA 2–4 @70% CPU · PDB min 1</text>
+  <text x="210" y="497" text-anchor="middle" font-size="10" fill="#455a64">NetPol: in only VPC→8080</text>
+
+  <!-- Backend deployment -->
+  <rect x="360" y="365" width="240" height="150" rx="8" fill="#e3f2fd" stroke="#1565c0" stroke-width="2"/>
+  <text x="480" y="388" text-anchor="middle" font-size="13" font-weight="bold" fill="#0d47a1">Deployment: backend</text>
+  <rect x="375" y="400" width="95" height="44" rx="6" fill="#ffffff" stroke="#1565c0"/>
+  <text x="422" y="418" text-anchor="middle" font-size="11" fill="#0d47a1">pod: Flask</text>
+  <text x="422" y="434" text-anchor="middle" font-size="10" fill="#78909c">:5000 non-root</text>
+  <rect x="485" y="400" width="95" height="44" rx="6" fill="#ffffff" stroke="#1565c0"/>
+  <text x="532" y="418" text-anchor="middle" font-size="11" fill="#0d47a1">pod: Flask</text>
+  <text x="532" y="434" text-anchor="middle" font-size="10" fill="#78909c">:5000 non-root</text>
+  <text x="480" y="465" text-anchor="middle" font-size="10" fill="#455a64">SA: backend-sa → IRSA: S3 PutObject</text>
+  <text x="480" y="481" text-anchor="middle" font-size="10" fill="#455a64">HPA 2–5 @70% CPU · PDB min 1</text>
+  <text x="480" y="497" text-anchor="middle" font-size="10" fill="#455a64">NetPol: in only frontend→5000</text>
+
+  <!-- Worker deployment -->
+  <rect x="630" y="365" width="240" height="150" rx="8" fill="#e3f2fd" stroke="#1565c0" stroke-width="2"/>
+  <text x="750" y="388" text-anchor="middle" font-size="13" font-weight="bold" fill="#0d47a1">Deployment: worker</text>
+  <rect x="645" y="400" width="95" height="44" rx="6" fill="#ffffff" stroke="#1565c0"/>
+  <text x="692" y="418" text-anchor="middle" font-size="11" fill="#0d47a1">pod: Flask</text>
+  <text x="692" y="434" text-anchor="middle" font-size="10" fill="#78909c">:5001 non-root</text>
+  <rect x="755" y="400" width="95" height="44" rx="6" fill="#ffffff" stroke="#1565c0"/>
+  <text x="802" y="418" text-anchor="middle" font-size="11" fill="#0d47a1">pod: Flask</text>
+  <text x="802" y="434" text-anchor="middle" font-size="10" fill="#78909c">:5001 non-root</text>
+  <text x="750" y="465" text-anchor="middle" font-size="10" fill="#455a64">SA: worker-sa → IRSA: SNS+SES</text>
+  <text x="750" y="481" text-anchor="middle" font-size="10" fill="#455a64">replicas 2 fixed (decision) · PDB 1</text>
+  <text x="750" y="497" text-anchor="middle" font-size="10" fill="#455a64">NetPol: in only backend→5001</text>
+
+  <!-- Services row -->
+  <rect x="90" y="540" width="240" height="46" rx="8" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2"/>
+  <text x="210" y="559" text-anchor="middle" font-size="12" font-weight="bold" fill="#6a1b9a">Service: frontend (ClusterIP)</text>
+  <text x="210" y="576" text-anchor="middle" font-size="10" fill="#455a64">round-robin over frontend pods</text>
+  <rect x="360" y="540" width="240" height="46" rx="8" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2"/>
+  <text x="480" y="559" text-anchor="middle" font-size="12" font-weight="bold" fill="#6a1b9a">Service: backend (ClusterIP)</text>
+  <text x="480" y="576" text-anchor="middle" font-size="10" fill="#455a64">DNS "backend" — nginx proxy target</text>
+  <rect x="630" y="540" width="240" height="46" rx="8" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2"/>
+  <text x="750" y="559" text-anchor="middle" font-size="12" font-weight="bold" fill="#6a1b9a">Service: worker (ClusterIP)</text>
+  <text x="750" y="576" text-anchor="middle" font-size="10" fill="#455a64">DNS "worker" — backend calls it</text>
+
+  <!-- traffic arrows between deployments (via services conceptually) -->
+  <line x1="330" y1="425" x2="358" y2="425" stroke="#37474f" stroke-width="2" marker-end="url(#a)"/>
+  <text x="344" y="415" text-anchor="middle" font-size="10" fill="#455a64">:5000</text>
+  <line x1="600" y1="425" x2="628" y2="425" stroke="#37474f" stroke-width="2" marker-end="url(#a)"/>
+  <text x="614" y="415" text-anchor="middle" font-size="10" fill="#455a64">:5001</text>
+
+  <!-- Config/Secret/Ingress row -->
+  <rect x="90" y="610" width="240" height="60" rx="8" fill="#fffde7" stroke="#f9a825" stroke-width="2"/>
+  <text x="210" y="633" text-anchor="middle" font-size="12" font-weight="bold" fill="#f57f17">Ingress: frontend</text>
+  <text x="210" y="652" text-anchor="middle" font-size="10" fill="#455a64">class alb · the ONLY public exposure</text>
+  <rect x="360" y="610" width="240" height="60" rx="8" fill="#e0f2f1" stroke="#00695c" stroke-width="2"/>
+  <text x="480" y="633" text-anchor="middle" font-size="12" font-weight="bold" fill="#004d40">ConfigMaps ×2</text>
+  <text x="480" y="652" text-anchor="middle" font-size="10" fill="#455a64">backend-config · worker-config (non-secret)</text>
+  <rect x="630" y="610" width="240" height="60" rx="8" fill="#fce4ec" stroke="#ad1457" stroke-width="2"/>
+  <text x="750" y="633" text-anchor="middle" font-size="12" font-weight="bold" fill="#880e4f">Secret: app-secrets</text>
+  <text x="750" y="652" text-anchor="middle" font-size="10" fill="#455a64">DB creds, SNS ARN — script-created, not in Git</text>
+
+  <text x="480" y="705" text-anchor="middle" font-size="11" fill="#455a64">ServiceAccounts: frontend-sa / backend-sa / worker-sa — separate per service, API token automount disabled</text>
+  <text x="480" y="725" text-anchor="middle" font-size="11" fill="#455a64">NetworkPolicies enforced by VPC CNI (enableNetworkPolicy=true) — default deny between everything not drawn</text>
+
+  <!-- system addons -->
+  <rect x="70" y="770" width="820" height="52" rx="8" fill="#eceff1" stroke="#546e7a" stroke-width="1.5"/>
+  <text x="480" y="791" text-anchor="middle" font-size="12" font-weight="bold" fill="#37474f">kube-system add-ons (Helm): AWS Load Balancer Controller (IRSA) · metrics-server (feeds HPA)</text>
+  <text x="480" y="810" text-anchor="middle" font-size="10" fill="#607d8b">Terraform creates infrastructure; Helm creates everything inside the cluster — clean separation</text>
+
+  <!-- DB subnets strip -->
+  <rect x="50" y="860" width="860" height="60" rx="10" fill="#fce4ec" stroke="#ad1457" stroke-width="2"/>
+  <text x="65" y="883" font-size="13" font-weight="bold" fill="#880e4f">Private DB Subnets ×2 (10.23.2.0/24, 10.23.3.0/24) — no internet route at all</text>
+  <rect x="560" y="868" width="330" height="44" rx="6" fill="#ffffff" stroke="#ad1457" stroke-width="2"/>
+  <text x="725" y="886" text-anchor="middle" font-size="12" font-weight="bold" fill="#880e4f">RDS PostgreSQL 16</text>
+  <text x="725" y="903" text-anchor="middle" font-size="10" fill="#78909c">SG: 5432 from EKS node SG only</text>
+
+  <line x1="480" y1="515" x2="660" y2="866" stroke="#37474f" stroke-width="2" marker-end="url(#a)"/>
+  <text x="540" y="800" font-size="10" fill="#455a64" transform="rotate(63 540 800)">SQL :5432</text>
+
+  <!-- AWS services right column -->
+  <text x="1105" y="165" text-anchor="middle" font-size="15" font-weight="bold" fill="#37474f">AWS Services (Terraform)</text>
+  <rect x="970" y="185" width="270" height="72" rx="8" fill="#e8eaf6" stroke="#3949ab" stroke-width="2"/>
+  <text x="1105" y="210" text-anchor="middle" font-size="13" font-weight="bold" fill="#283593">ECR ×3 repos</text>
+  <text x="1105" y="228" text-anchor="middle" font-size="10" fill="#455a64">immutable tags · scan on push</text>
+  <text x="1105" y="245" text-anchor="middle" font-size="10" fill="#455a64">nodes pull images from here</text>
+
+  <rect x="970" y="285" width="270" height="64" rx="8" fill="#e8eaf6" stroke="#3949ab" stroke-width="2"/>
+  <text x="1105" y="308" text-anchor="middle" font-size="13" font-weight="bold" fill="#283593">S3 Bucket</text>
+  <text x="1105" y="327" text-anchor="middle" font-size="10" fill="#455a64">order JSONs · backend IRSA PutObject only</text>
+
+  <rect x="970" y="380" width="270" height="64" rx="8" fill="#e8eaf6" stroke="#3949ab" stroke-width="2"/>
+  <text x="1105" y="403" text-anchor="middle" font-size="13" font-weight="bold" fill="#283593">SNS Topic</text>
+  <text x="1105" y="422" text-anchor="middle" font-size="10" fill="#455a64">DevOps email · worker IRSA Publish only</text>
+
+  <rect x="970" y="475" width="270" height="64" rx="8" fill="#e8eaf6" stroke="#3949ab" stroke-width="2"/>
+  <text x="1105" y="498" text-anchor="middle" font-size="13" font-weight="bold" fill="#283593">SES</text>
+  <text x="1105" y="517" text-anchor="middle" font-size="10" fill="#455a64">customer email · worker IRSA</text>
+
+  <rect x="970" y="570" width="270" height="80" rx="8" fill="#efebe9" stroke="#6d4c41" stroke-width="2"/>
+  <text x="1105" y="595" text-anchor="middle" font-size="13" font-weight="bold" fill="#4e342e">IAM / OIDC (IRSA)</text>
+  <text x="1105" y="614" text-anchor="middle" font-size="10" fill="#455a64">backend-irsa · worker-irsa · alb-controller-irsa</text>
+  <text x="1105" y="632" text-anchor="middle" font-size="10" fill="#455a64">no access keys anywhere in the system</text>
+
+  <line x1="910" y1="470" x2="968" y2="315" stroke="#2e7d32" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#ag)"/>
+  <text x="920" y="380" font-size="10" fill="#2e7d32">backend→S3</text>
+  <line x1="910" y1="490" x2="968" y2="410" stroke="#2e7d32" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#ag)"/>
+  <text x="920" y="452" font-size="10" fill="#2e7d32">worker→SNS</text>
+  <line x1="910" y1="505" x2="968" y2="502" stroke="#2e7d32" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#ag)"/>
+  <text x="915" y="522" font-size="10" fill="#2e7d32">worker→SES</text>
+
+  <!-- Legend -->
+  <rect x="970" y="690" width="270" height="230" rx="8" fill="#ffffff" stroke="#b0bec5" stroke-width="1.5"/>
+  <text x="1105" y="715" text-anchor="middle" font-size="13" font-weight="bold" fill="#37474f">Security boundaries</text>
+  <rect x="985" y="730" width="18" height="12" fill="#e8f5e9" stroke="#2e7d32"/>
+  <text x="1012" y="740" font-size="11" fill="#455a64">public — ALB + NAT only</text>
+  <rect x="985" y="752" width="18" height="12" fill="#ede7f6" stroke="#4527a0"/>
+  <text x="1012" y="762" font-size="11" fill="#455a64">private — EKS nodes/pods</text>
+  <rect x="985" y="774" width="18" height="12" fill="#fce4ec" stroke="#ad1457"/>
+  <text x="1012" y="784" font-size="11" fill="#455a64">isolated — RDS, no internet</text>
+  <text x="1105" y="815" text-anchor="middle" font-size="11" font-weight="bold" fill="#37474f">Exposed to internet: ALB only.</text>
+  <text x="1105" y="833" text-anchor="middle" font-size="11" fill="#455a64">backend/worker/RDS: unreachable</text>
+  <text x="1105" y="851" text-anchor="middle" font-size="11" fill="#455a64">from outside by design</text>
+  <text x="1105" y="880" text-anchor="middle" font-size="10" fill="#607d8b">solid arrows = request flow</text>
+  <text x="1105" y="896" text-anchor="middle" font-size="10" fill="#607d8b">dashed green = AWS API calls (IRSA)</text>
+</svg>

@@ -1,0 +1,10 @@
+#!/bin/bash
+echo "kubectl $*" >> "$MOCK_LOG"
+case "$*" in
+  *"-o jsonpath"*hostname*) echo "k8s-mock-alb-123.us-east-1.elb.amazonaws.com" ;;
+  *"-o jsonpath"*password*) echo "bW9jay1wYXNz" ;;  # base64 of "mock-pass"
+  *"--dry-run=client -o yaml"*) echo "apiVersion: v1"; echo "kind: Mock" ;;
+  "apply -f -") cat > /dev/null ;;
+  *"apply -f -"*) cat > /dev/null ;;
+  *) exit 0 ;;
+esac

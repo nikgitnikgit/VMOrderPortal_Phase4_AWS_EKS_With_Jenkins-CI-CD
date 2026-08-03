@@ -1,0 +1,24 @@
+#!/bin/bash
+echo "terraform $*" >> "$MOCK_LOG"
+case "$1" in
+  init|apply|destroy) exit 0 ;;
+  output)
+    case "$3" in
+      cluster_name) echo "vm-order-prod-eks" ;;
+      aws_region) echo "us-east-1" ;;
+      ecr_registry) echo "123456789012.dkr.ecr.us-east-1.amazonaws.com" ;;
+      k8s_namespace) echo "devops-app" ;;
+      vpc_id) echo "vpc-0abc123" ;;
+      alb_controller_role_arn) echo "arn:aws:iam::123456789012:role/alb" ;;
+      backend_irsa_role_arn) echo "arn:aws:iam::123456789012:role/backend" ;;
+      worker_irsa_role_arn) echo "arn:aws:iam::123456789012:role/worker" ;;
+      jenkins_agent_role_arn) echo "arn:aws:iam::123456789012:role/jenkins-agent" ;;
+      s3_bucket_name) echo "vm-order-prod-s3-orders-test" ;;
+      rds_address) echo "db.abc.us-east-1.rds.amazonaws.com" ;;
+      sns_topic_arn) echo "arn:aws:sns:us-east-1:123456789012:vm-order-prod-sns" ;;
+      ses_sender) echo "sender@test.com" ;;
+      github_repo_url) echo "https://github.com/test/vm-order-portal-phase4.git" ;;
+      *) echo "UNKNOWN_OUTPUT_$3" >&2; exit 1 ;;
+    esac ;;
+  *) exit 0 ;;
+esac

@@ -1,0 +1,12 @@
+# Secrets and state — never commit
+terraform/terraform.tfvars
+terraform/*.tfstate*
+terraform/.terraform/
+terraform/backend.tf
+*.env
+# Local junk
+**/__pycache__/
+**/venv/
+.DS_Store
+# Trivy scan reports (generated during builds, evidence pushed to S3)
+trivy-*.txt
