@@ -265,11 +265,27 @@ EOF
                         kubectl rollout status deployment/worker   -n "$NAMESPACE" --timeout=300s
                         kubectl rollout status deployment/frontend -n "$NAMESPACE" --timeout=300s
 
-                        echo "=== Smoke test (internal ClusterIP) ==="
-                        BACKEND_IP=$(kubectl get svc backend -n "$NAMESPACE" -o jsonpath='{.spec.clusterIP}')
-                        curl -sf "http://${BACKEND_IP}:5000/health"
+                        # Smoke test goes through the FRONTEND, not straight to
+                        # the backend. The backend NetworkPolicy accepts traffic
+                        # only from pods labelled app=frontend, so a direct call
+                        # from the build agent is correctly refused. Testing via
+                        # nginx also exercises the real request path.
+                        FRONTEND_IP=$(kubectl get svc frontend -n "$NAMESPACE" -o jsonpath='{.spec.clusterIP}')
+
+                        echo "=== Smoke test 1/2: nginx is serving ==="
+                        curl -sf --max-time 10 "http://${FRONTEND_IP}:8080/healthz" > /dev/null
+                        echo "  /healthz OK"
+
+                        echo "=== Smoke test 2/2: nginx -> backend proxy ==="
+                        curl -sf --max-time 10 "http://${FRONTEND_IP}:8080/api/health" > /dev/null
+                        echo "  /api/health OK (frontend reached backend)"
 
                         echo ""
+                        echo "=== Public URL ==="
+                        kubectl get ingress -n "$NAMESPACE" \
+                            -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}' || true
+                        echo ""
+
                         echo "=== Cluster state ==="
                         kubectl get all -n "$NAMESPACE"
                     '''

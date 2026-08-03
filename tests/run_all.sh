@@ -407,6 +407,11 @@ t T14.20 "Helm uses configmap driver so RBAC never needs secrets" bash -c '
   grep -q "HELM_DRIVER=configmap helm uninstall worker" scripts/destroy.sh &&
   ! grep -q "HELM_DRIVER=configmap helm uninstall jenkins" scripts/destroy.sh'
 
+t T14.21 "smoke test respects NetworkPolicy (goes via frontend, not backend)" bash -c '
+  grep -q "svc frontend" Jenkinsfile &&
+  grep -q "8080/api/health" Jenkinsfile &&
+  ! grep -q "svc backend .* clusterIP" Jenkinsfile'
+
 echo ""
 echo "=============================================="
 echo "  RESULT: $PASS passed, $FAIL failed"
