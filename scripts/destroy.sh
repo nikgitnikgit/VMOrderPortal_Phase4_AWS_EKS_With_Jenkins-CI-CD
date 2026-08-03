@@ -35,11 +35,16 @@ kubectl delete validatingwebhookconfiguration aws-load-balancer-webhook 2>/dev/n
 kubectl delete mutatingwebhookconfiguration aws-load-balancer-webhook 2>/dev/null || true
 
 # --- 3. Uninstall app charts (frontend first — its Ingress owns the ALB) ---
+# HELM_DRIVER=configmap ONLY for these three: the pipeline installed them with
+# the configmap driver (so Jenkins never needed secrets access). With the
+# default driver Helm would report "release: not found" and leave them running.
+# The add-ons above/below were installed from this machine with the default
+# driver, so they must NOT get this variable.
 echo ""
 echo "Step 3: Uninstalling application charts..."
-helm uninstall frontend -n "$NAMESPACE" 2>/dev/null || echo "  (frontend not installed)"
-helm uninstall worker   -n "$NAMESPACE" 2>/dev/null || echo "  (worker not installed)"
-helm uninstall backend  -n "$NAMESPACE" 2>/dev/null || echo "  (backend not installed)"
+HELM_DRIVER=configmap helm uninstall frontend -n "$NAMESPACE" 2>/dev/null || echo "  (frontend not installed)"
+HELM_DRIVER=configmap helm uninstall worker   -n "$NAMESPACE" 2>/dev/null || echo "  (worker not installed)"
+HELM_DRIVER=configmap helm uninstall backend  -n "$NAMESPACE" 2>/dev/null || echo "  (backend not installed)"
 
 # --- 4. Wait until ALL ALBs are deleted (app + Jenkins) ---
 echo ""

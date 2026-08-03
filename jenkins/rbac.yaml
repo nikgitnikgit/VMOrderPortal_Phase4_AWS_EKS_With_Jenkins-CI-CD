@@ -49,6 +49,12 @@ subjects:
 # Role 2: deploy the application into devops-app
 # NOTE: secrets is deliberately NOT listed — Jenkins deploys an app
 # whose Secret it cannot read. This is the containment argument.
+#
+# Helm normally stores release history as Secrets in this namespace and so
+# would need list/get on secrets. RBAC cannot scope `list` to one named
+# object, so granting it would expose app-secrets (the DB password). Instead
+# the pipeline sets HELM_DRIVER=configmap and Helm keeps its release history
+# in ConfigMaps, which are granted below.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:

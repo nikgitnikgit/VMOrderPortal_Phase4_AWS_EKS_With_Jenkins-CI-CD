@@ -400,6 +400,13 @@ assert '--oci-worker-no-process-sandbox' in env.get('BUILDKITD_FLAGS',''), 'miss
 assert bk['securityContext']['seccompProfile']['type']=='Unconfined', 'missing seccomp Unconfined'
 assert 'privileged' not in bk['securityContext'], 'must NOT be privileged'"
 
+t T14.20 "Helm uses configmap driver so RBAC never needs secrets" bash -c '
+  grep -q "HELM_DRIVER = \"configmap\"" Jenkinsfile &&
+  grep -q "HELM_DRIVER=configmap helm uninstall frontend" scripts/destroy.sh &&
+  grep -q "HELM_DRIVER=configmap helm uninstall backend" scripts/destroy.sh &&
+  grep -q "HELM_DRIVER=configmap helm uninstall worker" scripts/destroy.sh &&
+  ! grep -q "HELM_DRIVER=configmap helm uninstall jenkins" scripts/destroy.sh'
+
 echo ""
 echo "=============================================="
 echo "  RESULT: $PASS passed, $FAIL failed"

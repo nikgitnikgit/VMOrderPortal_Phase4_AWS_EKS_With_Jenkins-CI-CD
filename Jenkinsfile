@@ -104,6 +104,19 @@ spec:
 
     environment {
         NAMESPACE = "devops-app"
+        // Helm stores release history as SECRETS in the target namespace by
+        // default, so `helm upgrade` needs list/get on secrets. We refuse to
+        // grant that: Jenkins must not be able to read app-secrets (the DB
+        // password). RBAC cannot scope `list` to a single named resource, so
+        // there is no middle ground.
+        //
+        // The configmap driver keeps release history in ConfigMaps instead —
+        // which Jenkins already has permission to manage. Same functionality,
+        // and the containment property survives.
+        //
+        // NOTE: whatever reads these releases later must use the same driver.
+        // scripts/destroy.sh sets HELM_DRIVER=configmap for the app charts.
+        HELM_DRIVER = "configmap"
         // AWS_REGION, ECR_REGISTRY, S3_BUCKET, BACKEND_ROLE_ARN,
         // WORKER_ROLE_ARN come from Jenkins global env (set by bootstrap).
     }
