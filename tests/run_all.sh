@@ -387,6 +387,19 @@ for path,names in paths.items():
     assert len(names)==1, f'{path} mounted from different volumes: {names}'
 assert '/home/jenkins/agent' not in paths, 'do not mount over the plugin workspace'"
 
+t T14.19 "rootless BuildKit has the three settings it needs" python3 -c "
+import re, yaml
+y=re.search(r'yaml \"\"\"\n(.*?)\n\"\"\"', open('Jenkinsfile').read(), re.S).group(1)
+y=re.sub(r'\\\\$\{env\.\w+\}','X',y)
+pod=yaml.safe_load(y)
+ann=pod['metadata'].get('annotations',{})
+assert ann.get('container.apparmor.security.beta.kubernetes.io/buildkit')=='unconfined', 'missing apparmor annotation'
+bk=[c for c in pod['spec']['containers'] if c['name']=='buildkit'][0]
+env={e['name']:e['value'] for e in bk.get('env',[])}
+assert '--oci-worker-no-process-sandbox' in env.get('BUILDKITD_FLAGS',''), 'missing no-process-sandbox'
+assert bk['securityContext']['seccompProfile']['type']=='Unconfined', 'missing seccomp Unconfined'
+assert 'privileged' not in bk['securityContext'], 'must NOT be privileged'"
+
 echo ""
 echo "=============================================="
 echo "  RESULT: $PASS passed, $FAIL failed"

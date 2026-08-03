@@ -16,6 +16,13 @@ kind: Pod
 metadata:
   labels:
     jenkins/agent: "true"
+  annotations:
+    # Rootless BuildKit cannot set up its nested mount/PID namespace under the
+    # default AppArmor profile — RUN steps fail with
+    # 'error mounting "proc" to rootfs ... operation not permitted'.
+    # Scoped to the buildkit container only; the other containers keep the
+    # default profile.
+    container.apparmor.security.beta.kubernetes.io/buildkit: unconfined
 spec:
   serviceAccountName: jenkins-agent
   # emptyDir volumes mount root-owned by default. The tools container runs
@@ -50,6 +57,15 @@ spec:
       env:
         - name: DOCKER_CONFIG
           value: /home/jenkins/.docker
+        # REQUIRED for rootless-without-privileged. Without it buildkitd asks
+        # runc for a nested process sandbox, which an unprivileged container
+        # is not allowed to create, and every RUN step dies mounting /proc.
+        # Trade-off: build steps are isolated by the pod boundary rather than
+        # an additional per-step namespace. Acceptable here because the pod is
+        # single-tenant, ephemeral, and confined to the jenkins namespace —
+        # and far weaker a concession than privileged: true.
+        - name: BUILDKITD_FLAGS
+          value: --oci-worker-no-process-sandbox
       volumeMounts:
         - name: docker-config
           mountPath: /home/jenkins/.docker
