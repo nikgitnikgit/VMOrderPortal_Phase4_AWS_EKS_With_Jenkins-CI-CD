@@ -135,7 +135,8 @@ controller:
           # line -- at which point the first slash-slash comment hides all the
           # code after it and the script fails to compile.
           - script: |
-$(sed 's/^/              /' "$REPO_ROOT/jenkins/jobs/seed.groovy")
+$(sed -e "s|__GITHUB_REPO_URL__|${GITHUB_REPO_URL}|g" \
+       -e 's/^/              /' "$REPO_ROOT/jenkins/jobs/seed.groovy")
 EOF
 
 if [ "$PRINT_ONLY" = true ]; then

@@ -5,8 +5,15 @@
 // through the Jenkins UI: destroy the cluster, rebuild it, and both jobs
 // reappear identically.
 //
-// GITHUB_REPO_URL comes from Terraform (terraform.tfvars), so a second
-// contributor points at their own fork without editing this file.
+// __GITHUB_REPO_URL__ is substituted by scripts/configure-jenkins.sh from
+// `terraform output github_repo_url`, so a second contributor points at their
+// own fork without editing this file.
+//
+// It is NOT read with System.getenv(). JCasC globalNodeProperties sets Jenkins
+// BUILD environment variables, which are injected into agent processes; they
+// are not part of the controller JVM's process environment. System.getenv()
+// therefore returns null here, the job is created with an empty remote, and
+// branch indexing fails with "Cannot parse Git URI-ish: The uri was empty".
 
 // ---------------------------------------------------------------------------
 // 1. application-ci — build, test, scan, push. Never deploys.
@@ -21,7 +28,7 @@ multibranchPipelineJob('application-ci') {
     branchSources {
         git {
             id('vm-order-portal')
-            remote(System.getenv('GITHUB_REPO_URL'))
+            remote('__GITHUB_REPO_URL__')
             includes('main PR-*')
         }
     }
@@ -73,7 +80,7 @@ pipelineJob('application-cd') {
             scm {
                 git {
                     remote {
-                        url(System.getenv('GITHUB_REPO_URL'))
+                        url('__GITHUB_REPO_URL__')
                     }
                     branches('*/main')
                 }

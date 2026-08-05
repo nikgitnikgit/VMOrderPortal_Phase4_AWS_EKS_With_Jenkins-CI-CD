@@ -23,6 +23,10 @@ env = {k: "x" for k in ("JENKINS_NODE_GROUP", "MY_IP", "AWS_REGION", "ECR_REGIST
 # in with sed, and a fake path would silently yield an empty script — making
 # the round-trip check below pass for the wrong reason.
 env["REPO_ROOT"] = os.getcwd()
+# A realistic URL: the seed substitutes this in, and the checks below verify
+# the result is a usable git remote. A placeholder like "x" would make the
+# URL check pass for the wrong reason.
+env["GITHUB_REPO_URL"] = "https://github.com/example/repo.git"
 rendered = subprocess.run(["bash", "-c", "cat <<EOF\n" + block + "\nEOF"],
                           capture_output=True, text=True,
                           env={**os.environ, **env}).stdout
@@ -74,7 +78,11 @@ for label, scripts in (("values.yaml", base["controller"]["JCasC"]["configScript
             )
         # Every comment line must still start a line of its own; if a comment
         # was folded onto the end of a code line, the code is now commented out.
-        for src_line in seed_lines:
+        for raw_line in seed_lines:
+            # apply the same substitution the renderer does, or every line
+            # containing a placeholder looks like it was mangled
+            src_line = raw_line.replace("__GITHUB_REPO_URL__",
+                                        env["GITHUB_REPO_URL"])
             stripped = src_line.strip()
             if stripped.startswith("//") and len(stripped) > 6:
                 if stripped not in [r.strip() for r in rendered.splitlines()]:
@@ -83,6 +91,43 @@ for label, scripts in (("values.yaml", base["controller"]["JCasC"]["configScript
                         f"line: {stripped[:50]}"
                     )
                     break
+
+# The Job DSL seed must not read configuration with System.getenv(). JCasC
+# globalNodeProperties sets Jenkins BUILD environment variables, injected into
+# agent processes — they are NOT in the controller JVM's environment, so
+# System.getenv() returns null when the seed runs at startup. The job is then
+# created with an empty remote and branch indexing fails with
+# "Cannot parse Git URI-ish: The uri was empty or null".
+# Values must be substituted into the file at render time instead.
+seed_code = "\n".join(
+    line for line in open("jenkins/jobs/seed.groovy").read().splitlines()
+    if not line.strip().startswith("//")
+)
+if "System.getenv" in seed_code:
+    fails.append(
+        "jenkins/jobs/seed.groovy uses System.getenv() — returns null in the "
+        "Job DSL sandbox; substitute the value at render time instead"
+    )
+
+# Every placeholder in the seed must actually be substituted, and the result
+# must be a usable git URL rather than an empty string.
+for label, scripts in (("values.yaml", base["controller"]["JCasC"]["configScripts"]),
+                       ("bootstrap overrides", ov["controller"]["JCasC"]["configScripts"])):
+    if "jobs" not in scripts:
+        continue
+    inner = yaml.safe_load(scripts["jobs"]) or {}
+    for entry in inner.get("jobs", []):
+        rendered = entry.get("script", "")
+        if "__" in re.sub(r"^\s*//.*$", "", rendered, flags=re.M):
+            leftover = re.findall(r"__[A-Z_]+__", rendered)
+            if leftover:
+                fails.append(f"{label}/jobs: unsubstituted placeholder(s): {set(leftover)}")
+        for m in re.finditer(r"(?:remote|url)\(\s*'([^']*)'\s*\)", rendered):
+            if not m.group(1).startswith("http"):
+                fails.append(
+                    f"{label}/jobs: git remote is '{m.group(1)}' — "
+                    "branch indexing will fail with an empty URI"
+                )
 
 # Deprecated JCasC keys that make Jenkins refuse to start.
 # Each was hit for real; the error names the key but not the correct location.
