@@ -73,12 +73,22 @@ jobs:
           [yaml.safe_load(open(f)) for f in files];
           print(f'Validated {len(files)} YAML files')"
 
-  jenkinsfile-check:
-    name: Jenkinsfile syntax
+  pipeline-separation:
+    name: CI/CD separation
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check Jenkinsfile is not empty and has pipeline block
-        run: |
-          [ -f Jenkinsfile ] || { echo "Jenkinsfile missing"; exit 1; }
-          grep -q "^pipeline {" Jenkinsfile || grep -q "pipeline {" Jenkinsfile || { echo "No pipeline block found"; exit 1; }
+      - run: pip install pyyaml
+      - name: CI must not deploy, CD must not build
+        run: python3 tests/check_pipeline_separation.py
+
+  python-quality:
+    name: flake8 + pytest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: pip install flake8 pytest flask flask-cors boto3 requests psycopg2-binary
+      - run: flake8 app/ tests/
+      - run: python3 -m pytest app/ -v

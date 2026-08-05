@@ -1,36 +1,54 @@
-# jenkins/values.yaml — Phase 4: Jenkins Configuration as Code
-# Everything Jenkins needs to come up fully configured: plugins, system
-# settings, dynamic pod agents, and the pipeline job — all defined here,
-# never clicked in the UI. destroy -> apply -> Jenkins is identical.
+# jenkins/values.yaml — Jenkins Configuration as Code (static part)
 #
-# IMPORTANT LESSON (learned the hard way):
+# Everything Jenkins needs to come up fully configured: plugins, system
+# settings, security context, storage. Nothing is ever clicked in the UI —
+# destroy the cluster, rebuild it, and Jenkins returns identically.
+#
+# Environment-specific values (account ID, cluster name, your IP, certificate
+# ARN, repo URL) are NOT here. They are generated at install time by
+# scripts/configure-jenkins.sh from Terraform outputs, so this file is safe to
+# commit and a second contributor needs no edits.
+#
+# IMPORTANT LESSON ENCODED HERE:
 # The chart generates its OWN JCasC config from controller.* values. If a
-# custom configScript sets a key the chart already sets, JCasC merges both
-# sources, finds a conflict, and refuses to start with
-# ConfiguratorConflictException. So: prefer the chart's native values, and
-# use configScripts ONLY for things the chart does not model.
+# custom configScript sets a key the chart already sets, JCasC merges both,
+# finds a conflict, and refuses to start with ConfiguratorConflictException.
+# So: prefer the chart's native values; use configScripts only for what the
+# chart does not model.
 
 controller:
-  # --- Plugins ---
+  # --- Pinned image, never :latest (spec requirement) -------------------
+  image:
+    registry: docker.io
+    repository: jenkins/jenkins
+    tag: "2.568.1-lts-jdk21"
+    pullPolicy: IfNotPresent
+
+  # --- Plugins ----------------------------------------------------------
   # Deliberately NOT version-pinned. The plugin installer resolves each
-  # plugin's DEPENDENCIES to their latest versions, and those require a
-  # recent Jenkins core. Pinning plugins against an older core produces a
-  # crash-looping init container full of "requires a greater version of
-  # Jenkins" errors. The version that matters is the CHART version (which
-  # determines the core), pinned in jenkins/CHART_VERSION.
+  # plugin's DEPENDENCIES to their latest versions, and those require a recent
+  # core. Pinning plugins against an older core produces a crash-looping init
+  # container full of "requires a greater version of Jenkins" errors. The
+  # version that actually controls the outcome is the CHART version, pinned in
+  # jenkins/CHART_VERSION, because it determines the core image above.
   installPlugins:
     - kubernetes              # dynamic pod agents
     - workflow-aggregator     # declarative pipeline
-    - git                     # clone the repo
+    - git                     # clone the repository
+    - github                  # webhook trigger
+    - github-branch-source    # multibranch + PR discovery
     - configuration-as-code   # JCasC itself
-    - job-dsl                 # REQUIRED for the `jobs:` root element below
-    - pipeline-stage-view     # the stage view in the UI
+    - job-dsl                 # required for the `jobs:` root element
+    - pipeline-stage-view     # stage view in the UI
+    - junit                   # publish test results
+    - mailer                  # email notifications (bonus)
+    - email-ext               # emailext step used by both pipelines
+    - pipeline-utility-steps  # readJSON in the CI pipeline
 
-  # --- Set via the chart's own values, NOT a configScript ---
-  # All builds run on agent pods; the controller coordinates only.
+  # --- All builds run on agents; the controller only coordinates ---------
   numExecutors: 0
 
-  # --- Resources ---
+  # --- Resources --------------------------------------------------------
   resources:
     requests:
       cpu: 500m
@@ -39,82 +57,124 @@ controller:
       cpu: "1"
       memory: 2Gi
 
-  # --- Expose Jenkins via ALB Ingress, restricted to your IP ---
+  # --- Probes (spec bonus) ---------------------------------------------
+  probes:
+    startupProbe:
+      httpGet:
+        path: '/login'
+        port: http
+      periodSeconds: 10
+      failureThreshold: 60
+    livenessProbe:
+      httpGet:
+        path: '/login'
+        port: http
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 5
+    readinessProbe:
+      httpGet:
+        path: '/login'
+        port: http
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+
+  # --- Security context --------------------------------------------------
+  # Jenkins needs a writable JENKINS_HOME, so the root filesystem cannot be
+  # read-only; everything else is locked down.
+  podSecurityContextOverride:
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+    runAsNonRoot: true
+  containerSecurityContext:
+    runAsUser: 1000
+    runAsGroup: 1000
+    readOnlyRootFilesystem: false
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+    seccompProfile:
+      type: RuntimeDefault
+
+  # --- Exposure ---------------------------------------------------------
+  # HTTPS and the IP restriction are added at install time by
+  # configure-jenkins.sh: the certificate ARN and your public IP are both
+  # environment-specific and must not be committed.
   serviceType: ClusterIP
   ingress:
     enabled: true
     ingressClassName: alb
+    path: /
+    # MUST be Prefix. The default (ImplementationSpecific) lets the ALB
+    # controller decide, and it treats "/" as an EXACT match — so the root URL
+    # works but /login, /job/... and every static asset return a bare 404 from
+    # the ALB before ever reaching Jenkins.
+    pathType: Prefix
     annotations:
       alb.ingress.kubernetes.io/scheme: internet-facing
       alb.ingress.kubernetes.io/target-type: ip
       alb.ingress.kubernetes.io/healthcheck-path: /login
-      # CRITICAL: restrict to your public IP. An open Jenkins is a security
-      # incident waiting to happen — scanners find them within hours.
-      # Injected at deploy time by bootstrap-platform.sh (never in Git).
-      alb.ingress.kubernetes.io/inbound-cidrs: "REPLACE_AT_DEPLOY"
-    path: /
-    # MUST be Prefix. The default (ImplementationSpecific) lets the ALB
-    # controller decide, and it treats "/" as an EXACT match — so the root
-    # URL works but /login, /job/... and every static asset return a bare
-    # 404 from the ALB before ever reaching Jenkins.
-    pathType: Prefix
+      # Overwritten at install time. If these placeholders ever reach a
+      # running cluster, verify-jenkins.sh fails.
+      alb.ingress.kubernetes.io/inbound-cidrs: "REPLACE_AT_INSTALL"
 
-  # --- Schedule on the Jenkins node only (tainted) ---
+  # --- Scheduling: the tainted Jenkins node only ------------------------
   tolerations:
     - key: "role"
       operator: "Equal"
       value: "jenkins"
       effect: "NoSchedule"
-  # nodeSelector is injected at deploy time by bootstrap-platform.sh.
-  # The label EKS actually sets is `eks.amazonaws.com/nodegroup`.
+  # nodeSelector injected at install time (the node group name contains the
+  # cluster name). The label EKS actually sets is `eks.amazonaws.com/nodegroup`
+  # — there is no `-name` suffix.
 
-  # --- JCasC: only what the chart does NOT already model ---
+  # --- JCasC: only what the chart does NOT already model -----------------
   # NOT set here, because the chart owns them and duplicating causes
   # ConfiguratorConflictException:
-  #   jenkins.numExecutors        -> controller.numExecutors (above)
-  #   jenkins.securityRealm       -> chart default (local, signup disabled)
+  #   jenkins.numExecutors          -> controller.numExecutors (above)
+  #   jenkins.securityRealm         -> chart default (local, signup disabled)
   #   jenkins.authorizationStrategy -> chart default
-  #   jenkins.clouds (kubernetes) -> chart builds this from agent.* values
+  #   jenkins.clouds (kubernetes)   -> chart builds this from agent.* values
   JCasC:
+    defaultConfig: true
     configScripts:
       welcome: |
         jenkins:
-          systemMessage: "VM Order Portal — Phase 4 CI/CD (configured by JCasC)"
+          systemMessage: >
+            VM Order Portal — Phase 4 CI/CD.
+            Configured entirely by JCasC; no manual UI setup.
+            application-ci builds and scans. application-cd deploys.
 
-      # The `jobs:` root element is contributed by the job-dsl plugin.
-      # GITHUB_REPO_URL is substituted by bootstrap-platform.sh, which
-      # appends this block as a generated overrides file.
-      job: |
-        jobs:
-          - script: >
-              pipelineJob('vm-order-cicd') {
-                description('Build, scan, push, and deploy the VM Order Portal')
-                definition {
-                  cpsScm {
-                    scm {
-                      git {
-                        remote { url('PLACEHOLDER') }
-                        branches('*/main')
-                      }
-                    }
-                    scriptPath('Jenkinsfile')
-                  }
-                }
-              }
-
-# --- Persistence: Jenkins home on an EBS volume via PVC ---
+# --- Persistence: JENKINS_HOME on an EBS volume ---------------------------
 persistence:
   enabled: true
   size: 8Gi
   storageClass: gp2
 
-# --- ServiceAccount: controller uses this for agent management ---
+# --- Controller ServiceAccount --------------------------------------------
 serviceAccount:
-  create: true
+  create: false          # created by jenkins/rbac.yaml, with its RoleBinding
   name: jenkins
 
-# --- Agents ---
-# The chart builds the Kubernetes cloud from this section. The Jenkinsfile
-# supplies its own podTemplate per build, so we only set defaults here.
+# --- Agents ----------------------------------------------------------------
+# The chart builds the Kubernetes cloud from this section. Each pipeline
+# supplies its own podTemplate (with its own ServiceAccount), so only defaults
+# live here.
 agent:
+  enabled: true
   namespace: "jenkins"
+  # Agents must tolerate the Jenkins node taint even when a pipeline forgets.
+  tolerations:
+    - key: "role"
+      operator: "Equal"
+      value: "jenkins"
+      effect: "NoSchedule"
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"

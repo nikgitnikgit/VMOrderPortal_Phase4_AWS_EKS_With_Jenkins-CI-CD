@@ -138,11 +138,12 @@ resource "aws_iam_role_policy_attachment" "ebs_csi" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
 }
 
-# ---------- Jenkins agent: can push/scan images in ECR ----------
-# Trust: only the jenkins-agent SA in the jenkins namespace can assume this.
-# Permissions: push images to OUR three ECR repos + scan them with Trivy.
-# Note: ecr:GetAuthorizationToken MUST be account-wide (AWS API requires it).
-data "aws_iam_policy_document" "trust_jenkins_agent" {
+# ---------- Jenkins CI agent: push/scan images in ECR ----------
+# Trust: ONLY the jenkins-agent-ci SA in the jenkins namespace.
+# Permissions: push images to OUR ECR repos + write build evidence to S3.
+# Deliberately NO Kubernetes access and no S3 read: CI builds, nothing else.
+# Note: ecr:GetAuthorizationToken MUST be account-wide (AWS API requirement).
+data "aws_iam_policy_document" "trust_jenkins_ci" {
   statement {
     effect  = "Allow"
     actions = ["sts:AssumeRoleWithWebIdentity"]
@@ -153,7 +154,7 @@ data "aws_iam_policy_document" "trust_jenkins_agent" {
     condition {
       test     = "StringEquals"
       variable = "${var.oidc_provider_url}:sub"
-      values   = ["system:serviceaccount:jenkins:jenkins-agent"]
+      values   = ["system:serviceaccount:jenkins:jenkins-agent-ci"]
     }
     condition {
       test     = "StringEquals"
@@ -163,15 +164,15 @@ data "aws_iam_policy_document" "trust_jenkins_agent" {
   }
 }
 
-resource "aws_iam_role" "jenkins_agent" {
-  name               = "${var.project_name}-${var.environment}-jenkins-agent-irsa"
-  assume_role_policy = data.aws_iam_policy_document.trust_jenkins_agent.json
+resource "aws_iam_role" "jenkins_ci" {
+  name               = "${var.project_name}-${var.environment}-jenkins-ci-irsa"
+  assume_role_policy = data.aws_iam_policy_document.trust_jenkins_ci.json
   tags               = local.tags
 }
 
-resource "aws_iam_role_policy" "jenkins_ecr" {
-  name = "ecr-push-scan"
-  role = aws_iam_role.jenkins_agent.id
+resource "aws_iam_role_policy" "jenkins_ci" {
+  name = "ci-ecr-push"
+  role = aws_iam_role.jenkins_ci.id
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -179,7 +180,7 @@ resource "aws_iam_role_policy" "jenkins_ecr" {
         Sid      = "EcrAuth"
         Effect   = "Allow"
         Action   = ["ecr:GetAuthorizationToken"]
-        Resource = "*" # AWS requires this to be account-wide
+        Resource = "*"
       },
       {
         Sid    = "EcrPushScan"
@@ -191,18 +192,82 @@ resource "aws_iam_role_policy" "jenkins_ecr" {
           "ecr:CompleteLayerUpload",
           "ecr:PutImage",
           "ecr:BatchGetImage",
-          "ecr:GetDownloadUrlForLayer"
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:DescribeImages"
         ]
-        Resource = var.ecr_repo_arns # scoped to OUR 3 repos only
+        Resource = var.ecr_repo_arns
       },
       {
-        # Build evidence (Trivy reports, cluster state) only.
-        # Scoped to the builds/ prefix: Jenkins cannot read, overwrite, or
-        # delete the application's order data elsewhere in the bucket.
         Sid      = "S3BuildEvidenceWrite"
         Effect   = "Allow"
         Action   = ["s3:PutObject"]
         Resource = "${var.s3_bucket_arn}/builds/*"
+      }
+    ]
+  })
+}
+
+# ---------- Jenkins CD agent: read the registry, record deployments ----------
+# Trust: ONLY the jenkins-agent-cd SA.
+# Permissions: verify an image exists (read-only ECR) + write deployment
+# evidence to S3. Deliberately NO ecr:PutImage — CD physically cannot push an
+# image even if the pipeline were rewritten to try.
+# Kubernetes deploy rights come from the jenkins-deployer Role, not from IAM.
+data "aws_iam_policy_document" "trust_jenkins_cd" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+    principals {
+      type        = "Federated"
+      identifiers = [var.oidc_provider_arn]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "${var.oidc_provider_url}:sub"
+      values   = ["system:serviceaccount:jenkins:jenkins-agent-cd"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "${var.oidc_provider_url}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "jenkins_cd" {
+  name               = "${var.project_name}-${var.environment}-jenkins-cd-irsa"
+  assume_role_policy = data.aws_iam_policy_document.trust_jenkins_cd.json
+  tags               = local.tags
+}
+
+resource "aws_iam_role_policy" "jenkins_cd" {
+  name = "cd-registry-read"
+  role = aws_iam_role.jenkins_cd.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "EcrAuth"
+        Effect   = "Allow"
+        Action   = ["ecr:GetAuthorizationToken"]
+        Resource = "*"
+      },
+      {
+        Sid    = "EcrReadOnly"
+        Effect = "Allow"
+        Action = [
+          "ecr:DescribeImages",
+          "ecr:BatchGetImage",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchCheckLayerAvailability"
+        ]
+        Resource = var.ecr_repo_arns
+      },
+      {
+        Sid      = "S3DeploymentEvidenceWrite"
+        Effect   = "Allow"
+        Action   = ["s3:PutObject"]
+        Resource = "${var.s3_bucket_arn}/deployments/*"
       }
     ]
   })

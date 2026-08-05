@@ -10,3 +10,14 @@ terraform/backend.tf
 .DS_Store
 # Trivy scan reports (generated during builds, evidence pushed to S3)
 trivy-*.txt
+
+# Local credential files — never commit
+*.token
+.github_token
+# Python test artifacts
+.pytest_cache/
+.coverage
+coverage.xml
+reports/
+terraform/terraform.tfvars.*
+!terraform/terraform.tfvars.example

@@ -8,7 +8,6 @@ Handles:
 """
 
 import os
-import re
 import psycopg2
 import psycopg2.extras
 import boto3
@@ -31,6 +30,7 @@ SES_SENDER      = os.environ.get("SES_SENDER")       # verified email in SES
 # -----------------------------------------------------------------------
 # Helpers
 # -----------------------------------------------------------------------
+
 
 def get_db_connection():
     """Return a new psycopg2 connection to RDS."""

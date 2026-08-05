@@ -41,11 +41,12 @@ WORKER_URL  = os.environ.get("WORKER_URL")    # e.g. http://<worker-ip>:5001/not
 # Helpers
 # -----------------------------------------------------------------------
 
+
 def get_db_connection():
     """Return a new psycopg2 connection to RDS PostgreSQL."""
     return psycopg2.connect(
         host=DB_HOST,
-	port=DB_PORT,
+        port=DB_PORT,
         user=DB_USER,
         password=DB_PASSWORD,
         dbname=DB_NAME,
@@ -58,7 +59,7 @@ def get_db_connection_no_db():
     """Return a psycopg2 connection without selecting a database (used for init)."""
     return psycopg2.connect(
         host=DB_HOST,
-	port=DB_PORT,
+        port=DB_PORT,
         user=DB_USER,
         password=DB_PASSWORD,
         cursor_factory=psycopg2.extras.RealDictCursor,
@@ -351,7 +352,7 @@ def check_worker_health():
                 timeout=3
             )
             if r.status_code == 200:
-                print(f"[Health] Worker: OK")
+                print("[Health] Worker: OK")
             else:
                 print(f"[Health] Worker: DEGRADED (status {r.status_code})")
         except Exception as e:

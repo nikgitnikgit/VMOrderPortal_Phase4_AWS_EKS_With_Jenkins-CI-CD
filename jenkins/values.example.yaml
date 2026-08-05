@@ -1,0 +1,66 @@
+# jenkins/values.example.yaml
+#
+# Illustrative ONLY. This file documents the shape of the environment-specific
+# values that scripts/configure-jenkins.sh generates at install time from
+# Terraform outputs. It contains no real values and is never applied.
+#
+# Nothing here needs to be filled in by hand: every value below is derived
+# automatically. The file exists so a reviewer can see what is injected
+# without having to run the installer.
+
+controller:
+  nodeSelector:
+    eks.amazonaws.com/nodegroup: "<cluster-name>-jenkins-nodes"
+
+  ingress:
+    annotations:
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      # Detected from https://checkip.amazonaws.com at install time.
+      alb.ingress.kubernetes.io/inbound-cidrs: "<YOUR.PUBLIC.IP>/32"
+      # Self-signed certificate imported into ACM by scripts/create-cert.sh.
+      alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:<region>:<account-id>:certificate/<uuid>"
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443},{"HTTP":80}]'
+      alb.ingress.kubernetes.io/ssl-redirect: "443"
+
+  JCasC:
+    configScripts:
+      env: |
+        jenkins:
+          globalNodeProperties:
+            - envVars:
+                env:
+                  - key: AWS_REGION
+                    value: "<region>"
+                  - key: CLUSTER_NAME
+                    value: "<cluster-name>"
+                  - key: ECR_REGISTRY
+                    value: "<account-id>.dkr.ecr.<region>.amazonaws.com"
+                  - key: AGENT_TOOLS_IMAGE
+                    value: "<account-id>.dkr.ecr.<region>.amazonaws.com/vm-order-jenkins-agent:tools-1.0"
+                  - key: JENKINS_NODE_GROUP
+                    value: "<cluster-name>-jenkins-nodes"
+                  - key: BACKEND_ROLE_ARN
+                    value: "arn:aws:iam::<account-id>:role/<project>-backend-irsa"
+                  - key: WORKER_ROLE_ARN
+                    value: "arn:aws:iam::<account-id>:role/<project>-worker-irsa"
+                  - key: S3_BUCKET
+                    value: "<bucket-name>"
+                  - key: GITHUB_REPO_URL
+                    value: "https://github.com/<owner>/<repo>.git"
+
+      mail: |
+        unclassified:
+          mailer:
+            smtpHost: "email-smtp.<region>.amazonaws.com"
+            smtpPort: "587"
+            useTls: true
+            replyToAddress: "<verified-ses-sender>"
+            adminAddress: "<verified-ses-sender>"
+
+      # Rendered from jenkins/jobs/seed.groovy — see that file for the two
+      # job definitions.
+      jobs: |
+        jobs:
+          - script: >
+              <contents of jenkins/jobs/seed.groovy>

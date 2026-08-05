@@ -13,11 +13,13 @@ os.chdir(os.path.join(os.path.dirname(__file__), ".."))
 CHART_OWNED = {"numExecutors", "securityRealm", "authorizationStrategy", "clouds"}
 
 base = yaml.safe_load(open("jenkins/values.yaml"))
-src = open("scripts/bootstrap-platform.sh").read()
+src = open("scripts/configure-jenkins.sh").read()
 block = re.search(r'cat > "\$OVERRIDES" <<EOF\n(.*?)\nEOF\n', src, re.S).group(1)
 env = {k: "x" for k in ("JENKINS_NODE_GROUP", "MY_IP", "AWS_REGION", "ECR_REGISTRY",
                         "TOOLS_IMAGE", "BACKEND_ROLE_ARN", "WORKER_ROLE_ARN",
-                        "S3_BUCKET", "GITHUB_REPO_URL")}
+                        "S3_BUCKET", "GITHUB_REPO_URL", "CLUSTER_NAME",
+                        "NOTIFICATION_EMAIL", "SES_SENDER", "CERT_ARN",
+                        "REPO_ROOT")}
 rendered = subprocess.run(["bash", "-c", "cat <<EOF\n" + block + "\nEOF"],
                           capture_output=True, text=True,
                           env={**os.environ, **env}).stdout

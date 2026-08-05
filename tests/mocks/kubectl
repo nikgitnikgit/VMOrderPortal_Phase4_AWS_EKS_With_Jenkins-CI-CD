@@ -1,8 +1,15 @@
 #!/bin/bash
 echo "kubectl $*" >> "$MOCK_LOG"
 case "$*" in
+  # Jenkins REST API called through `kubectl exec` — used by create-jobs.sh
+  # and verify-jenkins.sh to confirm both jobs exist.
+  *"api/json?tree=jobs"*)
+      echo '{"jobs":[{"name":"application-ci"},{"name":"application-cd"}]}' ;;
+  *"reload-configuration-as-code"*) exit 0 ;;
   *"-o jsonpath"*hostname*) echo "k8s-mock-alb-123.us-east-1.elb.amazonaws.com" ;;
-  *"-o jsonpath"*password*) echo "bW9jay1wYXNz" ;;  # base64 of "mock-pass"
+  *"-o jsonpath"*password*) echo "bW9jay1wYXNz" ;;   # base64 of "mock-pass"
+  *"-o jsonpath"*clusterIP*) echo "172.20.0.10" ;;
+  *"-o jsonpath"*image*) echo "mock.ecr/vm-order-backend:abc123def456" ;;
   *"--dry-run=client -o yaml"*) echo "apiVersion: v1"; echo "kind: Mock" ;;
   "apply -f -") cat > /dev/null ;;
   *"apply -f -"*) cat > /dev/null ;;

@@ -1,13 +1,32 @@
-# jenkins/rbac.yaml — Phase 4 RBAC for Jenkins
-# Two Roles, both namespaced — never cluster-admin.
-# See cookbook section 6 for the reasoning behind each permission.
+# jenkins/rbac.yaml — Phase 4 RBAC
 #
-# Two ServiceAccounts are involved, and the split matters:
-#   jenkins        — the CONTROLLER. Schedules and deletes agent pods.
-#   jenkins-agent  — the AGENT pod. Runs helm/kubectl during a build.
+# THREE identities, each with exactly one job. No cluster-admin, no wildcard
+# verbs, no ClusterRole anywhere — every Role is namespaced.
+#
+#   jenkins            controller. Creates and deletes agent Pods. Cannot
+#                      touch devops-app at all.
+#   jenkins-agent-ci   CI builds. Pushes images to ECR via IRSA. Has NO
+#                      Kubernetes deploy permission whatsoever — this is the
+#                      spec requirement that CI needs no deploy rights, and it
+#                      is enforced here rather than by convention.
+#   jenkins-agent-cd   CD deployments. Manages application objects in
+#                      devops-app. Cannot create Pods, cannot push images.
+#
+# NOT granted to anyone: `secrets`. Jenkins deploys an application whose
+# database password it cannot read. Helm would normally need secrets access
+# for its release history, so both pipelines set HELM_DRIVER=configmap.
 
 ---
-# Role 1: manage agent pods in the jenkins namespace (controller only)
+# ---------------------------------------------------------------------------
+# 1. Controller: manage agent Pods in its own namespace
+# ---------------------------------------------------------------------------
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jenkins
+  namespace: jenkins
+
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -46,15 +65,37 @@ subjects:
     namespace: jenkins
 
 ---
-# Role 2: deploy the application into devops-app
-# NOTE: secrets is deliberately NOT listed — Jenkins deploys an app
-# whose Secret it cannot read. This is the containment argument.
+# ---------------------------------------------------------------------------
+# 2. CI agent: build and push only
+# ---------------------------------------------------------------------------
+# Deliberately has NO Role and NO RoleBinding. Its only Kubernetes capability
+# is existing as a Pod. Everything it needs (ECR push) comes from AWS via
+# IRSA, not from the Kubernetes API. `kubectl auth can-i create deployments`
+# returns "no" for this identity — verify-jenkins.sh asserts exactly that.
 #
-# Helm normally stores release history as Secrets in this namespace and so
-# would need list/get on secrets. RBAC cannot scope `list` to one named
-# object, so granting it would expose app-secrets (the DB password). Instead
-# the pipeline sets HELM_DRIVER=configmap and Helm keeps its release history
-# in ConfigMaps, which are granted below.
+# The IRSA annotation is added by configure-jenkins.sh from Terraform outputs,
+# because the role ARN contains the account ID.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jenkins-agent-ci
+  namespace: jenkins
+  labels:
+    pipeline: ci
+
+---
+# ---------------------------------------------------------------------------
+# 3. CD agent: deploy the application, nothing else
+# ---------------------------------------------------------------------------
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jenkins-agent-cd
+  namespace: jenkins
+  labels:
+    pipeline: cd
+
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -76,6 +117,8 @@ rules:
   - apiGroups: ["policy"]
     resources: ["poddisruptionbudgets"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # Read-only: needed by rollout status, the running-version check, and
+  # failure diagnostics. Not create/delete — CD does not manage Pods directly.
   - apiGroups: [""]
     resources: ["pods", "pods/log"]
     verbs: ["get", "list", "watch"]
@@ -94,9 +137,9 @@ roleRef:
   kind: Role
   name: jenkins-deployer
 subjects:
-  # ONLY the agent. The agent pod is what runs `helm upgrade` and `kubectl`.
-  # The controller is deliberately NOT listed: it has numExecutors: 0, so it
-  # never runs build steps and therefore never needs to touch devops-app.
+  # ONLY the CD agent. The CI agent and the controller are deliberately absent:
+  # CI must not be able to deploy, and the controller runs no builds
+  # (numExecutors: 0), so it never needs application access.
   - kind: ServiceAccount
-    name: jenkins-agent
+    name: jenkins-agent-cd
     namespace: jenkins

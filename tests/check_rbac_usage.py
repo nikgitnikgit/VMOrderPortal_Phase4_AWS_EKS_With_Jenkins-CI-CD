@@ -27,7 +27,7 @@ for rule in role["rules"]:
         granted |= set(rule["resources"])
 
 # strip comment lines so documentation about `get all` is not treated as usage
-lines = [l for l in open("Jenkinsfile") if not l.strip().startswith(("//", "#"))]
+lines = [l for l in open("Jenkinsfile-cd") if not l.strip().startswith(("//", "#"))]
 body = "".join(lines)
 
 fails = []

@@ -1,0 +1,10 @@
+#!/bin/bash
+echo "openssl $*" >> "$MOCK_LOG"
+# Emit placeholder files where the script expects the key/cert
+for i in "$@"; do
+  case "$prev" in
+    -keyout|-out) echo "MOCK" > "$i" ;;
+  esac
+  prev="$i"
+done
+exit 0

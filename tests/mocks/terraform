@@ -12,7 +12,9 @@ case "$1" in
       alb_controller_role_arn) echo "arn:aws:iam::123456789012:role/alb" ;;
       backend_irsa_role_arn) echo "arn:aws:iam::123456789012:role/backend" ;;
       worker_irsa_role_arn) echo "arn:aws:iam::123456789012:role/worker" ;;
-      jenkins_agent_role_arn) echo "arn:aws:iam::123456789012:role/jenkins-agent" ;;
+      jenkins_ci_role_arn) echo "arn:aws:iam::123456789012:role/jenkins-ci" ;;
+      jenkins_cd_role_arn) echo "arn:aws:iam::123456789012:role/jenkins-cd" ;;
+      notification_email) echo "ops@test.com" ;;
       s3_bucket_name) echo "vm-order-prod-s3-orders-test" ;;
       rds_address) echo "db.abc.us-east-1.rds.amazonaws.com" ;;
       sns_topic_arn) echo "arn:aws:sns:us-east-1:123456789012:vm-order-prod-sns" ;;

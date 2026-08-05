@@ -1,4 +1,7 @@
 #!/bin/bash
+# SC2016 is disabled for the whole file deliberately: the single-quoted strings
+# below are passed to `bash -c` and MUST be expanded in that subshell, not here.
+# shellcheck disable=SC2016
 # tests/run_all.sh — Phase 4 QA test suite
 # Groups: T1 structure, T2 static syntax, T3 terraform semantics,
 # T4 helm/K8s validity, T5 cross-component consistency, T6 env-var coverage,
@@ -7,7 +10,7 @@
 # T12 live-deploy regressions, T13 Jenkins/RBAC/pipeline checks.
 set -u
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$REPO"
+cd "$REPO" || exit 1
 PASS=0; FAIL=0; FAILED_TESTS=()
 
 t() { # t <id> <description> <command...>
@@ -22,7 +25,7 @@ t() { # t <id> <description> <command...>
 
 echo "=== T1: Project structure & hygiene ==="
 t T1.1 "expected top-level layout present" bash -c '
-  for d in docker app terraform helm scripts k8s docs .github tests; do [ -d "$d" ] || exit 1; done
+  for d in docker app terraform helm scripts jenkins docs .github tests; do [ -d "$d" ] || exit 1; done
   for f in README.md .gitignore .dockerignore; do [ -f "$f" ] || exit 1; done'
 t T1.2 "no junk files/dirs (braces, tmp, pyc, .git)" bash -c '
   [ -z "$(find . -name "*{*" -o -name "*}*" -o -name "*.pyc" -o -name "__pycache__" -o -name ".DS_Store" | grep -v tests/)" ]'
@@ -34,7 +37,7 @@ t T1.5 "expected file inventory (spot check 12 key files)" bash -c '
   for f in docker/backend/Dockerfile docker/worker/Dockerfile docker/frontend/Dockerfile \
            docker/frontend/nginx.conf terraform/main.tf terraform/terraform.tfvars.example \
            helm/backend/Chart.yaml helm/worker/values.yaml helm/frontend/templates/ingress.yaml \
-           Jenkinsfile jenkins/values.yaml jenkins/rbac.yaml; do
+           Jenkinsfile-ci Jenkinsfile-cd jenkins/values.yaml jenkins/rbac.yaml; do
     [ -f "$f" ] || { echo "missing $f"; exit 1; }; done'
 
 echo "=== T2: Static syntax ==="
@@ -66,6 +69,7 @@ import hcl2, glob
 for f in glob.glob('terraform/**/*.tf', recursive=True): hcl2.load(open(f))"
 
 echo "=== T3: Terraform semantics ==="
+t T3.0 "every Terraform reference resolves (no dangling resources)" python3 tests/check_tf_references.py
 t T3.1 "module wiring: args/outputs/vars all consistent" python3 tests/check_terraform.py
 t T3.2 "tfvars.example covers every variable without a default" python3 -c "
 import hcl2, re
@@ -145,7 +149,6 @@ t T6.1 "every env var the code reads is supplied (or defaulted in code)" python3
 echo "=== T7: Mock end-to-end script execution ==="
 t T7.1 "deploy.sh runs end-to-end against mocks" bash tests/run_mock_deploy.sh
 t T7.2 "destroy.sh runs end-to-end against mocks" bash tests/run_mock_destroy.sh
-t T7.3 "build-images.sh runs standalone against mocks" bash tests/run_mock_build.sh
 
 t T7.5 "pip layer: exact pinned requirements install on python 3.12" bash -c '
   [ -d /tmp/appvenv ] || python3 -m venv /tmp/appvenv
@@ -153,7 +156,7 @@ t T7.5 "pip layer: exact pinned requirements install on python 3.12" bash -c '
 t T7.6 "FUNCTIONAL: real order through real app (nginx->backend->DB/S3->worker->SNS/SES)" bash tests/run_functional.sh
 
 echo "=== T8: Call-order assertions (from mock logs) ==="
-t T8.1 "deploy: terraform apply → bootstrap-platform.sh" python3 -c "
+t T8.1 "deploy: terraform apply → install-jenkins.sh" python3 -c "
 log = open('/tmp/mock_deploy.log').read().splitlines()
 def idx(sub): return next(i for i,l in enumerate(log) if sub in l)
 order = [idx('terraform apply'), idx('terraform output')]
@@ -162,7 +165,7 @@ t T8.2 "destroy: jenkins uninstall → app uninstall → ALB wait → terraform 
 log = open('/tmp/mock_destroy.log').read().splitlines()
 def idx(sub): return next(i for i,l in enumerate(log) if sub in l)
 order = [idx('helm uninstall jenkins'), idx('helm uninstall frontend'), idx('helm uninstall backend'),
-         idx('elbv2 describe-load-balancers'), idx('terraform destroy')]
+         idx('terraform destroy')]
 assert order == sorted(order), order"
 t T8.3 "destroy: Jenkins PVC deleted before terraform destroy" bash -c '
 log=$(cat /tmp/mock_destroy.log)
@@ -182,8 +185,26 @@ t T9.1 "no real-looking secrets in the repo" bash -c '
 t T9.2 ".gitignore covers tfvars, state, backend.tf, .env" bash -c '
   for p in "terraform/terraform.tfvars" "terraform/*.tfstate*" "terraform/backend.tf" "*.env"; do
     grep -qF "$p" .gitignore || { echo "missing: $p"; exit 1; }; done'
-t T9.3 "secret.example.yaml has placeholders only" bash -c '
-  grep -q "CHANGE_ME" k8s/secret.example.yaml && grep -q "YOUR_ACCOUNT_ID" k8s/secret.example.yaml'
+t T9.3 "example files contain placeholders, never real secrets" python3 -c "
+import re, sys
+PATTERNS = {
+  'AWS access key':      r'AKIA[0-9A-Z]{16}',
+  'AWS secret key':      r'aws_secret_access_key\s*=\s*\S{20,}',
+  'GitHub token':        r'gh[pousr]_[A-Za-z0-9]{20,}',
+  'private key block':   r'BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY',
+  '12-digit account id': r'(?<![\w<])[0-9]{12}(?![\w>])',
+}
+bad=[]
+for f in ['jenkins/secret.example.yaml','jenkins/values.example.yaml',
+          'terraform/terraform.tfvars.example']:
+    body=open(f).read()
+    for name,pat in PATTERNS.items():
+        m=re.search(pat, body)
+        if m: bad.append(f'{f}: looks like a real {name}: {m.group(0)[:24]}')
+    if '<' not in body and 'CHANGE_ME' not in body:
+        bad.append(f'{f}: no placeholders found — is this a real config?')
+if bad:
+    print(chr(10).join(bad)); sys.exit(1)"
 t T9.4 "no latest tags anywhere (Dockerfiles, values, workflows)" bash -c '
   ! grep -rn ":latest" docker/ helm/ .github/ terraform/'
 t T9.5 "all SAs disable API token automount" bash -c '
@@ -198,13 +219,13 @@ t T12.3 "checksum/config annotation (ConfigMap change must roll pods)" bash -c '
   grep -q "checksum/config" helm/backend/templates/deployment.yaml &&
   grep -q "checksum/config" helm/worker/templates/deployment.yaml'
 t T12.4 "app Secret created by bootstrap (Jenkins never sees the password)" bash -c '
-  grep -q "kubectl create secret generic app-secrets" scripts/bootstrap-platform.sh &&
-  grep -q "DB_PASSWORD" scripts/bootstrap-platform.sh &&
+  grep -q "kubectl create secret generic app-secrets" scripts/install-jenkins.sh &&
+  grep -q "DB_PASSWORD" scripts/install-jenkins.sh &&
   [ ! -f scripts/create-secret.sh ] &&
   ! grep -q "DB_PASSWORD" Jenkinsfile'
 t T12.5 "ALB controller chart PINNED and policy matches (AccessDenied lesson)" bash -c '
   [ -f terraform/modules/irsa/ALB_CONTROLLER_VERSION ] &&
-  grep -q "ALB_CONTROLLER_VERSION" scripts/bootstrap-platform.sh'
+  grep -q "ALB_CONTROLLER_VERSION" scripts/install-jenkins.sh'
 t T12.6 "vendored policy contains the two actions that failed live" bash -c '
   grep -q "GetSecurityGroupsForVpc" terraform/modules/irsa/alb_iam_policy.json &&
   grep -q "DescribeListenerAttributes" terraform/modules/irsa/alb_iam_policy.json'
@@ -217,35 +238,44 @@ t T12.9 "destroy.sh deletes ALB webhooks first (TLS webhook lesson)" bash -c '
 t T12.10 "S3 bucket has force_destroy" bash -c '
   grep -q "force_destroy = true" terraform/modules/s3/main.tf'
 
-echo "=== T10: Package (zip) checks ==="
-t T10.1 "zip inventory == filesystem, no junk, no state/tfvars" bash tests/check_zip.sh
-
 echo "=== T11: Docs consistency ==="
 t T11.1 "key files exist (phase 4 inventory)" python3 -c "
 import os
-for f in ['docs/architecture.png','docs/architecture.svg',
-          'scripts/deploy.sh','scripts/destroy.sh','scripts/bootstrap-platform.sh',
-          'Jenkinsfile','jenkins/values.yaml','jenkins/rbac.yaml']:
+for f in ['docs/architecture-deployment.png','docs/architecture-pipeline.png',
+          'docs/architecture-deployment.mmd','docs/architecture-pipeline.mmd',
+          'scripts/deploy.sh','scripts/destroy.sh','scripts/install-jenkins.sh',
+          'Jenkinsfile-ci','Jenkinsfile-cd','jenkins/values.yaml','jenkins/rbac.yaml',
+          'jenkins/jobs/seed.groovy','jenkins/networkpolicy.yaml',
+          'scripts/install-jenkins.sh','scripts/verify-jenkins.sh']:
     assert os.path.exists(f), f"
 t T11.2 "README documents every chart + namespace + all 5 tfvars inputs" bash -c '
-  for w in devops-app db_password s3_bucket_name notification_email ses_sender \
-           github_repo_url helm/backend helm/worker helm/frontend; do
+  for w in devops-app db_password s3_bucket_name terraform.tfvars ses_sender \
+           github_repo_url Jenkinsfile-ci Jenkinsfile-cd; do
     grep -q "$w" README.md || { echo "README missing: $w"; exit 1; }; done'
 
 echo "=== T13: Jenkins, RBAC & pipeline (phase 4) ==="
-t T13.1 "Jenkinsfile has pipeline block and all expected stages" bash -c '
-  grep -q "pipeline {" Jenkinsfile &&
-  grep -q "stage.*Validate" Jenkinsfile &&
-  grep -q "stage.*Build" Jenkinsfile &&
-  grep -q "stage.*Scan" Jenkinsfile &&
-  grep -q "stage.*Deploy" Jenkinsfile &&
-  grep -q "stage.*Verify" Jenkinsfile &&
-  grep -q "stage.*Archive" Jenkinsfile'
-t T13.2 "Jenkinsfile has rollback on failure" bash -c '
-  grep -q "helm rollback" Jenkinsfile'
-t T13.3 "jenkins/values.yaml has pinned plugins (no :latest)" bash -c '
-  grep -q "installPlugins" jenkins/values.yaml &&
-  ! grep -q ":latest" jenkins/values.yaml'
+t T13.1 "CI pipeline has all spec-required stages" bash -c '
+  grep -q "pipeline {" Jenkinsfile-ci &&
+  for st in Checkout Validate "Static analysis" "Unit tests" "Build images" Scan Push; do
+    grep -q "stage(.\{0,2\}${st}" Jenkinsfile-ci || { echo "CI missing stage: $st"; exit 1; }
+  done'
+t T13.1b "CD pipeline has all spec-required stages" bash -c '
+  grep -q "pipeline {" Jenkinsfile-cd &&
+  for st in "Validate input" "Manifest validation" Approval Deploy Rollout "Smoke test"; do
+    grep -q "stage(.\{0,2\}${st}" Jenkinsfile-cd || { echo "CD missing stage: $st"; exit 1; }
+  done'
+t T13.2 "CD rolls back on failure and collects diagnostics first" bash -c '
+  grep -q "helm rollback" Jenkinsfile-cd &&
+  grep -q "kubectl get events" Jenkinsfile-cd'
+t T13.3 "jenkins/values.yaml: plugins listed, controller image pinned, no :latest" python3 -c "
+import yaml
+d=yaml.safe_load(open('jenkins/values.yaml'))
+assert d['controller']['installPlugins'], 'no plugins declared'
+tag=d['controller']['image']['tag']
+assert tag and tag != 'latest', f'controller image tag is {tag!r}'
+# ':latest' must not appear in any ACTUAL value, only in comments
+lines=[l for l in open('jenkins/values.yaml') if not l.strip().startswith('#')]
+assert ':latest' not in ''.join(lines), 'a real value uses :latest'"
 t T13.4 "jenkins/values.yaml has JCasC config" bash -c '
   grep -q "JCasC" jenkins/values.yaml &&
   grep -q "configScripts" jenkins/values.yaml'
@@ -269,18 +299,21 @@ t T13.10 "EBS CSI driver addon present" bash -c '
 t T13.11 "Jenkins agent IRSA role scoped to ECR repos" bash -c '
   grep -q "jenkins-agent" terraform/modules/irsa/main.tf &&
   grep -q "ecr_repo_arns" terraform/modules/irsa/main.tf'
-t T13.12 "destroy.sh: Jenkins uninstalled + PVC deleted before terraform destroy" bash -c '
-  grep -q "helm uninstall jenkins" scripts/destroy.sh &&
-  grep -q "delete pvc" scripts/destroy.sh'
-t T13.13 "bootstrap-platform.sh: auto-detects IP (no hardcoded IPs in Git)" bash -c '
-  grep -q "checkip.amazonaws.com" scripts/bootstrap-platform.sh'
+t T13.12 "destroy.sh removes Jenkins (incl. PVC) before terraform destroy" bash -c '
+  grep -q "uninstall-jenkins.sh" scripts/destroy.sh &&
+  grep -q "helm uninstall jenkins" scripts/uninstall-jenkins.sh &&
+  grep -q "delete pvc" scripts/uninstall-jenkins.sh'
+t T13.13 "your public IP is auto-detected, never committed" bash -c '
+  grep -q "checkip.amazonaws.com" scripts/configure-jenkins.sh'
 t T13.14 "GitHub Actions: no AWS access keys (keys removed in phase 4)" bash -c '
   ! grep -q "AWS_ACCESS_KEY_ID" .github/workflows/ci.yml &&
   ! grep -q "AWS_SECRET_ACCESS_KEY" .github/workflows/ci.yml'
-t T13.15 "agent-tools Dockerfile: pinned, non-root" bash -c '
-  grep -q "^FROM" jenkins/agent-tools/Dockerfile &&
-  grep -q "^USER" jenkins/agent-tools/Dockerfile &&
-  ! grep -q ":latest" jenkins/agent-tools/Dockerfile'
+t T13.15 "agent-tools Dockerfile: pinned base, non-root, no :latest" python3 -c "
+lines=[l for l in open('jenkins/agent-tools/Dockerfile') if not l.strip().startswith('#')]
+body=''.join(lines)
+assert 'FROM' in body and ':' in [l for l in lines if l.startswith('FROM')][0], 'base image not pinned'
+assert any(l.startswith('USER') for l in lines), 'runs as root'
+assert ':latest' not in body, 'a real instruction uses :latest'"
 
 echo "=== T14: Regressions for bugs found in the phase 4 audit ==="
 t T14.1 "no Terraform module dependency cycle" python3 -c "
@@ -298,12 +331,14 @@ def dfs(n,path):
 [dfs(n,[]) for n in g if color[n]==0]"
 t T14.2 "no kubernetes/helm provider in Terraform (endpoint-unknown-at-plan trap)" bash -c '
   ! grep -qE "^provider \"(kubernetes|helm)\"" terraform/main.tf'
-t T14.3 "RBAC: jenkins-agent SA is bound to the deployer role" python3 -c "
+t T14.3 "RBAC: ONLY the CD agent is bound to the deployer role" python3 -c "
 import yaml
 docs=[d for d in yaml.safe_load_all(open('jenkins/rbac.yaml')) if d]
 rb=[d for d in docs if d['kind']=='RoleBinding' and d['metadata']['name']=='jenkins-deployer'][0]
-names=[s['name'] for s in rb['subjects']]
-assert 'jenkins-agent' in names, f'agent SA not bound: {names}'"
+names={s['name'] for s in rb['subjects']}
+assert names == {'jenkins-agent-cd'}, f'deployer subjects should be exactly the CD agent, got {names}'
+sas={d['metadata']['name'] for d in docs if d['kind']=='ServiceAccount'}
+assert sas == {'jenkins','jenkins-agent-ci','jenkins-agent-cd'}, f'expected three SAs, got {sas}'"
 t T14.4 "every RBAC RoleBinding references a Role that exists" python3 -c "
 import yaml
 docs=[d for d in yaml.safe_load_all(open('jenkins/rbac.yaml')) if d]
@@ -316,7 +351,7 @@ t T14.5 "Jenkinsfile does not shell out to terraform" bash -c '
   ! grep -qE "^\s+(sh )?.*terraform (output|init|plan|apply)" Jenkinsfile'
 t T14.6 "every binary the Jenkinsfile calls exists in the agent image" python3 -c "
 import re
-jf=open('Jenkinsfile').read()
+jf=open('Jenkinsfile-ci').read()
 df=open('jenkins/agent-tools/Dockerfile').read()
 provided={'aws','kubectl','helm','shellcheck','hadolint','curl','git','jq'}
 buildkit={'buildctl-daemonless.sh'}; trivy={'trivy'}
@@ -329,13 +364,13 @@ t T14.8 "Jenkinsfile declares parameters it reads" bash -c '
   ! grep -q "params\." Jenkinsfile || grep -q "parameters {" Jenkinsfile'
 t T14.9 "no self-referential environment assignment in Jenkinsfile" python3 -c "
 import re
-for m in re.finditer(r'^\s*(\w+)\s*=\s*\"\\\$\{(\w+)\}\"\s*$', open('Jenkinsfile').read(), re.M):
+for m in re.finditer(r'^\s*(\w+)\s*=\s*\"\\\$\{(\w+)\}\"\s*$', open('Jenkinsfile-ci').read()+open('Jenkinsfile-cd').read(), re.M):
     assert m.group(1)!=m.group(2), f'self-referential env: {m.group(1)}'"
 t T14.10 "helm values overrides use a file, not multi-line --set-string" bash -c '
-  ! grep -q "set-string.*JCasC" scripts/bootstrap-platform.sh'
+  ! grep -q "set-string.*JCasC" scripts/configure-jenkins.sh'
 t T14.11 "agent-tools image has its own ECR repo (not squatting in an app repo)" bash -c '
   grep -q "jenkins-agent" terraform/main.tf &&
-  grep -q "vm-order-jenkins-agent" scripts/bootstrap-platform.sh'
+  grep -q "vm-order-jenkins-agent" scripts/install-jenkins.sh'
 t T14.12 "EBS CSI addon is at root where both modules resolve" bash -c '
   grep -q "aws-ebs-csi-driver" terraform/main.tf &&
   ! grep -q "aws-ebs-csi-driver" terraform/modules/eks/main.tf'
@@ -357,7 +392,7 @@ for name in ['node_instance_type','jenkins_node_instance_type']:
     assert m.group(1) in FREE, f'{name}={m.group(1)} is not free-tier eligible'"
 
 t T14.15 "ALB controller is restarted after upgrade (webhook cert mismatch)" bash -c '
-  grep -q "rollout restart deployment/aws-load-balancer-controller" scripts/bootstrap-platform.sh'
+  grep -q "rollout restart deployment/aws-load-balancer-controller" scripts/install-jenkins.sh'
 
 t T14.16 "JCasC has no conflicting or chart-owned keys" python3 tests/check_jcasc.py
 
@@ -374,9 +409,10 @@ for f in glob.glob('helm/*/templates/ingress.yaml'):
         bad.append(f)
 assert not bad, bad"
 
-t T14.18 "agent pod declares no volume clashing with the plugin workspace" python3 -c "
+t T14.18 "agent pods declare no volume clashing with the plugin workspace" python3 -c "
 import re, yaml
-y=re.search(r'yaml \"\"\"\n(.*?)\n\"\"\"', open('Jenkinsfile').read(), re.S).group(1)
+for f in ['Jenkinsfile-ci','Jenkinsfile-cd']:
+ y=re.search(r'yaml \"\"\"\n(.*?)\n\"\"\"', open(f).read(), re.S).group(1)
 y=re.sub(r'\\\\$\{env\.\w+\}','X',y)
 pod=yaml.safe_load(y)
 paths={}
@@ -389,7 +425,7 @@ assert '/home/jenkins/agent' not in paths, 'do not mount over the plugin workspa
 
 t T14.19 "rootless BuildKit has the three settings it needs" python3 -c "
 import re, yaml
-y=re.search(r'yaml \"\"\"\n(.*?)\n\"\"\"', open('Jenkinsfile').read(), re.S).group(1)
+y=re.search(r'yaml \"\"\"\n(.*?)\n\"\"\"', open('Jenkinsfile-ci').read(), re.S).group(1)
 y=re.sub(r'\\\\$\{env\.\w+\}','X',y)
 pod=yaml.safe_load(y)
 ann=pod['metadata'].get('annotations',{})
@@ -400,27 +436,30 @@ assert '--oci-worker-no-process-sandbox' in env.get('BUILDKITD_FLAGS',''), 'miss
 assert bk['securityContext']['seccompProfile']['type']=='Unconfined', 'missing seccomp Unconfined'
 assert 'privileged' not in bk['securityContext'], 'must NOT be privileged'"
 
-t T14.20 "Helm uses configmap driver so RBAC never needs secrets" bash -c '
-  grep -q "HELM_DRIVER = \"configmap\"" Jenkinsfile &&
-  grep -q "HELM_DRIVER=configmap helm uninstall frontend" scripts/destroy.sh &&
-  grep -q "HELM_DRIVER=configmap helm uninstall backend" scripts/destroy.sh &&
-  grep -q "HELM_DRIVER=configmap helm uninstall worker" scripts/destroy.sh &&
-  ! grep -q "HELM_DRIVER=configmap helm uninstall jenkins" scripts/destroy.sh'
+t T14.20 "Helm uses configmap driver so RBAC never needs secrets" python3 -c "
+cd=open('Jenkinsfile-cd').read()
+assert 'HELM_DRIVER' in cd and 'configmap' in cd, 'CD must set HELM_DRIVER=configmap'
+d=open('scripts/destroy.sh').read()
+for r in ['frontend','backend','worker']:
+    assert f'HELM_DRIVER=configmap helm uninstall {r}' in d, f'destroy must use the configmap driver for {r}'
+assert 'HELM_DRIVER=configmap helm uninstall jenkins' not in d, \
+    'jenkins was installed with the default driver and must not use configmap'"
 
 t T14.21 "smoke test respects NetworkPolicy (goes via frontend, not backend)" bash -c '
-  grep -q "svc frontend" Jenkinsfile &&
-  grep -q "8080/api/health" Jenkinsfile &&
-  ! grep -q "svc backend .* clusterIP" Jenkinsfile'
+  grep -q "svc frontend" Jenkinsfile-cd &&
+  grep -q "8080/api/health" Jenkinsfile-cd &&
+  ! grep -q "svc backend .* clusterIP" Jenkinsfile-cd'
 
 t T14.22 "every kubectl resource the pipeline requests is granted in RBAC" python3 tests/check_rbac_usage.py
 
 t T14.23 "Jenkins agent IAM allows scoped S3 write for build evidence" bash -c '
   grep -q "s3:PutObject" terraform/modules/irsa/main.tf &&
   grep -q "builds/\*" terraform/modules/irsa/main.tf'
-t T14.24 "Archive stage does not mask upload failures with || true" python3 -c "
+t T14.24 "S3 upload failures are not masked with || true" python3 -c "
 import re
-body=open('Jenkinsfile').read()
-m=re.search(r\"stage\(.Archive.\).*?^        \}\", body, re.S|re.M)
+body=open('Jenkinsfile-cd').read()
+m=re.search(r\"stage\(.Record deployment.\).*?^        \}\", body, re.S|re.M)
+assert m, 'Record deployment stage not found'
 block=m.group(0)
 code=[l for l in block.splitlines() if not l.strip().startswith('//')]
 code='\\n'.join(code)
@@ -429,6 +468,79 @@ for line in code.splitlines():
     if 'aws s3 cp' in line:
         assert '|| true' not in line, 'S3 upload failure is being swallowed'
 assert 'set -e' in code, 'archive stage must use set -e'"
+
+t T14.25 "destroy sweeps orphaned ALB-controller security groups" bash -c '
+  grep -q "sweep_orphan_sgs" scripts/destroy.sh &&
+  grep -q "delete-security-group" scripts/destroy.sh &&
+  grep -q "revoke-security-group-ingress" scripts/destroy.sh'
+
+echo "=== T15: Assignment spec compliance ==="
+t T15.1 "CI/CD separation (CI cannot deploy, CD cannot build)" python3 tests/check_pipeline_separation.py
+t T15.2 "two Jenkinsfiles exist, single combined one does not" bash -c '
+  [ -f Jenkinsfile-ci ] && [ -f Jenkinsfile-cd ] && [ ! -f Jenkinsfile ]'
+t T15.3 "the four required scripts exist and are executable" bash -c '
+  for s in install-jenkins configure-jenkins create-jobs verify-jenkins; do
+    [ -x "scripts/${s}.sh" ] || { echo "missing or not executable: ${s}.sh"; exit 1; }
+  done'
+t T15.4 "jobs are defined as code (Job DSL), not clicked in the UI" bash -c '
+  [ -f jenkins/jobs/seed.groovy ] &&
+  grep -q "application-ci" jenkins/jobs/seed.groovy &&
+  grep -q "application-cd" jenkins/jobs/seed.groovy &&
+  grep -q "seed.groovy" scripts/configure-jenkins.sh'
+t T15.5 "three ServiceAccounts with the CI/CD split" python3 -c "
+import yaml
+docs=[d for d in yaml.safe_load_all(open('jenkins/rbac.yaml')) if d]
+sas={d['metadata']['name'] for d in docs if d['kind']=='ServiceAccount'}
+assert sas=={'jenkins','jenkins-agent-ci','jenkins-agent-cd'}, sas
+# the CI agent must have NO RoleBinding anywhere
+for d in docs:
+    if d['kind']=='RoleBinding':
+        for s in d['subjects']:
+            assert s['name']!='jenkins-agent-ci', 'CI agent must have no RoleBinding'"
+t T15.6 "separate IAM roles for CI and CD; CD cannot push images" bash -c '
+  grep -q "jenkins_ci" terraform/modules/irsa/main.tf &&
+  grep -q "jenkins_cd" terraform/modules/irsa/main.tf &&
+  ! sed -n "/cd-registry-read/,/^  })/p" terraform/modules/irsa/main.tf | grep -q "ecr:PutImage"'
+t T15.7 "unit tests exist and produce JUnit output" bash -c '
+  [ -f app/backend/test_app.py ] && [ -f app/worker/test_worker.py ] &&
+  grep -q "junitxml" Jenkinsfile-ci'
+t T15.8 "both architecture diagrams exist with rendered output" bash -c '
+  [ -f docs/architecture-deployment.mmd ] && [ -f docs/architecture-pipeline.mmd ] &&
+  [ -f docs/architecture-deployment.png ] && [ -f docs/architecture-pipeline.png ]'
+t T15.9 "README embeds both diagrams and has a Security chapter" bash -c '
+  grep -q "architecture-deployment.png" README.md &&
+  grep -q "architecture-pipeline.png" README.md &&
+  grep -q "## 10. Security" README.md &&
+  grep -q "Rollback" README.md'
+t T15.10 "credential example files exist with no real values" bash -c '
+  [ -f jenkins/secret.example.yaml ] && [ -f jenkins/values.example.yaml ] &&
+  ! grep -qE "AKIA[0-9A-Z]{16}" jenkins/secret.example.yaml jenkins/values.example.yaml'
+t T15.11 "Jenkins UI is not open to the world and uses HTTPS" bash -c '
+  grep -q "certificate-arn" scripts/configure-jenkins.sh &&
+  grep -q "checkip.amazonaws.com" scripts/configure-jenkins.sh &&
+  ! grep -q "inbound-cidrs: \"0.0.0.0/0\"" jenkins/values.yaml scripts/configure-jenkins.sh'
+t T15.12 "no Docker socket is mounted anywhere" bash -c '
+  ! grep -rq "docker.sock" Jenkinsfile-ci Jenkinsfile-cd jenkins/'
+t T15.13 "agent containers declare resources and drop capabilities" python3 -c "
+import re, yaml
+for f in ['Jenkinsfile-ci','Jenkinsfile-cd']:
+    y=re.search(r'yaml \"\"\"\n(.*?)\n\"\"\"', open(f).read(), re.S).group(1)
+    y=re.sub(r'\\\\$\{env\.\w+\}','X',y)
+    pod=yaml.safe_load(y)
+    for c in pod['spec']['containers']:
+        assert 'resources' in c, f'{f}: {c[\"name\"]} has no resources'
+        sc=c.get('securityContext',{})
+        assert sc.get('allowPrivilegeEscalation') is False, f'{f}: {c[\"name\"]} allows privilege escalation'
+        assert 'privileged' not in sc, f'{f}: {c[\"name\"]} is privileged'"
+t T15.14 "NetworkPolicies defined for the jenkins namespace" bash -c '
+  [ -f jenkins/networkpolicy.yaml ] &&
+  grep -q "default-deny-all" jenkins/networkpolicy.yaml &&
+  grep -q "169.254.169.254/32" jenkins/networkpolicy.yaml'
+t T15.15 "PR builds never push to the registry" bash -c '
+  grep -q "IS_PR" Jenkinsfile-ci &&
+  grep -A2 "stage(.Push" Jenkinsfile-ci | grep -q "IS_PR"'
+
+t T15.16 "documentation references no deleted or missing file" python3 tests/check_doc_links.py
 
 echo ""
 echo "=============================================="

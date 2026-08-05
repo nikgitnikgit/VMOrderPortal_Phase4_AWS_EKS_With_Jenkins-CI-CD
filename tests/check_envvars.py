@@ -12,9 +12,9 @@ def reads(path):
 def supplied(chart):
     vals = yaml.safe_load(open(f"helm/{chart}/values.yaml"))
     cm = set(vals.get("config", {}).keys())
-    # Phase 4: the Secret is created by scripts/bootstrap-platform.sh
+    # Phase 4: the Secret is created by scripts/install-jenkins.sh
     # (kubectl create secret) using values read from terraform outputs.
-    boot = open("scripts/bootstrap-platform.sh").read()
+    boot = open("scripts/install-jenkins.sh").read()
     secret = set(re.findall(r"--from-literal=(\w+)=", boot))
     return cm | secret
 

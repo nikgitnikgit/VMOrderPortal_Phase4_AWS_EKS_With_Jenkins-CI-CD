@@ -1,0 +1,102 @@
+%% docs/architecture-deployment.mmd — Deployment View
+%% What runs where, what is exposed, and which components hold permissions.
+%% Renders natively in GitHub; also embedded in README.md.
+graph TB
+
+ subgraph internet["Internet"]
+ DEV["Developer<br/>pushes to main"]
+ GH["GitHub<br/>repository + webhook"]
+ USER["End user"]
+ end
+
+ subgraph aws["AWS account — us-east-1"]
+
+ subgraph vpc["VPC 10.0.0.0/16"]
+
+ subgraph public["Public subnets ×2"]
+ ALBJ["ALB — Jenkins<br/>HTTPS 443, ACM cert<br/> inbound-cidrs = your IP/32"]
+ ALBA["ALB — application<br/>HTTP 80"]
+ NAT["NAT gateway"]
+ end
+
+ subgraph private["Private subnets ×2 — EKS worker nodes"]
+
+ subgraph ngjenkins["Node group: jenkins-nodes<br/>1 × m7i-flex.large — TAINTED role=jenkins"]
+ subgraph nsj["namespace: jenkins"]
+ JC["jenkins-0 (StatefulSet)<br/>controller + config-reload<br/>numExecutors = 0<br/>SA: jenkins"]
+ PVC[("PVC 8Gi<br/>EBS gp2<br/>JENKINS_HOME")]
+ ACI["CI agent Pod (ephemeral)<br/>tools · buildkit · trivy<br/>SA: jenkins-agent-ci"]
+ ACD["CD agent Pod (ephemeral)<br/>tools only — no builder<br/>SA: jenkins-agent-cd"]
+ end
+ end
+
+ subgraph ngapp["Node group: app-nodes<br/>3 × t3.small — no taint"]
+ subgraph nsa["namespace: devops-app"]
+ FE["frontend ×2<br/>nginx :8080"]
+ BE["backend ×2<br/>Flask :5000"]
+ WK["worker ×2<br/>Flask :5001"]
+ SEC[["Secret: app-secrets<br/> DB password<br/>created by install script"]]
+ end
+ end
+
+ subgraph nsk["namespace: kube-system"]
+ ALBC["aws-load-balancer-controller"]
+ CSI["ebs-csi-driver"]
+ MS["metrics-server"]
+ end
+ end
+
+ subgraph dbsubnet["DB subnets ×2 — no internet route"]
+ RDS[("RDS PostgreSQL<br/>private only")]
+ end
+ end
+
+ ECR["ECR<br/>vm-order-frontend<br/>vm-order-backend<br/>vm-order-worker<br/>vm-order-jenkins-agent<br/>IMMUTABLE tags"]
+ S3[("S3<br/>orders/ · builds/ · deployments/")]
+ SNS["SNS + SES"]
+ IAM["IAM / IRSA roles<br/>ci · cd · backend · worker<br/>alb · ebs-csi"]
+ end
+
+ DEV -->|git push| GH
+ GH -.->|webhook HTTPS| ALBJ
+ ALBJ --> JC
+ JC --- PVC
+ JC -->|creates / deletes| ACI
+ JC -->|creates / deletes| ACD
+
+ ACI -->|push images<br/>IRSA| ECR
+ ACI -->|SBOM + scan reports| S3
+ ACD -->|read-only verify| ECR
+ ACD -->|helm upgrade<br/>RBAC: devops-app only| FE
+ ACD --> BE
+ ACD --> WK
+ ACD -->|deployment record| S3
+
+ BE --> SEC
+ WK --> SEC
+ BE --> RDS
+ WK --> RDS
+ BE -->|IRSA| S3
+ WK -->|IRSA| SNS
+
+ USER -->|HTTP| ALBA
+ ALBA --> FE
+ FE -->|/api/ proxy| BE
+ BE -->|notify| WK
+
+ private --> NAT
+ NAT --> internet
+ ALBC -.->|provisions| ALBJ
+ ALBC -.->|provisions| ALBA
+ IAM -.->|assumed via OIDC| ACI
+ IAM -.->|assumed via OIDC| ACD
+
+ classDef secret fill:#fff3cd,stroke:#b8860b,stroke-width:2px
+ classDef exposed fill:#ffe0e0,stroke:#c0392b,stroke-width:2px
+ classDef jenkins fill:#e3f0ff,stroke:#2563a8,stroke-width:2px
+ classDef app fill:#e6f7ee,stroke:#1d7a4c,stroke-width:2px
+
+ class SEC,IAM secret
+ class ALBJ,ALBA exposed
+ class JC,ACI,ACD,PVC jenkins
+ class FE,BE,WK app

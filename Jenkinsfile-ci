@@ -1,0 +1,442 @@
+// Jenkinsfile-ci — VM Order Portal, CI pipeline
+//
+// RESPONSIBILITY: test, build, scan, tag, push to ECR.
+// EXPLICITLY NOT ALLOWED: deploying to Kubernetes.
+//
+// This pipeline runs as ServiceAccount `jenkins-agent-ci`, which has ECR
+// push rights via IRSA and NO Kubernetes deploy permissions at all. Even if
+// this Jenkinsfile were modified to attempt a `helm upgrade`, the API server
+// would reject it. The separation is enforced by RBAC, not by convention.
+//
+// Images are scanned BEFORE they are pushed: the build writes an OCI tarball,
+// Trivy scans the tarball, and only then is the image pushed. A CRITICAL
+// finding therefore means nothing ever reaches the registry.
+//
+// Hand-off to CD: this pipeline records the immutable tag AND the registry
+// digest of every image into image-manifest.json, archives it, and triggers
+// the `application-cd` job with the digest. CD deploys exactly what CI
+// scanned — it never rebuilds.
+
+pipeline {
+    agent {
+        kubernetes {
+            yaml """
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    jenkins/agent: "true"
+    pipeline: "ci"
+  annotations:
+    # Rootless BuildKit cannot set up its nested mount namespace under the
+    # default AppArmor profile. Scoped to the buildkit container only.
+    container.apparmor.security.beta.kubernetes.io/buildkit: unconfined
+spec:
+  serviceAccountName: jenkins-agent-ci
+  securityContext:
+    fsGroup: 1000
+    runAsNonRoot: true
+  tolerations:
+    - key: "role"
+      operator: "Equal"
+      value: "jenkins"
+      effect: "NoSchedule"
+  nodeSelector:
+    eks.amazonaws.com/nodegroup: "${env.JENKINS_NODE_GROUP}"
+  containers:
+    - name: tools
+      image: "${env.AGENT_TOOLS_IMAGE}"
+      command: ["sleep"]
+      args: ["infinity"]
+      resources:
+        requests: { cpu: "200m", memory: "512Mi" }
+        limits:   { cpu: "1",    memory: "1Gi" }
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
+        seccompProfile:
+          type: RuntimeDefault
+      volumeMounts:
+        - name: docker-config
+          mountPath: /home/jenkins/.docker
+    - name: buildkit
+      image: moby/buildkit:v0.18.2-rootless
+      command: ["sleep"]
+      args: ["infinity"]
+      env:
+        - name: DOCKER_CONFIG
+          value: /home/jenkins/.docker
+        # Required for rootless-without-privileged: buildkitd otherwise asks
+        # runc for a nested process sandbox an unprivileged container cannot
+        # create, and every RUN step fails mounting /proc.
+        - name: BUILDKITD_FLAGS
+          value: --oci-worker-no-process-sandbox
+      resources:
+        requests: { cpu: "500m", memory: "1Gi" }
+        limits:   { cpu: "2",    memory: "3Gi" }
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        allowPrivilegeEscalation: false
+        seccompProfile:
+          type: Unconfined
+      volumeMounts:
+        - name: docker-config
+          mountPath: /home/jenkins/.docker
+    - name: trivy
+      image: aquasec/trivy:0.58.2
+      command: ["sleep"]
+      args: ["infinity"]
+      resources:
+        requests: { cpu: "200m", memory: "512Mi" }
+        limits:   { cpu: "1",    memory: "2Gi" }
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
+        seccompProfile:
+          type: RuntimeDefault
+  volumes:
+    # No workspace volume declared: the Kubernetes plugin injects its own
+    # `workspace-volume` and shares it across all containers. Declaring a
+    # second volume at the same path gives jnlp and the tool containers
+    # different disks, and every sh step fails with
+    # "process apparently never started".
+    - name: docker-config
+      emptyDir:
+        # RAM-backed: the ECR token never touches node disk and dies with the pod.
+        medium: Memory
+        sizeLimit: 8Mi
+"""
+        }
+    }
+
+    options {
+        timeout(time: 45, unit: 'MINUTES')
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '20', artifactNumToKeepStr: '20'))
+        timestamps()
+    }
+
+    environment {
+        SERVICES = 'frontend backend worker'
+        // AWS_REGION, ECR_REGISTRY, AGENT_TOOLS_IMAGE, JENKINS_NODE_GROUP,
+        // S3_BUCKET come from Jenkins global env (set by configure-jenkins.sh).
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                script {
+                    // Immutable tag = git short SHA. Never `latest`, and never
+                    // BUILD_NUMBER, which restarts at 1 when Jenkins is rebuilt
+                    // and would then collide with an existing IMMUTABLE ECR tag.
+                    env.GIT_SHA   = sh(script: 'git rev-parse --short=12 HEAD', returnStdout: true).trim()
+                    env.GIT_FULL  = sh(script: 'git rev-parse HEAD', returnStdout: true).trim()
+                    env.GIT_BRANCH_NAME = sh(
+                        script: 'git rev-parse --abbrev-ref HEAD 2>/dev/null || echo detached',
+                        returnStdout: true).trim()
+                    env.IMAGE_TAG = env.GIT_SHA
+                    env.IS_PR = (env.CHANGE_ID ?: '') != '' ? 'true' : 'false'
+
+                    echo """
+======================= CI BUILD =======================
+  CI build number : ${env.BUILD_NUMBER}
+  Git commit      : ${env.GIT_FULL}
+  Short SHA / tag : ${env.GIT_SHA}
+  Branch          : ${env.GIT_BRANCH_NAME}
+  Pull request    : ${env.IS_PR == 'true' ? 'yes (#' + env.CHANGE_ID + ')' : 'no'}
+  Registry        : ${env.ECR_REGISTRY}
+========================================================
+"""
+                }
+            }
+        }
+
+        stage('Validate') {
+            steps {
+                container('tools') {
+                    sh '''
+                        set -e
+                        echo "--- project structure ---"
+                        for d in app/backend app/worker docker/frontend docker/backend \
+                                 docker/worker helm/backend helm/worker helm/frontend; do
+                            [ -d "$d" ] || { echo "missing directory: $d"; exit 1; }
+                        done
+                        for f in Jenkinsfile-ci Jenkinsfile-cd jenkins/values.yaml jenkins/rbac.yaml; do
+                            [ -f "$f" ] || { echo "missing file: $f"; exit 1; }
+                        done
+                        echo "OK"
+
+                        echo "--- Dockerfile lint (hadolint) ---"
+                        hadolint docker/backend/Dockerfile
+                        hadolint docker/worker/Dockerfile
+                        hadolint docker/frontend/Dockerfile
+                        hadolint jenkins/agent-tools/Dockerfile
+
+                        echo "--- shell lint ---"
+                        shellcheck scripts/*.sh terraform/bootstrap-state.sh
+
+                        echo "--- helm lint ---"
+                        helm lint helm/backend helm/worker helm/frontend
+
+                        echo "--- helm template renders ---"
+                        for c in backend worker frontend; do
+                            helm template "$c" "helm/$c" \
+                                --set image.registry=dummy.ecr.aws \
+                                --set serviceAccount.roleArn=arn:aws:iam::000000000000:role/dummy \
+                                > /dev/null
+                        done
+                    '''
+                }
+            }
+        }
+
+        stage('Static analysis') {
+            steps {
+                container('tools') {
+                    sh '''
+                        set -e
+                        echo "--- flake8 ---"
+                        # E501 (line length) relaxed to 120; everything else enforced.
+                        flake8 app/ tests/ --max-line-length=120 \
+                            --exclude=app/*/venv --statistics
+                    '''
+                }
+            }
+        }
+
+        stage('Unit tests') {
+            steps {
+                container('tools') {
+                    sh '''
+                        set -e
+                        mkdir -p reports
+                        python3 -m pytest app/ -v \
+                            --junitxml=reports/junit.xml \
+                            --cov=app --cov-report=xml:reports/coverage.xml \
+                            --cov-report=term
+                    '''
+                }
+            }
+            post {
+                always {
+                    // Publishes the test trend graph in Jenkins. A failing test
+                    // marks the build UNSTABLE/FAILED, which stops CD.
+                    junit allowEmptyResults: false, testResults: 'reports/junit.xml'
+                }
+            }
+        }
+
+        stage('Build images') {
+            steps {
+                container('buildkit') {
+                    script {
+                        for (svc in ['frontend', 'backend', 'worker']) {
+                            // Build to a local OCI tarball. Nothing is pushed yet:
+                            // the image is scanned first, so a CRITICAL finding
+                            // means it never reaches the registry at all.
+                            sh """
+                                buildctl-daemonless.sh build \\
+                                    --frontend=dockerfile.v0 \\
+                                    --local context=. \\
+                                    --local dockerfile=docker/${svc} \\
+                                    --output type=docker,name=vm-order-${svc}:${env.IMAGE_TAG},dest=/home/jenkins/agent/workspace/vm-order-${svc}.tar
+                            """
+                        }
+                        sh 'ls -lh /home/jenkins/agent/workspace/*.tar'
+                    }
+                }
+            }
+        }
+
+        stage('Scan + SBOM') {
+            steps {
+                container('trivy') {
+                    script {
+                        for (svc in ['frontend', 'backend', 'worker']) {
+                            def tar = "vm-order-${svc}.tar"
+                            // SBOM first (never fails), then the gate.
+                            sh """
+                                trivy image --input ${tar} \\
+                                    --format cyclonedx \\
+                                    --output sbom-${svc}.cdx.json \\
+                                    --no-progress
+                            """
+                            sh """
+                                trivy image --input ${tar} \\
+                                    --format table \\
+                                    --output trivy-${svc}.txt \\
+                                    --no-progress
+                                cat trivy-${svc}.txt
+                            """
+                            // The gate: any CRITICAL fails the build here,
+                            // before the push stage can run.
+                            sh """
+                                trivy image --input ${tar} \\
+                                    --severity CRITICAL \\
+                                    --exit-code 1 \\
+                                    --no-progress \\
+                                    --format table
+                            """
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('ECR login') {
+            when { expression { env.IS_PR != 'true' } }
+            steps {
+                container('tools') {
+                    // BuildKit reads a standard docker config.json. We write one
+                    // from an IRSA-issued token: no stored credential, ~12h life,
+                    // and it dies with the pod.
+                    sh '''
+                        set -e
+                        TOKEN=$(aws ecr get-login-password --region "$AWS_REGION")
+                        AUTH=$(printf 'AWS:%s' "$TOKEN" | base64 -w0)
+                        umask 077
+                        cat > /home/jenkins/.docker/config.json <<EOF
+{"auths":{"${ECR_REGISTRY}":{"auth":"${AUTH}"}}}
+EOF
+                        chmod 600 /home/jenkins/.docker/config.json
+                        unset TOKEN AUTH
+                        echo "docker config written for ${ECR_REGISTRY}"
+                    '''
+                }
+            }
+        }
+
+        stage('Push + record digest') {
+            when { expression { env.IS_PR != 'true' } }
+            steps {
+                container('buildkit') {
+                    script {
+                        for (svc in ['frontend', 'backend', 'worker']) {
+                            def img = "${env.ECR_REGISTRY}/vm-order-${svc}:${env.IMAGE_TAG}"
+                            // Cache hit from the Build stage — this is seconds,
+                            // and it is byte-for-byte the artifact Trivy scanned.
+                            sh """
+                                buildctl-daemonless.sh build \\
+                                    --frontend=dockerfile.v0 \\
+                                    --local context=. \\
+                                    --local dockerfile=docker/${svc} \\
+                                    --output type=image,name=${img},push=true \\
+                                    --metadata-file meta-${svc}.json
+                            """
+                        }
+                    }
+                }
+                container('tools') {
+                    script {
+                        // Metadata artifact: the contract between CI and CD.
+                        sh '''
+                            set -e
+                            {
+                              echo "{"
+                              echo "  \\"ci_build\\": \\"'"${BUILD_NUMBER}"'\\","
+                              echo "  \\"ci_build_url\\": \\"'"${BUILD_URL}"'\\","
+                              echo "  \\"git_commit\\": \\"'"${GIT_FULL}"'\\","
+                              echo "  \\"git_branch\\": \\"'"${GIT_BRANCH_NAME}"'\\","
+                              echo "  \\"image_tag\\": \\"'"${IMAGE_TAG}"'\\","
+                              echo "  \\"registry\\": \\"'"${ECR_REGISTRY}"'\\","
+                              echo "  \\"images\\": {"
+                              first=1
+                              for svc in frontend backend worker; do
+                                  d=$(jq -r '."containerimage.digest"' "meta-${svc}.json")
+                                  [ $first -eq 0 ] && echo ","
+                                  first=0
+                                  printf "    \\"%s\\": { \\"digest\\": \\"%s\\" }" "$svc" "$d"
+                              done
+                              echo ""
+                              echo "  }"
+                              echo "}"
+                            } > image-manifest.json
+                            cat image-manifest.json
+                        '''
+                        def manifest = readJSON file: 'image-manifest.json'
+                        env.BACKEND_DIGEST  = manifest.images.backend.digest
+                        env.FRONTEND_DIGEST = manifest.images.frontend.digest
+                        env.WORKER_DIGEST   = manifest.images.worker.digest
+                    }
+                }
+            }
+        }
+
+        stage('Trigger CD') {
+            when {
+                allOf {
+                    expression { env.IS_PR != 'true' }
+                    branch 'main'
+                }
+            }
+            steps {
+                script {
+                    echo "Handing off tag ${env.IMAGE_TAG} to application-cd"
+                    build job: 'application-cd',
+                          wait: false,
+                          parameters: [
+                              string(name: 'IMAGE_TAG',       value: env.IMAGE_TAG),
+                              string(name: 'BACKEND_DIGEST',  value: env.BACKEND_DIGEST),
+                              string(name: 'FRONTEND_DIGEST', value: env.FRONTEND_DIGEST),
+                              string(name: 'WORKER_DIGEST',   value: env.WORKER_DIGEST),
+                              string(name: 'CI_BUILD',        value: env.BUILD_NUMBER),
+                              string(name: 'GIT_COMMIT_SHA',  value: env.GIT_FULL)
+                          ]
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            container('tools') {
+                // Cleanup runs even on failure: no credential is left behind
+                // in the workspace, and the image tarballs are large.
+                sh '''
+                    rm -f /home/jenkins/.docker/config.json || true
+                    rm -f /home/jenkins/agent/workspace/*.tar || true
+                '''
+            }
+            archiveArtifacts artifacts: 'trivy-*.txt,sbom-*.cdx.json,image-manifest.json',
+                             allowEmptyArchive: true, fingerprint: true
+            cleanWs(deleteDirs: true, notFailBuild: true)
+        }
+        success {
+            echo "CI OK — tag ${env.IMAGE_TAG} pushed and scanned."
+        }
+        failure {
+            echo "CI FAILED — nothing was promoted, application-cd was not triggered."
+            // Email notification (bonus). No secret is interpolated into the
+            // body: only build metadata and a link back to Jenkins.
+            emailext(
+                to: "${env.NOTIFICATION_EMAIL}",
+                subject: "CI FAILED - vm-order-portal #${env.BUILD_NUMBER} (${env.GIT_SHA})",
+                body: """The CI pipeline failed. No image was promoted and
+application-cd was NOT triggered.
+
+  Build   : ${env.BUILD_NUMBER}
+  Commit  : ${env.GIT_FULL}
+  Branch  : ${env.GIT_BRANCH_NAME}
+  Console : ${env.BUILD_URL}console
+
+Scan reports and the SBOM are attached to the build as artifacts.
+"""
+            )
+        }
+        fixed {
+            emailext(
+                to: "${env.NOTIFICATION_EMAIL}",
+                subject: "CI recovered - vm-order-portal #${env.BUILD_NUMBER}",
+                body: "CI is green again at commit ${env.GIT_FULL}.\n${env.BUILD_URL}"
+            )
+        }
+    }
+}

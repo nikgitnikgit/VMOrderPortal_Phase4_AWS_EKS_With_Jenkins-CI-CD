@@ -21,12 +21,7 @@ echo "============================================"
 # --- 1. Uninstall Jenkins FIRST (stop agents, release PVC) ---
 echo ""
 echo "Step 1: Uninstalling Jenkins..."
-helm uninstall jenkins -n jenkins 2>/dev/null || echo "  (jenkins not installed)"
-
-# Delete the Jenkins PVC — it creates a real EBS volume that Terraform
-# doesn't know about. If left, it quietly costs money forever.
-echo "  Deleting Jenkins PVC..."
-kubectl delete pvc -n jenkins --all --wait=false 2>/dev/null || true
+"$REPO_ROOT/scripts/uninstall-jenkins.sh" || echo "  (jenkins not installed)"
 
 # --- 2. Remove ALB controller webhooks ---
 echo ""
@@ -93,13 +88,55 @@ sweep_orphan_enis() {
     done
 }
 
+# The ALB controller creates security groups (k8s-traffic-*, k8s-<ns>-<ing>-*)
+# that Terraform does not know about. Deleting the ALB does not always remove
+# them, and a VPC cannot be deleted while non-default security groups remain —
+# so terraform destroy hangs on the VPC for 10+ minutes with no useful error.
+sweep_orphan_sgs() {
+    [ -z "$VPC_ID" ] && return 0
+    echo "Sweeping orphaned k8s security groups in ${VPC_ID}..."
+    SGS=$(aws ec2 describe-security-groups --region "$AWS_REGION" \
+        --filters "Name=vpc-id,Values=${VPC_ID}" \
+        --query "SecurityGroups[?GroupName!='default'].GroupId" --output text 2>/dev/null)
+    [ -z "$SGS" ] && { echo "  none found"; return 0; }
+
+    # Strip rules first: these groups reference each other, so a straight
+    # delete fails with DependencyViolation.
+    for SG in $SGS; do
+        IN=$(aws ec2 describe-security-groups --region "$AWS_REGION" --group-ids "$SG" \
+            --query 'SecurityGroups[0].IpPermissions' --output json 2>/dev/null)
+        EG=$(aws ec2 describe-security-groups --region "$AWS_REGION" --group-ids "$SG" \
+            --query 'SecurityGroups[0].IpPermissionsEgress' --output json 2>/dev/null)
+        if [ -n "$IN" ] && [ "$IN" != "[]" ]; then
+            aws ec2 revoke-security-group-ingress --region "$AWS_REGION" \
+                --group-id "$SG" --ip-permissions "$IN" >/dev/null 2>&1 || true
+        fi
+        if [ -n "$EG" ] && [ "$EG" != "[]" ]; then
+            aws ec2 revoke-security-group-egress --region "$AWS_REGION" \
+                --group-id "$SG" --ip-permissions "$EG" >/dev/null 2>&1 || true
+        fi
+    done
+
+    for SG in $SGS; do
+        echo "  deleting orphan SG: $SG"
+        aws ec2 delete-security-group --region "$AWS_REGION" --group-id "$SG" 2>/dev/null || true
+    done
+}
+
+# Clear ALB-controller security groups BEFORE destroy, not just on retry:
+# they are the most common reason the VPC delete stalls for 10+ minutes.
 echo ""
-echo "Step 8: terraform destroy (10-15 minutes)..."
+echo "Step 8: Sweeping ALB-controller leftovers..."
+sweep_orphan_sgs
+
+echo ""
+echo "Step 9: terraform destroy (10-15 minutes)..."
 if ! terraform destroy -auto-approve; then
     echo ""
     echo "⚠️  Destroy hit a snag (usually orphaned EKS network interfaces)."
     echo "    Sweeping and retrying once..."
     sweep_orphan_enis
+    sweep_orphan_sgs
     terraform destroy -auto-approve
 fi
 

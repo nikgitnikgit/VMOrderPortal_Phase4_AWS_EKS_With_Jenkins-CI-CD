@@ -1,0 +1,141 @@
+# jenkins/networkpolicy.yaml — network isolation for the jenkins namespace
+#
+# Jenkins is the most dangerous workload in the cluster: it runs arbitrary
+# code by design. These policies limit what it can reach if it is compromised.
+#
+# Requires a CNI that enforces NetworkPolicy. On EKS the AWS VPC CNI does so
+# only when ENABLE_NETWORK_POLICY=true is set on the aws-node DaemonSet;
+# install-jenkins.sh enables it and verify-jenkins.sh checks it. If the flag
+# cannot be enabled, these objects are still created (they are valid API
+# objects) but are not enforced — README documents that caveat honestly
+# rather than claiming protection that is not active.
+
+---
+# Default deny: nothing in or out unless a policy below allows it.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: jenkins
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+
+---
+# Controller: reachable from the ALB (VPC sources) on the UI port, and from
+# agent pods on the JNLP port.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: jenkins-controller
+  namespace: jenkins
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: jenkins-controller
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # ALB targets pod IPs directly; its traffic originates inside the VPC.
+    - from:
+        - ipBlock:
+            cidr: 10.0.0.0/16
+      ports:
+        - port: 8080
+    # Agents connect back over JNLP.
+    - from:
+        - podSelector:
+            matchLabels:
+              jenkins/agent: "true"
+      ports:
+        - port: 50000
+        - port: 8080
+  egress:
+    # Kubernetes API — to create and delete agent pods.
+    - to:
+        - ipBlock:
+            cidr: 10.0.0.0/16
+      ports:
+        - port: 443
+    # DNS.
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # Internet: plugin downloads (updates.jenkins.io) over HTTPS.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 169.254.169.254/32   # block the instance metadata endpoint
+      ports:
+        - port: 443
+
+---
+# Agents: outbound to GitHub, ECR, the Kubernetes API and AWS APIs;
+# inbound from nothing.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: jenkins-agents
+  namespace: jenkins
+spec:
+  podSelector:
+    matchLabels:
+      jenkins/agent: "true"
+  policyTypes:
+    - Ingress
+    - Egress
+  # No ingress rules at all: nothing may initiate a connection to a build pod.
+  egress:
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # Jenkins controller (JNLP + REST).
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: jenkins-controller
+      ports:
+        - port: 50000
+        - port: 8080
+    # In-cluster targets the CD smoke test needs: the frontend Service.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: devops-app
+      ports:
+        - port: 8080
+    # Kubernetes API server and AWS service endpoints inside the VPC.
+    - to:
+        - ipBlock:
+            cidr: 10.0.0.0/16
+      ports:
+        - port: 443
+    # Internet over HTTPS: GitHub clone, ECR push, Trivy DB, package mirrors.
+    # The instance metadata endpoint is excluded so a malicious build cannot
+    # steal the NODE role credentials and bypass IRSA.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 169.254.169.254/32
+      ports:
+        - port: 443
+        - port: 80

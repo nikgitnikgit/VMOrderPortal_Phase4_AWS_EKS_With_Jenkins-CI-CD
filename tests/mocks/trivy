@@ -1,0 +1,6 @@
+#!/bin/bash
+echo "trivy $*" >> "$MOCK_LOG"
+# Mocked clean scan: exit 0 means "no CRITICAL findings".
+# A real scan happens in CI, against a real image.
+echo "mock trivy: no CRITICAL vulnerabilities"
+exit 0

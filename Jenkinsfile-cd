@@ -1,0 +1,398 @@
+// Jenkinsfile-cd — VM Order Portal, CD pipeline
+//
+// RESPONSIBILITY: take an image that CI already built and scanned, deploy it,
+// verify it, and roll back if verification fails.
+// EXPLICITLY NOT ALLOWED: building images, pushing to a registry, or changing
+// application code.
+//
+// This pipeline runs as ServiceAccount `jenkins-agent-cd`, which can manage
+// application objects in `devops-app` and nothing else. It has no ECR push
+// permission and no BuildKit container — it could not build an image if it
+// tried. The separation is enforced by RBAC and by the pod spec, not by
+// convention.
+//
+// It also cannot read Secrets. Helm normally stores release history as
+// Secrets, so we set HELM_DRIVER=configmap: Jenkins deploys an application
+// whose database password it is unable to read.
+
+pipeline {
+    agent {
+        kubernetes {
+            yaml """
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    jenkins/agent: "true"
+    pipeline: "cd"
+spec:
+  serviceAccountName: jenkins-agent-cd
+  securityContext:
+    fsGroup: 1000
+    runAsNonRoot: true
+  tolerations:
+    - key: "role"
+      operator: "Equal"
+      value: "jenkins"
+      effect: "NoSchedule"
+  nodeSelector:
+    eks.amazonaws.com/nodegroup: "${env.JENKINS_NODE_GROUP}"
+  containers:
+    # Note: no buildkit container. CD physically cannot build.
+    - name: tools
+      image: "${env.AGENT_TOOLS_IMAGE}"
+      command: ["sleep"]
+      args: ["infinity"]
+      resources:
+        requests: { cpu: "200m", memory: "512Mi" }
+        limits:   { cpu: "1",    memory: "1Gi" }
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
+        seccompProfile:
+          type: RuntimeDefault
+"""
+        }
+    }
+
+    parameters {
+        string(name: 'IMAGE_TAG', defaultValue: '',
+               description: 'Immutable image tag produced by CI (git short SHA). "latest" is rejected.')
+        string(name: 'BACKEND_DIGEST',  defaultValue: '', description: 'sha256:... from CI (optional but preferred)')
+        string(name: 'FRONTEND_DIGEST', defaultValue: '', description: 'sha256:... from CI')
+        string(name: 'WORKER_DIGEST',   defaultValue: '', description: 'sha256:... from CI')
+        string(name: 'CI_BUILD',        defaultValue: '', description: 'Originating CI build number (traceability)')
+        string(name: 'GIT_COMMIT_SHA',  defaultValue: '', description: 'Originating git commit (traceability)')
+        choice(name: 'TARGET_NAMESPACE', choices: ['devops-app'],
+               description: 'Deployment target. Restricted by RBAC to this namespace.')
+    }
+
+    options {
+        timeout(time: 30, unit: 'MINUTES')
+        // Prevents two deployments racing into the same environment.
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '30'))
+        timestamps()
+    }
+
+    environment {
+        // Helm stores release history as Secrets by default, which would need
+        // list/get on secrets. RBAC cannot scope `list` to one named object,
+        // so granting it would expose app-secrets. The configmap driver keeps
+        // history in ConfigMaps, which CD is already permitted to manage.
+        HELM_DRIVER = 'configmap'
+    }
+
+    stages {
+
+        stage('Validate input') {
+            steps {
+                script {
+                    def tag = params.IMAGE_TAG?.trim()
+
+                    if (!tag) {
+                        error('IMAGE_TAG is required. CD deploys an existing image; it does not build one.')
+                    }
+                    if (tag.toLowerCase() in ['latest', 'master', 'main']) {
+                        error("IMAGE_TAG '${tag}' is not immutable. Supply the git short SHA produced by CI.")
+                    }
+                    if (!(tag ==~ /^[0-9a-f]{7,40}$/)) {
+                        error("IMAGE_TAG '${tag}' does not look like a git SHA. Refusing to deploy an unverified tag.")
+                    }
+                    if (params.TARGET_NAMESPACE != 'devops-app') {
+                        error("Namespace '${params.TARGET_NAMESPACE}' is not permitted by RBAC.")
+                    }
+
+                    env.TAG = tag
+                    // Who / what / where — printed on every deployment.
+                    def cause = currentBuild.getBuildCauses()*.shortDescription.join(', ')
+                    echo """
+======================= CD DEPLOYMENT =======================
+  Triggered by    : ${cause}
+  CD build        : ${env.BUILD_NUMBER}
+  Originating CI  : ${params.CI_BUILD ?: '(manual run)'}
+  Git commit      : ${params.GIT_COMMIT_SHA ?: '(not supplied)'}
+  Image tag       : ${env.TAG}
+  backend digest  : ${params.BACKEND_DIGEST  ?: '(deploy by tag)'}
+  frontend digest : ${params.FRONTEND_DIGEST ?: '(deploy by tag)'}
+  worker digest   : ${params.WORKER_DIGEST   ?: '(deploy by tag)'}
+  Cluster         : ${env.CLUSTER_NAME}
+  Namespace       : ${params.TARGET_NAMESPACE}
+=============================================================
+"""
+                    currentBuild.description = "tag ${env.TAG} → ${params.TARGET_NAMESPACE} (CI #${params.CI_BUILD ?: '-'})"
+                }
+            }
+        }
+
+        stage('Verify image exists in registry') {
+            steps {
+                container('tools') {
+                    // Proves the tag was really produced by CI before we touch
+                    // the cluster. A typo fails here, changing nothing.
+                    sh '''
+                        set -e
+                        for svc in frontend backend worker; do
+                            echo "checking vm-order-${svc}:${TAG}"
+                            aws ecr describe-images \
+                                --repository-name "vm-order-${svc}" \
+                                --image-ids imageTag="${TAG}" \
+                                --region "$AWS_REGION" \
+                                --query 'imageDetails[0].imageDigest' --output text
+                        done
+                    '''
+                }
+            }
+        }
+
+        stage('Manifest validation') {
+            steps {
+                container('tools') {
+                    sh '''
+                        set -e
+                        helm lint helm/backend helm/worker helm/frontend
+
+                        echo "--- server-side dry run ---"
+                        for c in backend worker frontend; do
+                            helm upgrade --install "$c" "helm/$c" \
+                                --namespace "$TARGET_NAMESPACE" \
+                                --set image.registry="$ECR_REGISTRY" \
+                                --set image.tag="$TAG" \
+                                --dry-run --debug > "/tmp/render-$c.txt" 2>&1 \
+                              || { tail -30 "/tmp/render-$c.txt"; exit 1; }
+                            echo "  $c renders OK"
+                        done
+                    '''
+                }
+            }
+        }
+
+        stage('Approval') {
+            steps {
+                timeout(time: 15, unit: 'MINUTES') {
+                    input message: "Deploy tag ${env.TAG} to ${params.TARGET_NAMESPACE}?",
+                          ok: 'Deploy'
+                }
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                container('tools') {
+                    sh '''
+                        set -e
+                        helm upgrade --install backend helm/backend \
+                            --namespace "$TARGET_NAMESPACE" \
+                            --set image.registry="$ECR_REGISTRY" \
+                            --set image.tag="$TAG" \
+                            --set serviceAccount.roleArn="$BACKEND_ROLE_ARN" \
+                            --set config.AWS_REGION="$AWS_REGION" \
+                            --set config.S3_BUCKET="$S3_BUCKET" \
+                            --wait --timeout 5m
+
+                        helm upgrade --install worker helm/worker \
+                            --namespace "$TARGET_NAMESPACE" \
+                            --set image.registry="$ECR_REGISTRY" \
+                            --set image.tag="$TAG" \
+                            --set serviceAccount.roleArn="$WORKER_ROLE_ARN" \
+                            --set config.AWS_REGION="$AWS_REGION" \
+                            --wait --timeout 5m
+
+                        helm upgrade --install frontend helm/frontend \
+                            --namespace "$TARGET_NAMESPACE" \
+                            --set image.registry="$ECR_REGISTRY" \
+                            --set image.tag="$TAG" \
+                            --wait --timeout 5m
+                    '''
+                }
+            }
+        }
+
+        stage('Rollout') {
+            steps {
+                container('tools') {
+                    sh '''
+                        set -e
+                        for d in backend worker frontend; do
+                            kubectl rollout status "deployment/$d" \
+                                -n "$TARGET_NAMESPACE" --timeout=300s
+                        done
+                    '''
+                }
+            }
+        }
+
+        stage('Verify running version') {
+            steps {
+                container('tools') {
+                    // Proves the cluster is running the version we asked for,
+                    // not a leftover from a previous release.
+                    sh '''
+                        set -e
+                        echo "--- images actually running ---"
+                        kubectl get pods -n "$TARGET_NAMESPACE" \
+                            -o jsonpath='{range .items[*]}{.metadata.name}{"\\t"}{.spec.containers[*].image}{"\\n"}{end}'
+
+                        MISMATCH=0
+                        for svc in frontend backend worker; do
+                            RUNNING=$(kubectl get deployment "$svc" -n "$TARGET_NAMESPACE" \
+                                -o jsonpath='{.spec.template.spec.containers[0].image}')
+                            case "$RUNNING" in
+                                *:"$TAG") echo "  $svc OK ($RUNNING)" ;;
+                                *) echo "  $svc MISMATCH: running $RUNNING, expected tag $TAG"; MISMATCH=1 ;;
+                            esac
+                        done
+                        [ "$MISMATCH" -eq 0 ] || exit 1
+
+                        echo "--- resources ---"
+                        kubectl get deployment,replicaset,pod,service,ingress,hpa -n "$TARGET_NAMESPACE"
+                    '''
+                }
+            }
+        }
+
+        stage('Smoke test') {
+            steps {
+                container('tools') {
+                    // Goes through the frontend, not straight to the backend:
+                    // the backend NetworkPolicy accepts traffic only from pods
+                    // labelled app=frontend, so a direct call would be refused.
+                    // Testing via nginx also exercises the real request path.
+                    sh '''
+                        set -e
+                        FRONTEND_IP=$(kubectl get svc frontend -n "$TARGET_NAMESPACE" \
+                            -o jsonpath='{.spec.clusterIP}')
+
+                        echo "--- 1/3 nginx serving ---"
+                        curl -sf --max-time 10 "http://${FRONTEND_IP}:8080/healthz" > /dev/null
+                        echo "    /healthz OK"
+
+                        echo "--- 2/3 nginx -> backend proxy ---"
+                        curl -sf --max-time 10 "http://${FRONTEND_IP}:8080/api/health" > /dev/null
+                        echo "    /api/health OK"
+
+                        echo "--- 3/3 public ALB ---"
+                        ALB=$(kubectl get ingress -n "$TARGET_NAMESPACE" \
+                            -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}')
+                        if [ -n "$ALB" ]; then
+                            for i in $(seq 1 12); do
+                                if curl -sf --max-time 10 "http://${ALB}/healthz" > /dev/null; then
+                                    echo "    public URL OK: http://${ALB}"
+                                    break
+                                fi
+                                echo "    waiting for ALB to serve ($i/12)"
+                                sleep 10
+                            done
+                        else
+                            echo "    no ALB address yet (skipping external check)"
+                        fi
+                    '''
+                }
+            }
+        }
+
+        stage('Record deployment') {
+            steps {
+                container('tools') {
+                    sh '''
+                        set -e
+                        {
+                          echo "cd_build=${BUILD_NUMBER}"
+                          echo "ci_build=${CI_BUILD:-manual}"
+                          echo "git_commit=${GIT_COMMIT_SHA:-unknown}"
+                          echo "image_tag=${TAG}"
+                          echo "namespace=${TARGET_NAMESPACE}"
+                          echo "cluster=${CLUSTER_NAME}"
+                          echo "deployed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+                        } > deployment-record.txt
+
+                        kubectl get deployment,pod,service,ingress,hpa \
+                            -n "$TARGET_NAMESPACE" > cluster-state.txt
+                        HELM_DRIVER=configmap helm list -n "$TARGET_NAMESPACE" > helm-releases.txt
+
+                        aws s3 cp deployment-record.txt "s3://${S3_BUCKET}/deployments/${TAG}/"
+                        aws s3 cp cluster-state.txt      "s3://${S3_BUCKET}/deployments/${TAG}/"
+                        aws s3 cp helm-releases.txt      "s3://${S3_BUCKET}/deployments/${TAG}/"
+
+                        echo "--- evidence in S3 ---"
+                        aws s3 ls "s3://${S3_BUCKET}/deployments/${TAG}/"
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        failure {
+            container('tools') {
+                // Collect diagnostics BEFORE rolling back, or the evidence of
+                // what went wrong disappears with the failed ReplicaSet.
+                sh '''
+                    echo "=================== FAILURE DIAGNOSTICS ==================="
+                    kubectl get pods -n "$TARGET_NAMESPACE" -o wide || true
+                    echo "--- recent events ---"
+                    kubectl get events -n "$TARGET_NAMESPACE" \
+                        --sort-by=.metadata.creationTimestamp | tail -30 || true
+                    for d in backend worker frontend; do
+                        echo "--- logs: $d ---"
+                        kubectl logs "deployment/$d" -n "$TARGET_NAMESPACE" --tail=40 || true
+                    done
+
+                    echo "=================== ROLLING BACK ==================="
+                    for r in frontend worker backend; do
+                        HELM_DRIVER=configmap helm rollback "$r" -n "$TARGET_NAMESPACE" 2>/dev/null \
+                            && echo "  rolled back $r" \
+                            || echo "  $r has no previous revision (first install) — nothing to roll back"
+                    done
+
+                    echo ""
+                    echo "Manual rollback, if needed:"
+                    echo "  HELM_DRIVER=configmap helm history backend -n $TARGET_NAMESPACE"
+                    echo "  HELM_DRIVER=configmap helm rollback backend <REVISION> -n $TARGET_NAMESPACE"
+                '''
+            }
+        }
+        success {
+            emailext(
+                to: "${env.NOTIFICATION_EMAIL}",
+                subject: "Deployed ${env.TAG} to ${params.TARGET_NAMESPACE}",
+                body: """Deployment succeeded.
+
+  Image tag  : ${env.TAG}
+  Namespace  : ${params.TARGET_NAMESPACE}
+  Cluster    : ${env.CLUSTER_NAME}
+  CD build   : ${env.BUILD_NUMBER}
+  From CI    : ${params.CI_BUILD ?: 'manual run'}
+  Commit     : ${params.GIT_COMMIT_SHA ?: 'not supplied'}
+
+  ${env.BUILD_URL}
+"""
+            )
+        }
+        failure {
+            emailext(
+                to: "${env.NOTIFICATION_EMAIL}",
+                subject: "DEPLOY FAILED - ${env.TAG} to ${params.TARGET_NAMESPACE}",
+                body: """Deployment failed and a rollback was attempted.
+
+  Image tag : ${env.TAG}
+  Namespace : ${params.TARGET_NAMESPACE}
+  Console   : ${env.BUILD_URL}console
+
+Events and pod logs were collected before the rollback and are in the console
+output. To roll back manually:
+  HELM_DRIVER=configmap helm history backend -n ${params.TARGET_NAMESPACE}
+  HELM_DRIVER=configmap helm rollback backend <REV> -n ${params.TARGET_NAMESPACE}
+"""
+            )
+        }
+        always {
+            archiveArtifacts artifacts: 'deployment-record.txt,cluster-state.txt,helm-releases.txt',
+                             allowEmptyArchive: true
+            cleanWs(deleteDirs: true, notFailBuild: true)
+        }
+    }
+}
