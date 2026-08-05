@@ -1,0 +1,65 @@
+==================================================
+  Jenkins installation verification
+  2026-08-05T18:46:20Z
+==================================================
+
+Namespaces
+  [32mPASS[0m  jenkins namespace exists
+  [32mPASS[0m  devops-app namespace exists
+  [32mPASS[0m  nothing deployed to default namespace
+
+Controller
+  [32mPASS[0m  StatefulSet jenkins exists
+  [32mPASS[0m  controller pod is Ready
+  [32mPASS[0m  controller runs ZERO executors (no builds on the controller)
+  [32mPASS[0m  PVC is bound
+  [32mPASS[0m  controller image is pinned (not :latest)
+
+Exposure
+  [32mPASS[0m  Service exists
+  [32mPASS[0m  Ingress exists
+  [32mPASS[0m  Ingress uses HTTPS
+  [32mPASS[0m  Ingress is IP-restricted (not open to the world)
+  [32mPASS[0m  pathType is Prefix (ALB treats / as exact otherwise)
+
+ServiceAccounts and IRSA
+  [32mPASS[0m  SA jenkins exists
+  [32mPASS[0m  SA jenkins-agent-ci exists
+  [32mPASS[0m  SA jenkins-agent-cd exists
+  [32mPASS[0m  CI agent has an IRSA role
+  [32mPASS[0m  CD agent has an IRSA role
+  [32mPASS[0m  CI and CD use DIFFERENT IAM roles
+
+RBAC — positive checks
+  [32mPASS[0m  controller can create agent pods
+  [32mPASS[0m  CD agent can create deployments in devops-app
+  [32mPASS[0m  CD agent can read pods (rollout status)
+
+RBAC — negative checks (the security argument)
+  [32mPASS[0m  CI agent CANNOT create deployments
+  [32mPASS[0m  CI agent CANNOT create pods
+  [32mPASS[0m  CD agent CANNOT read Secrets (the DB password)
+  [32mPASS[0m  CD agent CANNOT list Secrets
+  [32mPASS[0m  controller CANNOT deploy to devops-app
+  [32mPASS[0m  no ClusterRoleBinding grants Jenkins cluster-admin
+
+Network
+  [32mPASS[0m  NetworkPolicies exist in jenkins namespace
+  [32mPASS[0m  NetworkPolicy enforcement enabled in the VPC CNI
+
+Jobs
+  [32mPASS[0m  job application-ci exists
+  [32mPASS[0m  job application-cd exists
+
+Pipeline separation
+  [32mPASS[0m  Jenkinsfile-ci exists
+  [32mPASS[0m  Jenkinsfile-cd exists
+  [32mPASS[0m  CI pipeline contains NO helm upgrade (no deploy)
+  [32mPASS[0m  CI pipeline contains NO kubectl apply/create
+  [32mPASS[0m  CD pipeline contains NO buildctl (no build)
+  [32mPASS[0m  CD pipeline has NO buildkit container
+  [32mPASS[0m  CD rejects the tag 'latest'
+
+==================================================
+  RESULT: 39 passed, 0 failed
+==================================================

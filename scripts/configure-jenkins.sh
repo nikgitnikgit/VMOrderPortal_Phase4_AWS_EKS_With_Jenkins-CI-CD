@@ -48,7 +48,7 @@ NOTIFICATION_EMAIL=$(terraform output -raw notification_email)
 SES_SENDER=$(terraform output -raw ses_sender)
 
 [ -n "$NODE_GROUP" ]  || NODE_GROUP="${CLUSTER_NAME}-jenkins-nodes"
-[ -n "$TOOLS_IMAGE" ] || TOOLS_IMAGE="${ECR_REGISTRY}/vm-order-jenkins-agent:tools-1.0"
+[ -n "$TOOLS_IMAGE" ] || TOOLS_IMAGE="${ECR_REGISTRY}/vm-order-jenkins-agent:tools-1.1"
 if [ -z "$CERT_ARN" ]; then
     CERT_ARN=$(aws acm list-certificates --region "$AWS_REGION" \
         --query "CertificateSummaryList[?DomainName=='jenkins.vm-order.internal'].CertificateArn | [0]" \
@@ -111,18 +111,27 @@ controller:
       # Kubernetes Secret by create-smtp-secret.sh, never stored in Git.
       mail: |
         unclassified:
+          # NOTE: adminAddress does NOT belong here. The mailer plugin
+          # deprecated it and JCasC now refuses to start with
+          # "Failed to configure 'mailer': 'adminAddress' is deprecated".
+          # The admin address moved to unclassified.location, below.
           mailer:
             smtpHost: "email-smtp.${AWS_REGION}.amazonaws.com"
             smtpPort: "587"
             useTls: true
             charset: "UTF-8"
             replyToAddress: "${SES_SENDER}"
+          location:
             adminAddress: "${SES_SENDER}"
       # The two jobs, defined as code via Job DSL. The seed script lives in
       # jenkins/jobs/ so it can be reviewed like any other source file.
       jobs: |
         jobs:
-          - script: >
+          # MUST be a literal block scalar, never a folded one. Folding joins
+          # every line with a space, collapsing the whole Groovy file onto one
+          # line -- at which point the first slash-slash comment hides all the
+          # code after it and the script fails to compile.
+          - script: |
 $(sed 's/^/              /' "$REPO_ROOT/jenkins/jobs/seed.groovy")
 EOF
 

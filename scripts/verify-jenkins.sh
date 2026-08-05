@@ -137,10 +137,10 @@ echo ""
 echo "Jobs"
 JPASS=$(kubectl get secret jenkins -n jenkins -o jsonpath='{.data.jenkins-admin-password}' 2>/dev/null | base64 -d)
 check "job application-ci exists" bash -c \
-    "kubectl exec -n jenkins jenkins-0 -c jenkins -- curl -sS --user 'admin:${JPASS}' \
+    "kubectl exec -n jenkins jenkins-0 -c jenkins -- curl -sS -g --user 'admin:${JPASS}' \
      'http://localhost:8080/api/json?tree=jobs[name]' | grep -q application-ci"
 check "job application-cd exists" bash -c \
-    "kubectl exec -n jenkins jenkins-0 -c jenkins -- curl -sS --user 'admin:${JPASS}' \
+    "kubectl exec -n jenkins jenkins-0 -c jenkins -- curl -sS -g --user 'admin:${JPASS}' \
      'http://localhost:8080/api/json?tree=jobs[name]' | grep -q application-cd"
 
 # ------------------------------------------------------------- pipelines

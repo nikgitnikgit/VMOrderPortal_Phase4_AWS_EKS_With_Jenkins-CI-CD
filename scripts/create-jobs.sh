@@ -27,15 +27,23 @@ echo ""
 echo "[1/3] Applying JCasC configuration (includes jenkins/jobs/seed.groovy)..."
 "$REPO_ROOT/scripts/configure-jenkins.sh"
 
-# The config-reload sidecar watches the ConfigMap and reloads Jenkins, but we
-# trigger it explicitly so this script is deterministic rather than racy.
+# The config-reload sidecar watches the ConfigMap and reloads Jenkins on its
+# own, but on a timer. We trigger a reload explicitly so this script is
+# deterministic rather than racy.
+#
+# NOTE: /reload-configuration-as-code/ expects a shared token, NOT basic auth,
+# and silently logs "Invalid token received" if given credentials instead. The
+# supported route with an admin password is the Jenkins CLI reload, below.
 echo ""
 echo "[2/3] Reloading configuration..."
-kubectl exec -n jenkins jenkins-0 -c jenkins -- \
-    curl -sS -X POST "http://localhost:8080/reload-configuration-as-code/" \
-    --user "admin:$(kubectl get secret jenkins -n jenkins \
-        -o jsonpath='{.data.jenkins-admin-password}' | base64 -d)" \
-    >/dev/null 2>&1 || echo "  (reload endpoint not reachable; the sidecar will pick it up)"
+PASS=$(kubectl get secret jenkins -n jenkins \
+    -o jsonpath='{.data.jenkins-admin-password}' | base64 -d)
+
+kubectl exec -n jenkins jenkins-0 -c jenkins -- bash -c "
+    curl -sS -o /tmp/cli.jar http://localhost:8080/jnlpJars/jenkins-cli.jar &&
+    java -jar /tmp/cli.jar -s http://localhost:8080/ \
+        -auth admin:${PASS} reload-jcasc-configuration
+" 2>/dev/null || echo "  (explicit reload unavailable; the sidecar will pick it up within ~1 min)"
 
 sleep 20
 
@@ -44,7 +52,7 @@ echo ""
 echo "[3/3] Verifying..."
 PASS=$(kubectl get secret jenkins -n jenkins -o jsonpath='{.data.jenkins-admin-password}' | base64 -d)
 JOBS=$(kubectl exec -n jenkins jenkins-0 -c jenkins -- \
-    curl -sS --user "admin:${PASS}" \
+    curl -sS -g --user "admin:${PASS}" \
     "http://localhost:8080/api/json?tree=jobs[name]" 2>/dev/null || echo '{}')
 
 for job in application-ci application-cd; do

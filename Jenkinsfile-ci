@@ -276,11 +276,20 @@ spec:
                                     --no-progress
                                 cat trivy-${svc}.txt
                             """
-                            // The gate: any CRITICAL fails the build here,
-                            // before the push stage can run.
+                            // THE GATE. Runs before the push stage, so a
+                            // failure here means the image never reaches ECR.
+                            //
+                            // --ignore-unfixed is deliberate: a Debian base
+                            // image always carries CRITICALs with no patched
+                            // version in existence. Failing on those makes the
+                            // gate impossible to pass, and the usual outcome is
+                            // that scanning gets switched off entirely. We fail
+                            // on anything FIXABLE; everything else is recorded
+                            // in the SBOM and the archived report above.
                             sh """
                                 trivy image --input ${tar} \\
                                     --severity CRITICAL \\
+                                    --ignore-unfixed \\
                                     --exit-code 1 \\
                                     --no-progress \\
                                     --format table

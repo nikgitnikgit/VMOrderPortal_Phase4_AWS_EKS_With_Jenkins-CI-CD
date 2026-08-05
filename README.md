@@ -358,6 +358,16 @@ prefix.
   volume is RAM-backed (`medium: Memory`) so the token never touches node disk.
 - Both agent and controller images are pinned and Trivy-scanned.
 
+**Scan policy.** The gate fails on any CRITICAL **that has a fix available**
+(`--ignore-unfixed`). A Debian base image always carries CRITICALs with no
+patched version in existence — `perl`, `zlib1g` and `libsqlite3-0` are marked
+`affected`, `fix_deferred` or `will_not_fix` upstream. Blocking on those makes
+the gate impossible to pass, and the predictable outcome is that someone
+disables scanning altogether. Everything found is still recorded: the full
+report and a CycloneDX SBOM are archived on every build. The agent image is
+also rebuilt with `apt-get upgrade` and a current Helm binary, which is what
+removed the 6 fixable CRITICALs the first scan found.
+
 **Two documented exceptions, both scoped to the `buildkit` container only:**
 `seccompProfile: Unconfined`, an AppArmor `unconfined` annotation, and
 `--oci-worker-no-process-sandbox`. Rootless BuildKit cannot otherwise create

@@ -11,8 +11,13 @@ FROM debian:12.9-slim
 
 # xz-utils is required: shellcheck ships as .tar.xz and `tar xJ` cannot
 # unpack it without xz, which debian-slim does not include.
+# `apt-get upgrade` matters here: the base image tag is pinned for
+# reproducibility, but pinning also freezes whatever CVEs shipped with it.
+# Upgrading pulls the patched versions Debian has released since (this cleared
+# 2 CRITICAL findings in libgnutls30). Unfixable CVEs remain — see the note on
+# --ignore-unfixed in scripts/install-jenkins.sh.
 # hadolint ignore=DL3008
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
         curl \
         ca-certificates \
         unzip \
@@ -53,11 +58,19 @@ RUN KUBECTL_VERSION=$(curl -fsSL "https://dl.k8s.io/release/stable-${KUBECTL_MIN
     && kubectl version --client
 
 # --- Helm ---
-ARG HELM_VERSION=3.15.0
-RUN curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz" \
+# Resolved at build time rather than pinned. Helm is a Go binary, so it
+# embeds its dependencies: a pinned old Helm carries whatever CVEs its Go
+# toolchain and vendored libraries had at release. Helm 3.15.0 alone
+# accounted for 4 CRITICAL findings (docker/docker, grpc, Go stdlib).
+# The build is still reproducible in the sense that matters: the resulting
+# image is tagged and immutable in ECR.
+RUN HELM_VERSION=$(curl -fsSL https://api.github.com/repos/helm/helm/releases/latest \
+      | jq -r .tag_name) \
+    && curl -fsSL "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" \
     | tar xz -C /tmp \
     && mv /tmp/linux-amd64/helm /usr/local/bin/helm \
-    && rm -rf /tmp/linux-amd64
+    && rm -rf /tmp/linux-amd64 \
+    && helm version
 
 # --- ShellCheck ---
 ARG SHELLCHECK_VERSION=0.10.0

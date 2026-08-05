@@ -37,7 +37,7 @@ controller:
                   - key: ECR_REGISTRY
                     value: "<account-id>.dkr.ecr.<region>.amazonaws.com"
                   - key: AGENT_TOOLS_IMAGE
-                    value: "<account-id>.dkr.ecr.<region>.amazonaws.com/vm-order-jenkins-agent:tools-1.0"
+                    value: "<account-id>.dkr.ecr.<region>.amazonaws.com/vm-order-jenkins-agent:tools-1.1"
                   - key: JENKINS_NODE_GROUP
                     value: "<cluster-name>-jenkins-nodes"
                   - key: BACKEND_ROLE_ARN
@@ -56,6 +56,9 @@ controller:
             smtpPort: "587"
             useTls: true
             replyToAddress: "<verified-ses-sender>"
+          location:
+            # adminAddress belongs under `location`, not `mailer` — the mailer
+            # plugin deprecated it and JCasC refuses to start if it appears there.
             adminAddress: "<verified-ses-sender>"
 
       # Rendered from jenkins/jobs/seed.groovy — see that file for the two
