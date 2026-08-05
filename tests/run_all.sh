@@ -414,6 +414,22 @@ t T14.21 "smoke test respects NetworkPolicy (goes via frontend, not backend)" ba
 
 t T14.22 "every kubectl resource the pipeline requests is granted in RBAC" python3 tests/check_rbac_usage.py
 
+t T14.23 "Jenkins agent IAM allows scoped S3 write for build evidence" bash -c '
+  grep -q "s3:PutObject" terraform/modules/irsa/main.tf &&
+  grep -q "builds/\*" terraform/modules/irsa/main.tf'
+t T14.24 "Archive stage does not mask upload failures with || true" python3 -c "
+import re
+body=open('Jenkinsfile').read()
+m=re.search(r\"stage\(.Archive.\).*?^        \}\", body, re.S|re.M)
+block=m.group(0)
+code=[l for l in block.splitlines() if not l.strip().startswith('//')]
+code='\\n'.join(code)
+assert 'aws s3 cp' in code, 'archive stage lost its upload'
+for line in code.splitlines():
+    if 'aws s3 cp' in line:
+        assert '|| true' not in line, 'S3 upload failure is being swallowed'
+assert 'set -e' in code, 'archive stage must use set -e'"
+
 echo ""
 echo "=============================================="
 echo "  RESULT: $PASS passed, $FAIL failed"

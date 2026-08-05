@@ -306,12 +306,25 @@ EOF
                     // are per-cycle records. The Jenkins build artifacts below
                     // are the copy you keep during the cycle; download anything
                     // you need for submission before running destroy.sh.
+                    // No `|| true` on the uploads. A verification step that
+                    // cannot fail is worse than no verification: these uploads
+                    // were silently AccessDenied for several builds while the
+                    // stage still reported success.
                     sh '''
+                        set -e
                         kubectl get deployment,replicaset,pod,service,ingress,hpa \
-                            -n "$NAMESPACE" > cluster-state.txt || true
+                            -n "$NAMESPACE" > cluster-state.txt
+
                         for f in trivy-frontend.txt trivy-backend.txt trivy-worker.txt cluster-state.txt; do
-                            [ -f "$f" ] && aws s3 cp "$f" "s3://${S3_BUCKET}/builds/${TAG}/" || true
+                            if [ -f "$f" ]; then
+                                aws s3 cp "$f" "s3://${S3_BUCKET}/builds/${TAG}/"
+                            else
+                                echo "WARNING: $f was not produced by an earlier stage"
+                            fi
                         done
+
+                        echo "=== Evidence now in S3 ==="
+                        aws s3 ls "s3://${S3_BUCKET}/builds/${TAG}/"
                     '''
                 }
             }

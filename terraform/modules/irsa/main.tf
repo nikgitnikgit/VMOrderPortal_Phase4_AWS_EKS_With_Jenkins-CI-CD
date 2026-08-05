@@ -194,6 +194,15 @@ resource "aws_iam_role_policy" "jenkins_ecr" {
           "ecr:GetDownloadUrlForLayer"
         ]
         Resource = var.ecr_repo_arns # scoped to OUR 3 repos only
+      },
+      {
+        # Build evidence (Trivy reports, cluster state) only.
+        # Scoped to the builds/ prefix: Jenkins cannot read, overwrite, or
+        # delete the application's order data elsewhere in the bucket.
+        Sid      = "S3BuildEvidenceWrite"
+        Effect   = "Allow"
+        Action   = ["s3:PutObject"]
+        Resource = "${var.s3_bucket_arn}/builds/*"
       }
     ]
   })
