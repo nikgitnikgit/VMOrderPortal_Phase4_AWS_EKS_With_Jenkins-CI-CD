@@ -44,6 +44,8 @@ controller:
     - mailer                  # email notifications (bonus)
     - email-ext               # emailext step used by both pipelines
     - pipeline-utility-steps  # readJSON in the CI pipeline
+    - timestamper             # the timestamps() pipeline option
+    - ws-cleanup              # the cleanWs() step in both pipelines
 
   # --- All builds run on agents; the controller only coordinates ---------
   numExecutors: 0

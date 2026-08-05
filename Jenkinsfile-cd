@@ -39,6 +39,27 @@ spec:
     eks.amazonaws.com/nodegroup: "${env.JENKINS_NODE_GROUP}"
   containers:
     # Note: no buildkit container. CD physically cannot build.
+    # The Kubernetes plugin injects this container automatically — it is the
+    # agent process that talks to the controller over JNLP. We declare it here
+    # ONLY to set a numeric runAsUser: the pod sets runAsNonRoot: true, and the
+    # inbound-agent image declares USER as the NAME "jenkins" rather than a UID.
+    # The kubelet cannot resolve a name to a number before start, so it refuses
+    # with "image has non-numeric user (jenkins), cannot verify user is
+    # non-root" and the build never begins.
+    # Everything else (image, JENKINS_SECRET, args) is still supplied by the
+    # plugin; declaring the name is enough to merge our securityContext in.
+    - name: jnlp
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
+        seccompProfile:
+          type: RuntimeDefault
+      resources:
+        requests: { cpu: "100m", memory: "256Mi" }
+        limits:   { cpu: "500m", memory: "512Mi" }
     - name: tools
       image: "${env.AGENT_TOOLS_IMAGE}"
       command: ["sleep"]

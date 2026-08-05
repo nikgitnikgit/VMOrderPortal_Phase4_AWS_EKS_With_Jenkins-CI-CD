@@ -579,6 +579,43 @@ for f in glob.glob('tests/*.sh'):
             bad.append(f'{f}: {why} — run in a temp copy instead')
 if bad: print(chr(10).join(sorted(set(bad)))); sys.exit(1)"
 
+t T16.4 "every pipeline step has its plugin installed" python3 tests/check_plugin_coverage.py
+
+t T16.5 "mock tests are isolated from the developer environment" python3 -c "
+import sys
+body=open('tests/run_mock_deploy.sh').read()
+bad=[]
+if 'unset GITHUB_TOKEN' not in body:
+    bad.append('run_mock_deploy.sh: a shell with GITHUB_TOKEN set takes the webhook branch and calls the real GitHub API')
+if 'export HOME=' not in body:
+    bad.append('run_mock_deploy.sh: ~/.github_token would still be found')
+if 'mktemp -d' not in body:
+    bad.append('run_mock_deploy.sh: must run in a temp copy, not the working tree')
+if bad: print(chr(10).join(bad)); sys.exit(1)"
+
+t T16.6 "every agent container has a NUMERIC runAsUser (runAsNonRoot needs it)" python3 -c "
+import re, yaml, sys
+bad=[]
+for f in ['Jenkinsfile-ci','Jenkinsfile-cd']:
+    y=re.search(r'yaml \"\"\"\n(.*?)\n\"\"\"', open(f).read(), re.S).group(1)
+    y=re.sub(r'\\\\$\{env\.\w+\}','X',y)
+    pod=yaml.safe_load(y)
+    if not pod['spec'].get('securityContext',{}).get('runAsNonRoot'):
+        continue
+    names={c['name'] for c in pod['spec']['containers']}
+    # jnlp is injected by the Kubernetes plugin; it must still be declared so a
+    # numeric UID can be set, or the kubelet refuses it with
+    # 'image has non-numeric user (jenkins), cannot verify user is non-root'
+    if 'jnlp' not in names:
+        bad.append(f'{f}: pod sets runAsNonRoot but jnlp is not declared with a numeric runAsUser')
+    for c in pod['spec']['containers']:
+        uid=c.get('securityContext',{}).get('runAsUser')
+        if not isinstance(uid,int):
+            bad.append(f'{f}: container {c[\"name\"]} has runAsUser={uid!r}, must be a number')
+if bad: print(chr(10).join(bad)); sys.exit(1)"
+
+t T16.6 "agent containers have a numeric runAsUser (runAsNonRoot requires it)" python3 tests/check_agent_security.py
+
 echo ""
 echo "=============================================="
 echo "  RESULT: $PASS passed, $FAIL failed"

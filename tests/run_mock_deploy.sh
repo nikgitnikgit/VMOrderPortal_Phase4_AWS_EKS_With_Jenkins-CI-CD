@@ -25,6 +25,14 @@ tar -C "$REPO" \
 
 cp "$WORK/terraform/terraform.tfvars.example" "$WORK/terraform/terraform.tfvars"
 
+# Isolate the run from the developer's environment. Without this, a shell that
+# happens to have GITHUB_TOKEN exported takes the webhook branch and calls the
+# real GitHub API, so the test passes or fails depending on who runs it.
+# HOME is redirected too, so ~/.github_token is not picked up either.
+unset GITHUB_TOKEN
+export HOME="$WORK/fakehome"
+mkdir -p "$HOME"
+
 export MOCK_LOG=/tmp/mock_deploy.log
 : > "$MOCK_LOG"
 export PATH="$WORK/tests/mocks:$PATH"
