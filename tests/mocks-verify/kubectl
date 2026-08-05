@@ -1,0 +1,110 @@
+#!/bin/bash
+# Mock kubectl for testing verify-jenkins.sh itself.
+#
+# $BREAK names one condition to invert. With BREAK unset the cluster is
+# "correct" and every check must PASS; with BREAK set to a condition name,
+# exactly the check covering that condition must FAIL. That is what proves a
+# check is actually wired to the thing it claims to test.
+ARGS="$*"
+B="${BREAK:-none}"
+
+die()  { exit 1; }
+ok()   { exit 0; }
+
+case "$ARGS" in
+  # ---- existence checks ----
+  "get namespace jenkins")            [ "$B" = "no-ns-jenkins" ] && die; ok ;;
+  "get namespace devops-app")         [ "$B" = "no-ns-app" ] && die; ok ;;
+  "get deployments -n default --no-headers") 
+      [ "$B" = "deploy-in-default" ] && { echo "rogue 1/1"; ok; }; exit 1 ;;
+  "get statefulset jenkins -n jenkins") [ "$B" = "no-sts" ] && die; ok ;;
+  "get service jenkins -n jenkins")   ok ;;
+  "get ingress jenkins -n jenkins")   ok ;;
+  "get sa jenkins -n jenkins")        ok ;;
+  "get sa jenkins-agent-ci -n jenkins") [ "$B" = "no-ci-sa" ] && die; ok ;;
+  "get sa jenkins-agent-cd -n jenkins") ok ;;
+
+  # ---- controller state ----
+  *"get pod jenkins-0"*"containerStatuses"*)
+      [ "$B" = "pod-not-ready" ] && { echo "true false"; ok; }
+      echo "true true"; ok ;;
+  *"exec -n jenkins jenkins-0 -c jenkins -- cat /var/jenkins_home/config.xml"*)
+      [ "$B" = "executors-nonzero" ] && { echo "<numExecutors>2</numExecutors>"; ok; }
+      echo "<numExecutors>0</numExecutors>"; ok ;;
+  *"get pvc -n jenkins"*phase*)
+      [ "$B" = "pvc-pending" ] && { echo "Pending"; ok; }
+      echo "Bound"; ok ;;
+  *"get statefulset jenkins"*"containers[0].image"*)
+      [ "$B" = "image-latest" ] && { echo "jenkins/jenkins:latest"; ok; }
+      echo "jenkins/jenkins:2.568.1-lts-jdk21"; ok ;;
+
+  # ---- ingress ----
+  *"get ingress jenkins"*annotations*)
+      case "$B" in
+        no-https) echo 'map[alb.ingress.kubernetes.io/inbound-cidrs:1.2.3.4/32]'; ok ;;
+        open-world) echo 'map[alb.ingress.kubernetes.io/certificate-arn:arn:aws:acm:x alb.ingress.kubernetes.io/inbound-cidrs:0.0.0.0/0]'; ok ;;
+      esac
+      echo 'map[alb.ingress.kubernetes.io/certificate-arn:arn:aws:acm:x alb.ingress.kubernetes.io/inbound-cidrs:1.2.3.4/32]'; ok ;;
+  *"get ingress jenkins"*"pathType"*)
+      [ "$B" = "pathtype-wrong" ] && { echo "ImplementationSpecific"; ok; }
+      echo "Prefix"; ok ;;
+
+  # ---- IRSA annotations ----
+  *"get sa jenkins-agent-ci"*role-arn*)
+      [ "$B" = "ci-cd-same-role" ] && { echo "arn:aws:iam::1:role/same"; ok; }
+      echo "arn:aws:iam::1:role/ci"; ok ;;
+  *"get sa jenkins-agent-cd"*role-arn*)
+      [ "$B" = "ci-cd-same-role" ] && { echo "arn:aws:iam::1:role/same"; ok; }
+      echo "arn:aws:iam::1:role/cd"; ok ;;
+  *"get sa jenkins-agent-ci"*annotations*)
+      [ "$B" = "ci-no-irsa" ] && { echo "map[]"; ok; }
+      echo "map[eks.amazonaws.com/role-arn:arn:aws:iam::1:role/ci]"; ok ;;
+  *"get sa jenkins-agent-cd"*annotations*)
+      echo "map[eks.amazonaws.com/role-arn:arn:aws:iam::1:role/cd]"; ok ;;
+
+  # ---- RBAC: the security-critical answers ----
+  "auth can-i create pods -n jenkins --as=system:serviceaccount:jenkins:jenkins")
+      [ "$B" = "controller-cannot-create-pods" ] && die; ok ;;
+  "auth can-i create deployments -n devops-app --as=system:serviceaccount:jenkins:jenkins-agent-cd")
+      [ "$B" = "cd-cannot-deploy" ] && die; ok ;;
+  "auth can-i get pods -n devops-app --as=system:serviceaccount:jenkins:jenkins-agent-cd")
+      ok ;;
+  "auth can-i create deployments -n devops-app --as=system:serviceaccount:jenkins:jenkins-agent-ci")
+      [ "$B" = "ci-CAN-deploy" ] && ok; die ;;
+  "auth can-i create pods -n devops-app --as=system:serviceaccount:jenkins:jenkins-agent-ci")
+      [ "$B" = "ci-CAN-create-pods" ] && ok; die ;;
+  "auth can-i get secrets -n devops-app --as=system:serviceaccount:jenkins:jenkins-agent-cd")
+      [ "$B" = "cd-CAN-read-secrets" ] && ok; die ;;
+  "auth can-i list secrets -n devops-app --as=system:serviceaccount:jenkins:jenkins-agent-cd")
+      [ "$B" = "cd-CAN-list-secrets" ] && ok; die ;;
+  "auth can-i create deployments -n devops-app --as=system:serviceaccount:jenkins:jenkins")
+      [ "$B" = "controller-CAN-deploy" ] && ok; die ;;
+
+  # ---- cluster-admin ----
+  "get clusterrolebindings -o json")
+      if [ "$B" = "jenkins-IS-cluster-admin" ]; then
+        echo '{"items":[{"roleRef":{"name":"cluster-admin"},"subjects":[{"name":"jenkins","namespace":"jenkins"}]}]}'
+      else
+        echo '{"items":[{"roleRef":{"name":"cluster-admin"},"subjects":[{"name":"eks-admin","namespace":"kube-system"}]}]}'
+      fi
+      ok ;;
+
+  # ---- network ----
+  *"get networkpolicy -n jenkins"*)
+      [ "$B" = "no-netpol" ] && { ok; }
+      printf 'a\nb\nc\n'; ok ;;
+  *"get daemonset aws-node"*)
+      [ "$B" = "netpol-not-enforced" ] && { echo '[{"name":"OTHER"}]'; ok; }
+      echo '[{"name":"ENABLE_NETWORK_POLICY","value":"true"}]'; ok ;;
+
+  # ---- jobs ----
+  *"get secret jenkins -n jenkins"*)  echo "bW9jaw=="; ok ;;
+  *"api/json?tree=jobs"*)
+      case "$B" in
+        no-ci-job) echo '{"jobs":[{"name":"application-cd"}]}'; ok ;;
+        no-cd-job) echo '{"jobs":[{"name":"application-ci"}]}'; ok ;;
+      esac
+      echo '{"jobs":[{"name":"application-ci"},{"name":"application-cd"}]}'; ok ;;
+
+  *) ok ;;
+esac

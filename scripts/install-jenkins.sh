@@ -23,6 +23,7 @@ cd "$REPO_ROOT/terraform"
 CLUSTER_NAME=$(terraform output -raw cluster_name)
 AWS_REGION=$(terraform output -raw aws_region)
 VPC_ID=$(terraform output -raw vpc_id)
+VPC_CIDR=$(terraform output -raw vpc_cidr)
 ALB_ROLE_ARN=$(terraform output -raw alb_controller_role_arn)
 CI_ROLE_ARN=$(terraform output -raw jenkins_ci_role_arn)
 CD_ROLE_ARN=$(terraform output -raw jenkins_cd_role_arn)
@@ -118,7 +119,27 @@ kubectl annotate serviceaccount jenkins-agent-ci -n jenkins \
 kubectl annotate serviceaccount jenkins-agent-cd -n jenkins \
     "eks.amazonaws.com/role-arn=${CD_ROLE_ARN}" --overwrite
 
-kubectl apply -f "$REPO_ROOT/jenkins/networkpolicy.yaml"
+# The policy file is a template: the VPC CIDR differs per environment and
+# hardcoding it silently blocks ALB traffic (504s with healthy pods).
+#
+# Guard against an empty substitution. default-deny-all contains no CIDR, so it
+# applies successfully even when the allow rules are rejected as invalid — the
+# result is a namespace that denies everything with no way back in. Refuse to
+# apply anything unless the value is present and looks like a CIDR.
+if [ -z "$VPC_CIDR" ] || ! echo "$VPC_CIDR" | grep -qE '^[0-9.]+/[0-9]+$'; then
+    echo "ERROR: vpc_cidr is '${VPC_CIDR}', which is not a CIDR." >&2
+    echo "Run 'terraform apply' so the output exists, then re-run this script." >&2
+    exit 1
+fi
+
+# Render first, validate server-side, and only then apply — so a rejected
+# allow rule can never leave default-deny in place on its own.
+RENDERED=$(sed "s|__VPC_CIDR__|${VPC_CIDR}|g" "$REPO_ROOT/jenkins/networkpolicy.yaml")
+if ! echo "$RENDERED" | kubectl apply --dry-run=server -f - >/dev/null; then
+    echo "ERROR: NetworkPolicy manifests are invalid; nothing applied." >&2
+    exit 1
+fi
+echo "$RENDERED" | kubectl apply -f -
 
 # ------------------------------------------------------ 5. TLS certificate
 echo ""

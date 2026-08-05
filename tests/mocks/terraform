@@ -9,6 +9,7 @@ case "$1" in
       ecr_registry) echo "123456789012.dkr.ecr.us-east-1.amazonaws.com" ;;
       k8s_namespace) echo "devops-app" ;;
       vpc_id) echo "vpc-0abc123" ;;
+      vpc_cidr) echo "10.23.0.0/16" ;;
       alb_controller_role_arn) echo "arn:aws:iam::123456789012:role/alb" ;;
       backend_irsa_role_arn) echo "arn:aws:iam::123456789012:role/backend" ;;
       worker_irsa_role_arn) echo "arn:aws:iam::123456789012:role/worker" ;;

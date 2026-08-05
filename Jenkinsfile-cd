@@ -191,6 +191,7 @@ spec:
                             --set serviceAccount.roleArn="$BACKEND_ROLE_ARN" \
                             --set config.AWS_REGION="$AWS_REGION" \
                             --set config.S3_BUCKET="$S3_BUCKET" \
+                            --set networkPolicy.vpcCidr="$VPC_CIDR" \
                             --wait --timeout 5m
 
                         helm upgrade --install worker helm/worker \
@@ -199,12 +200,18 @@ spec:
                             --set image.tag="$TAG" \
                             --set serviceAccount.roleArn="$WORKER_ROLE_ARN" \
                             --set config.AWS_REGION="$AWS_REGION" \
+                            --set networkPolicy.vpcCidr="$VPC_CIDR" \
                             --wait --timeout 5m
 
+                        # networkPolicy.vpcCidr is passed explicitly rather
+                        # than trusting the chart default: the ALB connects
+                        # from inside the VPC, and a wrong CIDR here silently
+                        # blocks all traffic (healthy pods, 504 at the ALB).
                         helm upgrade --install frontend helm/frontend \
                             --namespace "$TARGET_NAMESPACE" \
                             --set image.registry="$ECR_REGISTRY" \
                             --set image.tag="$TAG" \
+                            --set networkPolicy.vpcCidr="$VPC_CIDR" \
                             --wait --timeout 5m
                     '''
                 }

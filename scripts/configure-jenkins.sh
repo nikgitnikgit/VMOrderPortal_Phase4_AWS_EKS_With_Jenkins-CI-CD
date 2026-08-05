@@ -42,6 +42,7 @@ AWS_REGION=$(terraform output -raw aws_region)
 ECR_REGISTRY=$(terraform output -raw ecr_registry)
 GITHUB_REPO_URL=$(terraform output -raw github_repo_url)
 S3_BUCKET=$(terraform output -raw s3_bucket_name)
+VPC_CIDR=$(terraform output -raw vpc_cidr)
 BACKEND_ROLE_ARN=$(terraform output -raw backend_irsa_role_arn)
 WORKER_ROLE_ARN=$(terraform output -raw worker_irsa_role_arn)
 NOTIFICATION_EMAIL=$(terraform output -raw notification_email)
@@ -103,6 +104,8 @@ controller:
                     value: "${WORKER_ROLE_ARN}"
                   - key: S3_BUCKET
                     value: "${S3_BUCKET}"
+                  - key: VPC_CIDR
+                    value: "${VPC_CIDR}"
                   - key: GITHUB_REPO_URL
                     value: "${GITHUB_REPO_URL}"
                   - key: NOTIFICATION_EMAIL

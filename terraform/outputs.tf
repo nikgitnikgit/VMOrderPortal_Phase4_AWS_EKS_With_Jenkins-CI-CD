@@ -15,3 +15,4 @@ output "ses_sender" { value = var.ses_sender }
 output "k8s_namespace" { value = var.k8s_namespace }
 output "github_repo_url" { value = var.github_repo_url }
 output "notification_email" { value = var.notification_email }
+output "vpc_cidr" { value = var.vpc_cidr }

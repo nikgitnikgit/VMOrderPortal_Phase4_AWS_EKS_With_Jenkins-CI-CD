@@ -3,6 +3,12 @@
 # Jenkins is the most dangerous workload in the cluster: it runs arbitrary
 # code by design. These policies limit what it can reach if it is compromised.
 #
+# NOTE: this file is a TEMPLATE. install-jenkins.sh substitutes __VPC_CIDR__
+# with the real value from `terraform output vpc_cidr` before applying it.
+# It was previously hardcoded to 10.0.0.0/16, which silently blocked all ALB
+# traffic on a cluster using a different range — the policies applied cleanly,
+# the pods were healthy, and every request timed out with a 504.
+#
 # Requires a CNI that enforces NetworkPolicy. On EKS the AWS VPC CNI does so
 # only when ENABLE_NETWORK_POLICY=true is set on the aws-node DaemonSet;
 # install-jenkins.sh enables it and verify-jenkins.sh checks it. If the flag
@@ -42,7 +48,7 @@ spec:
     # ALB targets pod IPs directly; its traffic originates inside the VPC.
     - from:
         - ipBlock:
-            cidr: 10.0.0.0/16
+            cidr: __VPC_CIDR__
       ports:
         - port: 8080
     # Agents connect back over JNLP.
@@ -57,7 +63,7 @@ spec:
     # Kubernetes API — to create and delete agent pods.
     - to:
         - ipBlock:
-            cidr: 10.0.0.0/16
+            cidr: __VPC_CIDR__
       ports:
         - port: 443
     # DNS.
@@ -125,7 +131,7 @@ spec:
     # Kubernetes API server and AWS service endpoints inside the VPC.
     - to:
         - ipBlock:
-            cidr: 10.0.0.0/16
+            cidr: __VPC_CIDR__
       ports:
         - port: 443
     # Internet over HTTPS: GitHub clone, ECR push, Trivy DB, package mirrors.

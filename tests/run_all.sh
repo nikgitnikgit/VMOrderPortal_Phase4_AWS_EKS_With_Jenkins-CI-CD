@@ -542,6 +542,43 @@ t T15.15 "PR builds never push to the registry" bash -c '
 
 t T15.16 "documentation references no deleted or missing file" python3 tests/check_doc_links.py
 
+echo "=== T16: The tests test the tests ==="
+t T16.1 "verify-jenkins.sh: every check is actually wired to what it claims" bash tests/check_verify_script.sh
+
+t T16.2 "no VPC CIDR is hardcoded (it differs per environment)" python3 -c "
+import re, sys, glob
+bad=[]
+# jenkins policy must be a template
+np=open('jenkins/networkpolicy.yaml').read()
+if '__VPC_CIDR__' not in np:
+    bad.append('jenkins/networkpolicy.yaml: not templated')
+for m in re.finditer(r'cidr:\\s*(10\\.\\d+\\.\\d+\\.\\d+/\\d+)', np):
+    bad.append(f'jenkins/networkpolicy.yaml: hardcoded {m.group(1)}')
+# install script must substitute it from terraform
+inst=open('scripts/install-jenkins.sh').read()
+if '__VPC_CIDR__' not in inst or 'terraform output -raw vpc_cidr' not in inst:
+    bad.append('install-jenkins.sh does not substitute the CIDR from terraform')
+# helm charts must use a value, not a literal
+for f in glob.glob('helm/*/templates/networkpolicy.yaml'):
+    body=open(f).read()
+    for m in re.finditer(r'cidr:\\s*(10\\.\\d+\\.\\d+\\.\\d+/\\d+)', body):
+        bad.append(f'{f}: hardcoded {m.group(1)}')
+if bad: print(chr(10).join(bad)); sys.exit(1)"
+
+t T16.3 "no test writes into the working tree (tests must not destroy config)" python3 -c "
+import glob, re, sys
+bad=[]
+for f in glob.glob('tests/*.sh'):
+    body=open(f).read()
+    for pat, why in [
+        (r'cp [^\\n]*\\\$REPO/terraform/terraform\\.tfvars(?!\\.example)', 'overwrites the real tfvars'),
+        (r'rm -f [^\\n]*\\\$REPO/terraform/terraform\\.tfvars', 'deletes the real tfvars'),
+        (r'cp [^\\n]*terraform\\.tfvars\\.example[^\\n]*\\\$REPO/terraform/', 'writes into the repo terraform dir'),
+    ]:
+        if re.search(pat, body):
+            bad.append(f'{f}: {why} — run in a temp copy instead')
+if bad: print(chr(10).join(sorted(set(bad)))); sys.exit(1)"
+
 echo ""
 echo "=============================================="
 echo "  RESULT: $PASS passed, $FAIL failed"
