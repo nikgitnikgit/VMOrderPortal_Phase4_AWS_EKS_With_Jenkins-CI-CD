@@ -9,6 +9,14 @@
 
 FROM debian:12.9-slim
 
+# REVIEW FIX 1.3 (hadolint DL4006) — several RUN steps below pipe `curl` into
+# `tar`. The default /bin/sh reports only the exit status of the LAST command
+# in a pipeline, so a truncated or 404 download still produces a "successful"
+# layer and a broken binary gets baked into the image. That failure surfaces
+# mid-pipeline, hours later, as "helm: not found".
+# With pipefail the pipeline fails on the curl, and the build fails here.
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
 # xz-utils is required: shellcheck ships as .tar.xz and `tar xJ` cannot
 # unpack it without xz, which debian-slim does not include.
 # `apt-get upgrade` matters here: the base image tag is pinned for

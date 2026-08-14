@@ -30,10 +30,10 @@ resource "aws_db_instance" "main" {
   vpc_security_group_ids = [aws_security_group.rds.id]
 
   # Free tier settings
-  publicly_accessible    = false
-  skip_final_snapshot    = true
+  publicly_accessible     = false
+  skip_final_snapshot     = true
   backup_retention_period = 0
-  multi_az               = false
+  multi_az                = false
 
   tags = {
     Name        = "${var.project_name}-${var.environment}-rds"

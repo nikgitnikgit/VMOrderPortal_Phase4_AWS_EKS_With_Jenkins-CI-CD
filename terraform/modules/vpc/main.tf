@@ -54,7 +54,7 @@ resource "aws_subnet" "private" {
   availability_zone = local.azs[count.index]
 
   tags = merge(local.tags, {
-    Name = "${var.project_name}-${var.environment}-private-${local.azs[count.index]}"
+    Name                                        = "${var.project_name}-${var.environment}-private-${local.azs[count.index]}"
     "kubernetes.io/role/internal-elb"           = "1"
     "kubernetes.io/cluster/${var.cluster_name}" = "shared"
   })

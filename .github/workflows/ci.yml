@@ -19,9 +19,27 @@ jobs:
       - uses: actions/checkout@v4
       - uses: hashicorp/setup-terraform@v3
         with: { terraform_version: "1.9.0" }
-      - run: terraform fmt -check -recursive
-      - run: terraform init -backend=false
-      - run: terraform validate
+
+      # REVIEW FIX 1.1 — fmt no longer masks validate.
+      # Previously `fmt -check` failed the step, `validate` never ran, and a
+      # cosmetic whitespace problem hid whether the configuration was actually
+      # valid. Both now always run; the job still fails if either did.
+      - name: Terraform fmt (report, do not stop the job)
+        id: fmt
+        run: terraform fmt -check -recursive -diff
+        continue-on-error: true
+
+      - name: Terraform init (no backend — we are only validating)
+        run: terraform init -backend=false
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Fail if formatting drifted
+        if: steps.fmt.outcome == 'failure'
+        run: |
+          echo "::error::terraform fmt found drift. Run: cd terraform && terraform fmt -recursive"
+          exit 1
 
   helm-checks:
     name: Helm lint (3 charts)
@@ -67,11 +85,35 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: pip install pyyaml
-      - run: python3 -c "
-          import yaml, glob;
-          files = glob.glob('jenkins/*.yaml') + glob.glob('helm/*/values.yaml') + glob.glob('.github/**/*.yml', recursive=True);
-          [yaml.safe_load(open(f)) for f in files];
-          print(f'Validated {len(files)} YAML files')"
+      # REVIEW FIX 1.2 — safe_load_all, not safe_load.
+      # jenkins/rbac.yaml, jenkins/networkpolicy.yaml and
+      # jenkins/secret.example.yaml are multi-document manifests ("---"
+      # separated), which is normal and correct Kubernetes YAML.
+      # safe_load() accepts exactly ONE document and raised ComposerError on
+      # all three, so this job failed on valid files. safe_load_all() returns
+      # a generator, hence list() to force evaluation and surface errors.
+      - name: Validate YAML (multi-document aware)
+        run: |
+          python3 - <<'PY'
+          import glob, sys, yaml
+
+          files = sorted(
+              glob.glob('jenkins/*.yaml')
+              + glob.glob('helm/*/values.yaml')
+              + glob.glob('helm/*/Chart.yaml')
+              + glob.glob('.github/**/*.yml', recursive=True)
+          )
+          failed = False
+          for f in files:
+              try:
+                  docs = list(yaml.safe_load_all(open(f)))
+                  print(f"  ok   {f}  ({len(docs)} document(s))")
+              except yaml.YAMLError as e:
+                  print(f"  FAIL {f}: {e}")
+                  failed = True
+          print(f"\nValidated {len(files)} YAML files")
+          sys.exit(1 if failed else 0)
+          PY
 
   pipeline-separation:
     name: CI/CD separation
@@ -92,3 +134,21 @@ jobs:
       - run: pip install flake8 pytest flask flask-cors boto3 requests psycopg2-binary
       - run: flake8 app/ tests/
       - run: python3 -m pytest app/ -v
+
+  # REVIEW FIX 1.4 — the repository's own 115-check suite now gates pull
+  # requests. It was previously runnable only by hand, so regressions it was
+  # written to catch could still be merged. Every check is offline: AWS calls
+  # go through tests/mocks/, so no credentials are needed.
+  repo-tests:
+    name: Repository test suite (tests/run_all.sh)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Install test tooling
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+          pip install pyyaml python-hcl2 crossplane dockerfile kubernetes-validate requests
+      - name: Run the suite
+        run: bash tests/run_all.sh

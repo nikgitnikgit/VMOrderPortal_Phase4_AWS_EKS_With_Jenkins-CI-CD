@@ -1,5 +1,5 @@
 # modules/eks/outputs.tf
-output "cluster_name"     { value = aws_eks_cluster.main.name }
+output "cluster_name" { value = aws_eks_cluster.main.name }
 output "cluster_endpoint" { value = aws_eks_cluster.main.endpoint }
 # The security group EKS attaches to nodes — RDS allows 5432 from it
 output "node_security_group_id" { value = aws_eks_cluster.main.vpc_config[0].cluster_security_group_id }

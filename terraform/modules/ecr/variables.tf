@@ -1,4 +1,4 @@
 # modules/ecr/variables.tf
 variable "project_name" { type = string }
-variable "environment"  { type = string }
+variable "environment" { type = string }
 variable "repositories" { type = list(string) } # ["frontend","backend","worker"]

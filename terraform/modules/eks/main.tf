@@ -37,8 +37,8 @@ resource "aws_eks_cluster" "main" {
 
   vpc_config {
     subnet_ids              = var.private_subnet_ids
-    endpoint_public_access  = true  # your kubectl connects from home
-    endpoint_private_access = true  # nodes talk to the API privately
+    endpoint_public_access  = true # your kubectl connects from home
+    endpoint_private_access = true # nodes talk to the API privately
   }
 
   depends_on = [aws_iam_role_policy_attachment.cluster_policy]
@@ -108,12 +108,12 @@ resource "aws_eks_node_group" "jenkins" {
   node_role_arn   = aws_iam_role.node.arn
   subnet_ids      = var.private_subnet_ids
 
-  instance_types  = [var.jenkins_node_instance_type]
+  instance_types = [var.jenkins_node_instance_type]
 
   scaling_config {
     desired_size = 1
     min_size     = 1
-    max_size     = 2   # room to scale if builds queue up
+    max_size     = 2 # room to scale if builds queue up
   }
 
   taint {
