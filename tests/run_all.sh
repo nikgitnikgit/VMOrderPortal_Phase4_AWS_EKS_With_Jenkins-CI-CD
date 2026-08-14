@@ -368,6 +368,31 @@ for m in re.finditer(r'^\s*(\w+)\s*=\s*\"\\\$\{(\w+)\}\"\s*$', open('Jenkinsfile
     assert m.group(1)!=m.group(2), f'self-referential env: {m.group(1)}'"
 t T14.10 "helm values overrides use a file, not multi-line --set-string" bash -c '
   ! grep -q "set-string.*JCasC" scripts/configure-jenkins.sh'
+
+# REVIEW FIX 3.1a — Declarative Pipeline rejects duplicate post conditions with
+# "Duplicate build condition name: <name>" at PARSE time, so the job never even
+# starts. Jenkinsfile-cd shipped with two `failure { }` blocks: the CD pipeline
+# could not have run a single build. Nothing else in this suite reads the post
+# section, so it went unnoticed. It cannot regress silently now.
+t T14.26 "no duplicate post conditions in either Jenkinsfile" python3 -c "
+import re, sys
+for f in ['Jenkinsfile-ci','Jenkinsfile-cd']:
+    s = open(f).read()
+    i = s.find(chr(10) + '    post {')
+    if i < 0: continue
+    conds = [m.group(1) for m in re.finditer(r'^        (\\w+) \\{', s[i:], re.M)]
+    dupes = {c for c in conds if conds.count(c) > 1}
+    assert not dupes, f'{f}: duplicate post condition(s): {sorted(dupes)}'
+"
+
+# REVIEW FIX 3.1b — the smoke test must be CAPABLE of failing. The original
+# swallowed both an absent ALB address and 12 consecutive failed health checks,
+# so an unreachable application still reported a green deploy and the
+# post{failure} rollback never fired. Assert the two exit paths exist.
+t T14.27 "CD smoke test fails when the public URL does not serve" bash -c '
+  grep -q "ALB_OK=1" Jenkinsfile-cd &&
+  grep -q "ALB_OK. -ne 1" Jenkinsfile-cd &&
+  ! grep -q "skipping external check" Jenkinsfile-cd'
 t T14.11 "agent-tools image has its own ECR repo (not squatting in an app repo)" bash -c '
   grep -q "jenkins-agent" terraform/main.tf &&
   grep -q "vm-order-jenkins-agent" scripts/install-jenkins.sh'

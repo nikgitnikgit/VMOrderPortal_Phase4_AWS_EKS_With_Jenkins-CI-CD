@@ -310,15 +310,47 @@ Currently documented as a future option only. Implementing it closes 2.2 and
 
 ---
 
-## 3. P2 — Correctness bugs 🔄 OPEN
+## 3. P2 — Correctness bugs (3.1 ✅ done, rest 🔄 open)
 
-### 3.1 🔄 False-success deployment — **the Phase 3 bug, in a new place**
+### 3.1 ✅ False-success deployment — **the Phase 3 bug, in a new place**
 
 > Review §5 (MEDIUM) and §8.4
 
+**File:** `Jenkinsfile-cd` (plus regression tests T14.26 / T14.27)
+
+Two defects were found here, and the second is far more serious than the one
+the review pointed at.
+
+#### 3.1a ✅ Duplicate `post` condition — the CD pipeline could never run
+
+Found while fixing 3.1b. `Jenkinsfile-cd` had **two `failure { }` blocks** in
+its `post` section: one running diagnostics and the Helm rollback, another
+sending the notification email.
+
+Declarative Pipeline forbids this. It rejects the file at **parse time**:
+
+```
+WorkflowScript: Duplicate build condition name: failure
+```
+
+That is not a runtime warning — the job never starts, no stage executes, and
+no rollback is possible because the pipeline as a whole is invalid. The
+`application-cd` job **could not have run a single successful build**.
+
+This was invisible because nothing exercised it: no test in the suite read the
+`post` section, and the pipeline had not yet been run against a live cluster.
+`Jenkinsfile-ci` was checked too and is fine (`always`, `success`, `failure`,
+`fixed` — all distinct).
+
+**How it was fixed.** The two blocks were merged into one, with `emailext`
+placed *after* the diagnostics and rollback so the notification is sent once,
+and only once the cleanup has run.
+
+#### 3.1b ✅ The smoke test was incapable of failing
+
 Phase 3's finding was *"`deploy.sh` exits 0 after a failed live health
-verification."* `deploy.sh` was fixed. The same bug now lives in
-`Jenkinsfile-cd`, Smoke test stage:
+verification."* `deploy.sh` was fixed; the same bug had reappeared in the CD
+smoke test:
 
 ```bash
 if [ -n "$ALB" ]; then
@@ -327,20 +359,45 @@ if [ -n "$ALB" ]; then
         sleep 10
     done                    # 12 failures? the loop just ends. No error.
 else
-    echo "no ALB address yet (skipping external check)"   # also passes
+    echo "no ALB address yet ..."                     # also passes
 fi
 ```
 
 Both branches let a completely unreachable application report a green deploy.
-`set -e` does not help: a `curl` failure inside an `if` condition is not an
-error.
+`set -e` does not help: a `curl` that fails inside an `if` condition is not an
+error, it is the false branch.
 
-**Why this is the highest-value fix in section 3:** it means the pipeline's
-automatic rollback stage never triggers on the exact failure mode it exists
-for.
+**Why this mattered more here than in `deploy.sh`.** A false green in the smoke
+test means `post { failure { ... } }` never fires — so the automatic rollback
+could not trigger on the exact failure mode it exists to catch. A broken
+release would stay live and the pipeline would report success.
 
-**Plan.** Fail hard when `$ALB` is empty; track success with an explicit flag;
-on failure dump `kubectl describe ingress` and recent events, then `exit 1`.
+**How it was fixed.** An empty `$ALB` is now a hard failure with the two
+diagnostic commands worth running. The retry loop sets an explicit `ALB_OK`
+flag, and never setting it exits 1 with a clear message. Retrying is still
+correct — a new ALB genuinely takes 2-3 minutes to become healthy — but
+*never succeeding* is now distinguishable from *succeeding late*.
+
+#### Regression tests
+
+Both bugs could have returned silently, so the suite now covers them:
+
+| Test | Asserts |
+|---|---|
+| T14.26 | No duplicate `post` conditions in either Jenkinsfile |
+| T14.27 | The smoke test contains both failure exit paths |
+
+Both were **mutation-tested**: reintroducing each original bug makes the
+corresponding test fail. A regression test that cannot fail would be the same
+class of mistake as the bug it guards.
+
+**Verification.** `bash tests/run_all.sh` — 117 passed, 0 failed.
+
+⚠️ **Expect the first real CD run to be noisier than before.** These fixes turn
+silent passes into loud failures. If the ALB is genuinely slow or misconfigured
+the pipeline will now fail and roll back where it previously reported success —
+that is the point, but it is a behaviour change worth knowing about before the
+first live run.
 
 ### 3.2 🔄 Order submission reports success on partial failure
 
@@ -482,21 +539,23 @@ otherwise the test would keep "passing" against an unmodified config.
 
 ---
 
-## 5. Evidence gap — the largest single deduction ⬜ IN PROGRESS
+## 5. Evidence — submitted separately in Phase 3 ⬜ NO ACTION
 
-> Review §1: *"Largest compliance gap: none of the mandatory kubectl outputs or
-> functional screenshots/transcripts are committed."*
-> Review §7: *"runtime claims … remain unverified until evidence is supplied."*
+> Review §1: *"none of the mandatory kubectl outputs or functional
+> screenshots/transcripts are committed."*
 
-`evidence/README.md` documents exactly what to capture, but only
-`evidence/08-verify.txt` is committed. This must be collected during a live
-cycle, **before** `destroy.sh` runs.
+**Context correction.** The Phase 3 evidence was collected and submitted to the
+assessor together with the repository link. It was not committed *inside* the
+repository, and the review assessed the repository at revision `db163bf` only —
+so the finding reflects where the reviewer looked, not missing work.
 
-**Highest-value single artifact:** after fix 3.1 lands, deliberately break the
-application and capture the CD pipeline detecting it and rolling back. That
-demonstrates the capability Phase 3 lost points for claiming without proof.
+No remediation is required for Phase 3.
 
----
+**Carried forward as a habit, not a fix.** `evidence/README.md` already
+documents the collection procedure, and `Jenkinsfile-cd` writes a deployment
+record to S3 on every run. Keeping future artifacts inside the repository
+removes any dependence on the assessor opening a second attachment — cheap
+insurance rather than a defect to close.
 
 ## 6. Suggested order of work
 
@@ -504,7 +563,8 @@ demonstrates the capability Phase 3 lost points for claiming without proof.
 |---|---|---|
 | **Done** | 1.1 – 1.5 | Turns CI green. The review's §9 conclusion names the red CI as a direct cause of the capped score |
 | **Done** | 2.1, 4.8 | API endpoint restricted; functional test guard made honest |
-| **Next** | 3.1 | Restores the rollback safety net and unlocks the best evidence artifact |
+| **Done** | 3.1 | Rollback safety net restored; CD pipeline made parseable at all |
+| **Next** | 2.5, 2.4 | Small, contained public-facing hardening |
 | **Then** | 2.4, 2.5, 3.3 | Public-facing hardening — §8.5 |
 | **Before submission** | Section 5 evidence, 4.5 | §7 states every runtime claim is currently unverified |
 

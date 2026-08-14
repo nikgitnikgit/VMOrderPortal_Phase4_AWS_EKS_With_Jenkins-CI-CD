@@ -303,19 +303,46 @@ spec:
                         echo "    /api/health OK"
 
                         echo "--- 3/3 public ALB ---"
+                        # REVIEW FIX 3.1b — this check used to be incapable of
+                        # failing. Both branches let a completely unreachable
+                        # application report a green deploy:
+                        #   * empty $ALB      -> logged and passed over, pass
+                        #   * 12 failed curls -> loop just ends, pass
+                        # `set -e` does not help: a curl that fails inside an
+                        # `if` condition is not an error, it is the false branch.
+                        # This is the same false-success bug the phase 3 review
+                        # found in deploy.sh, reappearing in a new place — and
+                        # here it is worse, because it means the post{failure}
+                        # rollback can never fire on the exact failure it exists
+                        # to catch.
                         ALB=$(kubectl get ingress -n "$TARGET_NAMESPACE" \
                             -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}')
-                        if [ -n "$ALB" ]; then
-                            for i in $(seq 1 12); do
-                                if curl -sf --max-time 10 "http://${ALB}/healthz" > /dev/null; then
-                                    echo "    public URL OK: http://${ALB}"
-                                    break
-                                fi
-                                echo "    waiting for ALB to serve ($i/12)"
-                                sleep 10
-                            done
-                        else
-                            echo "    no ALB address yet (skipping external check)"
+
+                        if [ -z "$ALB" ]; then
+                            echo "    FAIL: the Ingress has no load balancer address."
+                            echo "    The ALB controller never provisioned one. Check:"
+                            echo "      kubectl describe ingress -n $TARGET_NAMESPACE"
+                            echo "      kubectl logs -n kube-system deployment/aws-load-balancer-controller"
+                            exit 1
+                        fi
+
+                        # A new ALB takes 2-3 minutes to become healthy, so
+                        # retry — but record whether it EVER succeeded.
+                        ALB_OK=0
+                        for i in $(seq 1 12); do
+                            if curl -sf --max-time 10 "http://${ALB}/healthz" > /dev/null; then
+                                echo "    public URL OK: http://${ALB}"
+                                ALB_OK=1
+                                break
+                            fi
+                            echo "    waiting for ALB to serve ($i/12)"
+                            sleep 10
+                        done
+
+                        if [ "$ALB_OK" -ne 1 ]; then
+                            echo "    FAIL: http://${ALB}/healthz never returned 200 after 2 minutes."
+                            echo "    The deployment is NOT serving traffic. Rolling back."
+                            exit 1
                         fi
                     '''
                 }
@@ -382,6 +409,29 @@ spec:
                     echo "  HELM_DRIVER=configmap helm rollback backend <REVISION> -n $TARGET_NAMESPACE"
                 '''
             }
+
+            // REVIEW FIX 3.1a — this notification used to live in a SECOND
+            // `failure { }` block further down. Declarative Pipeline forbids
+            // duplicate post conditions and rejects the whole Jenkinsfile at
+            // parse time with "Duplicate build condition name: failure", so
+            // application-cd could never have started a single build.
+            // Merged here, after the diagnostics and rollback above, so the
+            // email is sent once and only once the cleanup has run.
+            emailext(
+                to: "${env.NOTIFICATION_EMAIL}",
+                subject: "DEPLOY FAILED - ${env.TAG} to ${params.TARGET_NAMESPACE}",
+                body: """Deployment failed and a rollback was attempted.
+
+  Image tag : ${env.TAG}
+  Namespace : ${params.TARGET_NAMESPACE}
+  Console   : ${env.BUILD_URL}console
+
+Events and pod logs were collected before the rollback and are in the console
+output. To roll back manually:
+  HELM_DRIVER=configmap helm history backend -n ${params.TARGET_NAMESPACE}
+  HELM_DRIVER=configmap helm rollback backend <REV> -n ${params.TARGET_NAMESPACE}
+"""
+            )
         }
         success {
             emailext(
@@ -397,23 +447,6 @@ spec:
   Commit     : ${params.GIT_COMMIT_SHA ?: 'not supplied'}
 
   ${env.BUILD_URL}
-"""
-            )
-        }
-        failure {
-            emailext(
-                to: "${env.NOTIFICATION_EMAIL}",
-                subject: "DEPLOY FAILED - ${env.TAG} to ${params.TARGET_NAMESPACE}",
-                body: """Deployment failed and a rollback was attempted.
-
-  Image tag : ${env.TAG}
-  Namespace : ${params.TARGET_NAMESPACE}
-  Console   : ${env.BUILD_URL}console
-
-Events and pod logs were collected before the rollback and are in the console
-output. To roll back manually:
-  HELM_DRIVER=configmap helm history backend -n ${params.TARGET_NAMESPACE}
-  HELM_DRIVER=configmap helm rollback backend <REV> -n ${params.TARGET_NAMESPACE}
 """
             )
         }
