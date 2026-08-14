@@ -416,6 +416,41 @@ t T14.30 "no wide-open CORS anywhere" bash -c '
   ! grep -q "flask-cors" jenkins/agent-tools/Dockerfile &&
   ! grep -q "flask-cors" .github/workflows/ci.yml'
 
+# REVIEW FIX 3.3 — innerHTML with a STATIC literal is fine; innerHTML with an
+# interpolated value is an injection point. Catch the second, allow the first.
+t T14.31 "no innerHTML carries interpolated data" python3 -c "
+import re, sys
+src = open('app/index.html').read()
+bad = [l.strip() for l in src.split(chr(10))
+       if 'innerHTML' in l and not l.strip().startswith('//')
+       and re.search(r'innerHTML\s*=.*(\\\$\{|\+\s*\w)', l)]
+assert not bad, 'interpolated innerHTML: ' + str(bad)"
+
+# The suggestion chips take a SERVER-supplied value. Built as DOM nodes with
+# textContent + addEventListener there is no HTML context and no JS context to
+# escape out of. An onclick attribute would reintroduce both.
+t T14.32 "suggestion chips are DOM nodes, not markup with onclick" bash -c '
+  grep -q "chip.textContent = s" app/index.html &&
+  grep -q "chip.addEventListener" app/index.html &&
+  ! grep -q "onclick=.useSuggestion" app/index.html'
+
+# Client-side entity-encoding of the user own input fields double-encoded every
+# value (the backend escapes again) and was never a security control, since an
+# attacker skips the page. Keep canonical values; escape at output only.
+t T14.33 "no client-side entity encoding of user input" python3 -c "
+code = [l for l in open('app/index.html').read().split(chr(10))
+        if not l.strip().startswith('//')]
+bad = [l.strip() for l in code if 'sanitizeInput' in l or 'sanitizeAllInputs' in l]
+assert not bad, 'client-side entity encoding is back: ' + str(bad)"
+
+# REVIEW FIX 2.3 — the password must come from Terraform state, not from text
+# parsing of terraform.tfvars.
+t T14.34 "db_password read structurally, not by grep|cut" bash -c '
+  grep -q "terraform output -raw db_password" scripts/install-jenkins.sh &&
+  ! grep -vE "^\s*#" scripts/install-jenkins.sh | grep -qE "grep.*db_password.*cut" &&
+  grep -q "output \"db_password\"" terraform/outputs.tf &&
+  grep -A2 "output \"db_password\"" terraform/outputs.tf | grep -q "sensitive = true"'
+
 t T14.27 "CD smoke test fails when the public URL does not serve" bash -c '
   grep -q "ALB_OK=1" Jenkinsfile-cd &&
   grep -q "ALB_OK. -ne 1" Jenkinsfile-cd &&

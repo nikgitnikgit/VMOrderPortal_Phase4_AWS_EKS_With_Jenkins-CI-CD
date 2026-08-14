@@ -20,6 +20,11 @@ case "$1" in
       rds_address) echo "db.abc.us-east-1.rds.amazonaws.com" ;;
       sns_topic_arn) echo "arn:aws:sns:us-east-1:123456789012:vm-order-prod-sns" ;;
       ses_sender) echo "sender@test.com" ;;
+      # REVIEW FIX 2.3 — deliberately contains a double quote and a slash.
+      # The old grep|cut parser would have returned a truncated value for this;
+      # `terraform output -raw` returns it intact. A mock that only ever
+      # returns simple values cannot tell the two implementations apart.
+      db_password) echo 'p@ss"w/ord 123' ;;
       github_repo_url) echo "https://github.com/test/vm-order-portal-phase4.git" ;;
       *) echo "UNKNOWN_OUTPUT_$3" >&2; exit 1 ;;
     esac ;;

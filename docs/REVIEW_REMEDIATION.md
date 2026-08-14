@@ -185,7 +185,7 @@ needs no credentials and adds no attack surface.
 
 ---
 
-## 2. P1 — Security findings carried over from Phase 3 (2.1, 2.4, 2.5 ✅ done)
+## 2. P1 — Security findings carried over from Phase 3 (2.1, 2.3, 2.4, 2.5 ✅ done)
 
 ### 2.1 ✅ EKS control-plane endpoint open to `0.0.0.0/0`
 
@@ -258,24 +258,54 @@ through the existing `existingSecret` value. Note the win is partial: the
 worker legitimately needs DB access to update `notification_sent`. The real
 gain is SES/SNS configuration no longer sitting in the backend.
 
-### 2.3 🔄 `grep`/`cut` parsing of `terraform.tfvars`
+### 2.3 ✅ `grep`/`cut` parsing of `terraform.tfvars`
 
 > Review §3.7 and §6.3
+
+**Files:** `scripts/install-jenkins.sh`, `terraform/outputs.tf`,
+`tests/mocks/terraform` (plus test T14.34)
+
+**What was wrong.**
 
 ```bash
 DB_PASSWORD=$(grep -E '^\s*db_password' terraform.tfvars | cut -d'"' -f2)
 ```
 
-Breaks on a password containing `"`, on single-quoted values, on a heredoc, and
-on a commented-out duplicate line.
+`cut -d'"' -f2` takes everything between the first and second double quote. Any
+password containing a `"` is silently truncated; single-quoted values, heredocs
+and a commented-out earlier line all break it too. Demonstrated concretely:
 
-**Plan.** Add a `sensitive` output and read it structurally:
+| | Value |
+|---|---|
+| Actual password | `p@ss"w/ord 123` |
+| Old `grep`/`cut` | `p@ss` — **wrong, truncated, no error** |
+| `terraform output -raw` | `p@ss"w/ord 123` — correct |
+
+The silence is the dangerous part: the wrong password is written into the
+Kubernetes Secret and only surfaces much later, at pod start, as an opaque
+database authentication failure with no hint at the real cause.
+
+**How it was fixed.** A `sensitive` output, read the same way as the other
+fourteen values this script already pulls from Terraform:
 
 ```bash
 DB_PASSWORD=$(terraform output -raw db_password)
 ```
 
-One source of truth, no text parsing. Longer term this is superseded by 2.6.
+One source of truth, no text parsing.
+
+**Does this leak anything?** No. `db_password` was already stored in plain text
+in the state file — that is why the state backend is encrypted and private.
+`sensitive = true` keeps it out of bare `terraform output` and out of apply
+logs, while `-raw` still returns it to the one script that needs it.
+
+**Test-quality note.** `tests/mocks/terraform` now returns a password
+containing both a quote and a slash. A mock that only ever returned simple
+values could not tell the old implementation from the new one — the test would
+have passed against the bug.
+
+**Verification.** `shellcheck` clean; `terraform fmt` clean;
+`tests/run_mock_deploy.sh` exercises the new path end to end; suite 124/124.
 
 ### 2.4 ✅ No rate limiting, authentication or body-size cap
 
@@ -370,7 +400,7 @@ Currently documented as a future option only. Implementing it closes 2.2 and
 
 ---
 
-## 3. P2 — Correctness bugs (3.1 ✅ done, rest 🔄 open)
+## 3. P2 — Correctness bugs (3.1, 3.3 ✅ done; 3.2, 3.4 🔄 open)
 
 ### 3.1 ✅ False-success deployment — **the Phase 3 bug, in a new place**
 
@@ -480,20 +510,76 @@ the production answer):**
    currently sets one flag if *either* channel succeeds, which the review
    flags as losing channel-specific state
 
-### 3.3 🔄 `innerHTML` with server-supplied values
+### 3.3 ✅ `innerHTML` with server-supplied values
 
-> Review §5 (LOW)
+> Review §5 (LOW) and §6.2
 
-`app/index.html` uses `textContent` almost everywhere — but the name-suggestion
-chips interpolate a server-supplied value into **two** injection contexts at
-once, an HTML body and a JS string inside an `onclick` attribute:
+**Files:** `app/index.html` (plus tests T14.31 / T14.32 / T14.33)
+
+Three related problems, all in the page's rendering path.
+
+#### 3.3a The suggestion chips — two injection contexts in one line
 
 ```javascript
 suggestions.map(s => `<span class="suggestion-chip" onclick="useSuggestion('${s}')">${s}</span>`)
 ```
 
-**Plan.** Build the chips with `createElement` / `textContent` /
-`addEventListener` so the value is never parsed as markup or code.
+`s` comes from the backend and was interpolated into **an HTML body and a JS
+string inside an `onclick` attribute simultaneously**. Escaping correctly for
+both at once is notoriously hard; escaping for neither is what happened.
+
+Rebuilt with `createElement` + `textContent` + `addEventListener`. The value is
+never serialised into markup or into an attribute, so neither context exists.
+
+#### 3.3b The live summary — rebuilt from user input on every keystroke
+
+`updateSummary()` used `innerHTML` on values the user is actively typing. Now
+built as DOM nodes with `textContent`, which is also more *correct*: a machine
+name containing `<` now displays a `<` instead of vanishing into the parser.
+
+#### 3.3c Client-side entity encoding — double-encoded every order
+
+`sanitizeAllInputs()` rewrote the user's own input fields to HTML entities
+before submit, and `app.py` then ran `html.escape()` on the result.
+`O'Brien & Sons` was stored and emailed as `O&amp;#x27;Brien &amp;amp; Sons` —
+double-encoded, and irreversibly so.
+
+It was also not a security control: anything client-side is optional from an
+attacker's point of view, since `curl` skips the page. Replaced with
+`trimAllInputs()`, which only trims whitespace. Server-side validation in
+`app.py` is unchanged and remains the actual defence.
+
+#### Verified by executing the real page, not by reading it
+
+The page was loaded under **jsdom** with a stubbed backend returning hostile
+suggestions, exercising both render paths:
+
+| Check | Before | After |
+|---|---|---|
+| `<img src=x onerror=...>` from server → element created? | **yes** | no |
+| Same payload typed into the form → element created? | **yes** | no |
+| Chip text equals the literal hostile string | no | yes |
+| Clicking a chip whose value contains quotes | **broken** | works |
+| `"  O'Brien & Sons  "` after submit-time processing | `O&#x27;Brien...` | `O'Brien & Sons` |
+
+The "before" column is the original file run through the identical test — the
+vulnerability was confirmed to be real, not theoretical, and the quote-laden
+suggestion also proved the old `onclick` was functionally broken.
+
+#### Remaining, deliberately out of scope
+
+`app.py` still calls `html.escape()` at **input** time, so values are stored
+HTML-escaped in RDS and appear escaped in the plain-text half of the SES email.
+The review's full recommendation — *"validate canonical raw values; escape only
+at the output boundary"* — means storing raw and escaping in the HTML email
+body only. That touches storage semantics and `worker.py`, so it belongs with
+**3.2**, which already changes the schema. Double-encoding, the user-visible
+defect, is fixed here.
+
+**Note on scope:** `innerHTML` remains on four lines that assign **static
+literals** (the spinner, the "Checking availability" badge). Those carry no
+data and are not injection points; T14.31 permits static assignment and fails
+only on interpolation, so the distinction is enforced rather than assumed.
 
 ### 3.4 🔄 Flask development server in production
 
@@ -625,7 +711,8 @@ insurance rather than a defect to close.
 | **Done** | 2.1, 4.8 | API endpoint restricted; functional test guard made honest |
 | **Done** | 3.1 | Rollback safety net restored; CD pipeline made parseable at all |
 | **Done** | 2.4, 2.5 | Public request path hardened; dead CORS config removed |
-| **Next** | 3.3, 2.3 | Both small and contained |
+| **Done** | 3.3, 2.3 | XSS vectors closed; password read structurally |
+| **Next** | 3.4, 3.2 | gunicorn, then order state and idempotency |
 | **Then** | 2.4, 2.5, 3.3 | Public-facing hardening — §8.5 |
 | **Before submission** | Section 5 evidence, 4.5 | §7 states every runtime claim is currently unverified |
 

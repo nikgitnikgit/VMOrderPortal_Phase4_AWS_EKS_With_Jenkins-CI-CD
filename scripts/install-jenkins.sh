@@ -54,8 +54,15 @@ kubectl get nodes
 # application whose credentials it cannot see.
 echo ""
 echo "[2/8] Application namespace and Secret..."
-DB_PASSWORD=$(grep -E '^\s*db_password' terraform.tfvars | cut -d'"' -f2)
-[ -n "$DB_PASSWORD" ] || { echo "ERROR: db_password not found in terraform.tfvars" >&2; exit 1; }
+# REVIEW FIX 2.3 — was:
+#   DB_PASSWORD=$(grep -E '^\s*db_password' terraform.tfvars | cut -d'"' -f2)
+# That silently returned the wrong value for a password containing a double
+# quote, a single-quoted value, a heredoc, or a commented-out earlier line —
+# and a wrong password fails later, at pod start, as an opaque auth error.
+# Read it the same way as every other value in this script instead: from
+# Terraform's own state, through the type system rather than through text.
+DB_PASSWORD=$(terraform output -raw db_password)
+[ -n "$DB_PASSWORD" ] || { echo "ERROR: db_password output is empty — is terraform.tfvars filled in?" >&2; exit 1; }
 
 kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
 kubectl label namespace "$NAMESPACE" "kubernetes.io/metadata.name=${NAMESPACE}" --overwrite >/dev/null

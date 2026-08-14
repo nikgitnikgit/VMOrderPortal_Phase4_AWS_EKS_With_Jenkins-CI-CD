@@ -207,6 +207,14 @@
 
   .name-suggestions.visible { display: flex; }
 
+  /* REVIEW FIX 3.3 — was an inline style="" on a span built with innerHTML.
+     Moved to a class so the chips can be created as DOM nodes. */
+  .suggestion-label {
+    font-size: 12px;
+    color: var(--text3);
+    align-self: center;
+  }
+
   .suggestion-chip {
     background: var(--bg3);
     border: 1px solid var(--border);
@@ -1037,8 +1045,27 @@ async function checkNameAvailability(name) {
       input.className = 'error';
       const suggestions = data.suggestions || [];
       if (suggestions.length > 0) {
-        suggestionsEl.innerHTML = '<span style="font-size:12px;color:var(--text3);align-self:center;">Try:</span>' +
-          suggestions.map(s => `<span class="suggestion-chip" onclick="useSuggestion('${s}')">${s}</span>`).join('');
+        // REVIEW FIX 3.3 — this used to build the chips with innerHTML,
+        // interpolating a SERVER-SUPPLIED value into two injection contexts at
+        // once: an HTML body and a JS string inside an onclick attribute. A
+        // suggestion containing a quote would have broken out of both.
+        // Built as DOM nodes instead: textContent cannot be parsed as markup,
+        // and addEventListener closes over the value rather than serialising
+        // it into an attribute, so neither context exists any more.
+        suggestionsEl.replaceChildren();
+
+        const label = document.createElement('span');
+        label.className = 'suggestion-label';
+        label.textContent = 'Try:';
+        suggestionsEl.appendChild(label);
+
+        suggestions.forEach(s => {
+          const chip = document.createElement('span');
+          chip.className = 'suggestion-chip';
+          chip.textContent = s;
+          chip.addEventListener('click', () => useSuggestion(s));
+          suggestionsEl.appendChild(chip);
+        });
         suggestionsEl.className = 'name-suggestions visible';
       }
     } else {
@@ -1339,9 +1366,26 @@ function updateSummary() {
     ['Applications', d.services.length ? d.services.join(', ') : 'None'],
     ['Contact', d.contactName ? d.contactName + (d.contactEmail ? ' · ' + d.contactEmail : '') : '—']
   ];
-  content.innerHTML = rows.map(([k, v]) =>
-    `<div class="summary-row"><span class="key">${k}</span><span class="val">${v}</span></div>`
-  ).join('');
+  // REVIEW FIX 3.3 — the summary is rebuilt on every keystroke from values
+  // the user is typing. With innerHTML those values were parsed as markup.
+  // textContent renders them as the literal characters they are, which is
+  // both safer and more correct: a name containing < now DISPLAYS a <.
+  content.replaceChildren();
+  rows.forEach(([k, v]) => {
+    const row = document.createElement('div');
+    row.className = 'summary-row';
+
+    const key = document.createElement('span');
+    key.className = 'key';
+    key.textContent = k;
+
+    const val = document.createElement('span');
+    val.className = 'val';
+    val.textContent = v;
+
+    row.append(key, val);
+    content.appendChild(row);
+  });
 }
 
 function validateForm() {
@@ -1431,23 +1475,26 @@ function validateForm() {
   return valid;
 }
 
-function sanitizeInput(str) {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;')
-    .replace(/\//g, '&#x2F;')
-    .trim();
-}
+// REVIEW FIX 3.3 — sanitizeInput()/sanitizeAllInputs() were removed.
+//
+// They rewrote the user's own input fields to HTML entities BEFORE submitting,
+// and the backend then ran html.escape() on the result. O'Brien was stored and
+// emailed as O&amp;#x27;Brien: double-encoded, and irreversibly so.
+//
+// They were also not a security control. Anything client-side is optional from
+// an attacker's point of view — curl skips the page entirely. The real defence
+// is the server-side validation in app.py, which is unchanged.
+//
+// The correct rule is to keep the canonical raw value everywhere and escape
+// once, at the point of output. Both render paths on this page now use
+// textContent, which escapes implicitly and cannot be forgotten.
 
-function sanitizeAllInputs() {
+function trimAllInputs() {
   const textFields = ['machineName', 'otherApps', 'userName', 'userEmail'];
   textFields.forEach(id => {
     const el = document.getElementById(id);
     if (el && el.value) {
-      el.value = sanitizeInput(el.value);
+      el.value = el.value.trim();
     }
   });
 }
@@ -1497,7 +1544,7 @@ async function submitForm() {
 
 document.getElementById('vmForm').addEventListener('submit', function(e) {
   e.preventDefault();
-  sanitizeAllInputs();
+  trimAllInputs();
   const result = validateForm();
   if (!result) {
     console.log('Validation failed');
