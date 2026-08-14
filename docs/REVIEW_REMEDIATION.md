@@ -353,7 +353,7 @@ guard it.
 
 ---
 
-## 4. P3 — Lower priority 🔄 OPEN
+## 4. P3 — Lower priority (4.8 ✅ done, rest 🔄 open)
 
 | # | Finding | Review ref | Plan |
 |---|---|---|---|
@@ -364,6 +364,81 @@ guard it.
 | 4.5 | No Trivy report or SBOM committed | §3.12, §3.13, §7 | CI produces them as build artifacts; commit one run's `trivy-*.txt` and `sbom-*.cdx.json` under `evidence/` |
 | 4.6 | Backend NetworkPolicy egress to RDS uses the whole `/16` | §3.8 | Narrow to the DB subnet CIDRs |
 | 4.7 | `destroy.sh` verification is account-wide | §6.3 | Filter by project tags rather than `aws eks list-clusters` |
+| 4.8 | ✅ Functional test skip guard checked binaries but not privileges | (found in remediation) | Done — see below |
+
+### 4.8 ✅ Functional test failed on non-root developer machines
+
+**File:** `tests/run_functional.sh`
+
+**Found during remediation, not in the review** — surfaced the first time
+`tests/run_all.sh` was run on a developer workstation rather than a root shell.
+
+**What was wrong.** T7.6 is the suite's heaviest check: it boots real
+PostgreSQL, real nginx, the real backend and worker, mocks AWS with moto, and
+pushes an actual order through every hop. It needs root in three places —
+starting the postgresql cluster, `su postgres` to create the test database,
+and writing `/usr/share/nginx/html`.
+
+Its skip guard only checked whether `psql` and `nginx` were **installed**:
+
+```bash
+if ! command -v psql >/dev/null || ! command -v nginx >/dev/null; then
+    echo "SKIPPED (needs postgresql + nginx installed)"
+```
+
+So on an Ubuntu workstation that has both packages but is running as a normal
+user, the guard passed, the test started, and it died partway through with:
+
+```
+tests/run_functional.sh: line 45: /etc/hosts: Permission denied
+```
+
+Installed and usable are not the same thing. A test that fails on a correctly
+configured machine is worse than no test — it trains you to ignore red results,
+which is the same failure mode as the red CI in finding 1.
+
+CI was never affected: GitHub's `ubuntu-latest` runners do not ship nginx, so
+the first guard fired and the test skipped.
+
+**How it was fixed — two changes.**
+
+*1. The guard now checks privileges and says how to satisfy them:*
+
+```bash
+if [ "$(id -u)" != "0" ]; then
+    echo "SKIPPED (needs root: starts the postgresql cluster, creates the test DB)"
+    echo "  to run it:  sudo bash tests/run_functional.sh"
+    exit 0
+fi
+```
+
+*2. The `/etc/hosts` dependency was removed entirely.* The script used to
+append `127.0.0.1 backend` to `/etc/hosts` so nginx could resolve the
+Kubernetes Service name. That mutated a system file outside the repository,
+needed root purely for name resolution, and left the line behind after the run.
+
+The nginx config is already copied to `/tmp/qa_ngx/default.conf`, so the
+upstream is rewritten *there* instead:
+
+```bash
+sed -i 's|proxy_pass http://backend:|proxy_pass http://127.0.0.1:|' /tmp/qa_ngx/default.conf
+```
+
+No coverage is lost: **T5.1 separately asserts that the real `nginx.conf`
+targets the correct Service name and port**, so this rewrite cannot mask a
+mismatch. A `grep -q` guard immediately after the `sed` fails loudly if the
+upstream is ever renamed and the substitution silently stops matching —
+otherwise the test would keep "passing" against an unmodified config.
+
+**Verification.**
+
+| Condition | Before | After |
+|---|---|---|
+| root, tools present | runs | runs |
+| non-root, tools present | ❌ `Permission denied`, exit 1 | ✅ skips with instructions, exit 0 |
+| tools absent (CI) | skips | skips |
+| `shellcheck tests/run_functional.sh` | clean | clean |
+| `bash tests/run_all.sh` | — | 115 passed, 0 failed |
 
 ---
 
@@ -413,4 +488,8 @@ for f in glob.glob('jenkins/*.yaml') + glob.glob('helm/*/values.yaml'):
 
 # 1.5 — the full suite (expect 115 passed, 0 failed)
 bash tests/run_all.sh
+
+# 4.8 — T7.6 skips as non-root by design. To actually exercise the
+# end-to-end path (needs postgresql + nginx installed locally):
+sudo bash tests/run_functional.sh
 ```
