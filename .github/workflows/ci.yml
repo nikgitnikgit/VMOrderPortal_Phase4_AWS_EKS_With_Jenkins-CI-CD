@@ -131,7 +131,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
-      - run: pip install flake8 pytest flask flask-cors boto3 requests psycopg2-binary
+      - run: pip install flake8 pytest flask boto3 requests psycopg2-binary
       - run: flake8 app/ tests/
       - run: python3 -m pytest app/ -v
 

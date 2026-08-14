@@ -185,7 +185,7 @@ needs no credentials and adds no attack surface.
 
 ---
 
-## 2. P1 — Security findings carried over from Phase 3 (2.1 ✅ done, rest 🔄 open)
+## 2. P1 — Security findings carried over from Phase 3 (2.1, 2.4, 2.5 ✅ done)
 
 ### 2.1 ✅ EKS control-plane endpoint open to `0.0.0.0/0`
 
@@ -277,29 +277,89 @@ DB_PASSWORD=$(terraform output -raw db_password)
 
 One source of truth, no text parsing. Longer term this is superseded by 2.6.
 
-### 2.4 🔄 No rate limiting, authentication or body-size cap
+### 2.4 ✅ No rate limiting, authentication or body-size cap
 
-> Review §5 (MEDIUM) and §6.2
+> Review §5 (MEDIUM), §6.2 and §8.5
 
-`docker/frontend/nginx.conf` contains no `limit_req`, no `client_max_body_size`
-and no auth. `/submit-order` is fully open and each call performs RDS + S3 +
-worker → SNS + SES work — an amplification path directly to the AWS bill.
+**File:** `docker/frontend/nginx.conf` (plus tests T14.28 / T14.29)
 
-**Plan.** `limit_req_zone` in the `http` block, `limit_req` on the
-`/submit-order` location, and a global `client_max_body_size` well below the
-1 MB default.
+**What was wrong.** No `limit_req`, no `client_max_body_size`, no auth.
+`/submit-order` was fully open and every call performed RDS + S3 + worker →
+SNS + SES work — an amplification path straight to the AWS bill.
 
-### 2.5 🔄 CORS enabled for all origins
+**The non-obvious part: keying the limit correctly.** The naive fix is
+`limit_req_zone $binary_remote_addr`. Behind an ALB with `target-type=ip`,
+**that is worse than no limit at all.** Every request arrives from one of a
+handful of load balancer ENIs, so the entire internet shares one bucket: a
+single ordinary visitor throttles everyone, while an attacker spreading across
+addresses is unaffected.
+
+The ALB *appends* the true client address to `X-Forwarded-For`, so:
+
+```nginx
+set_real_ip_from  10.0.0.0/8;
+real_ip_header    X-Forwarded-For;
+real_ip_recursive off;
+```
+
+A client can forge the header, but forged values land **earlier** in the list
+and `real_ip_recursive off` makes nginx take the **last** address — the one the
+ALB wrote. The key is therefore both correct and unspoofable. Trusting
+`10.0.0.0/8` is safe because the frontend NetworkPolicy only admits ALB
+traffic, so nothing else can present the header at all.
+
+**Two zones, because the endpoints differ:**
+
+| Zone | Applies to | Rate | Why |
+|---|---|---|---|
+| `submit` | `= /api/submit-order` | 10/min, burst 5 | Writes RDS, S3, SNS, SES. A human orders a VM a few times a day |
+| `api` | `/api/` (health, check-name) | 60/min, burst 20 | `check-name` fires as the user types; too strict breaks the form |
+
+`/healthz` is deliberately **not** limited — the kubelet probes it every few
+seconds and throttling it would restart healthy pods.
+
+Also added: `client_max_body_size 16k` (an order is a few hundred bytes; the
+nginx default of 1m lets an anonymous caller push a megabyte into Flask's
+parser), `limit_req_status 429` (the default 503 reads as "backend down"), and
+`server_tokens off`.
+
+**Verified against real nginx 1.24**, not just a parser — a stub backend plus
+`curl`:
+
+| Behaviour | Result |
+|---|---|
+| `/healthz` × 30 rapid | 30 × 200 — never limited |
+| `/api/submit-order` × 12 from one client | 6 × 200 (1 + burst 5), then 429 |
+| Second client IP, same moment | 200 — per-client, not global |
+| Forged `X-Forwarded-For`, new value each request | still 429 after 6 — spoofing does not buy a fresh bucket |
+| 1 KB body / 64 KB body | 200 / 413 |
+| `check-name` × 20 rapid (simulated typing) | 20 × 200 — form unaffected |
+
+⚠️ **Still no authentication.** Rate limiting caps the damage; it does not stop
+a determined distributed abuser. The review asks for "an identity layer or
+signed internal access", which is a larger change and remains open.
+
+### 2.5 ✅ CORS enabled for all origins
 
 > Review §6.2
 
-`app/backend/app.py` still calls `CORS(app)` with the comment *"Allow Frontend
-EC2 to call this API"* — a leftover from the Phase 2 EC2 architecture. Under
-Kubernetes the browser talks to nginx and nginx proxies to the backend, so the
-request is **same-origin and CORS is not needed at all**.
+**Files:** `app/backend/app.py`, `app/backend/requirements.txt`,
+`jenkins/agent-tools/Dockerfile`, `.github/workflows/ci.yml` (plus test T14.30)
 
-**Plan.** Remove `CORS(app)` and the `flask-cors` dependency; confirm
-`/check-name` and `/submit-order` still work through the ALB.
+**What was wrong.** `CORS(app)` allowed every origin. The comment beside it —
+*"Allow Frontend EC2 to call this API"* — dated it exactly: in phase 2 the
+browser called the API on a different host, so cross-origin headers were
+genuinely needed.
+
+Under Kubernetes the browser only ever talks to nginx, which proxies `/api/` to
+this Service. **Same origin, so CORS is not needed at all** — this was dead
+configuration that only widened exposure.
+
+**How it was fixed.** Removed the import and the call, and dropped
+`flask-cors` from all three places that installed it. One less dependency to
+scan, patch and carry.
+
+**Verification.** `python3 -m pytest app/` passes; full suite 120/120.
 
 ### 2.6 🔄 Secrets Manager / External Secrets Operator
 
@@ -564,7 +624,8 @@ insurance rather than a defect to close.
 | **Done** | 1.1 – 1.5 | Turns CI green. The review's §9 conclusion names the red CI as a direct cause of the capped score |
 | **Done** | 2.1, 4.8 | API endpoint restricted; functional test guard made honest |
 | **Done** | 3.1 | Rollback safety net restored; CD pipeline made parseable at all |
-| **Next** | 2.5, 2.4 | Small, contained public-facing hardening |
+| **Done** | 2.4, 2.5 | Public request path hardened; dead CORS config removed |
+| **Next** | 3.3, 2.3 | Both small and contained |
 | **Then** | 2.4, 2.5, 3.3 | Public-facing hardening — §8.5 |
 | **Before submission** | Section 5 evidence, 4.5 | §7 states every runtime claim is currently unverified |
 

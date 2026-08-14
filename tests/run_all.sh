@@ -32,7 +32,7 @@ t T1.2 "no junk files/dirs (braces, tmp, pyc, .git)" bash -c '
 t T1.3 "no unexpected empty directories" bash -c '
   [ -z "$(find . -type d -empty | grep -v ".git")" ]'
 t T1.4 "all shell scripts executable" bash -c '
-  for f in scripts/*.sh terraform/bootstrap-state.sh tests/run_all.sh; do [ -x "$f" ] || { echo "$f not executable"; exit 1; }; done'
+  for f in scripts/*.sh terraform/bootstrap-state.sh tests/*.sh; do [ -x "$f" ] || { echo "$f not executable"; exit 1; }; done'
 t T1.5 "expected file inventory (spot check 12 key files)" bash -c '
   for f in docker/backend/Dockerfile docker/worker/Dockerfile docker/frontend/Dockerfile \
            docker/frontend/nginx.conf terraform/main.tf terraform/terraform.tfvars.example \
@@ -389,6 +389,33 @@ for f in ['Jenkinsfile-ci','Jenkinsfile-cd']:
 # swallowed both an absent ALB address and 12 consecutive failed health checks,
 # so an unreachable application still reported a green deploy and the
 # post{failure} rollback never fired. Assert the two exit paths exist.
+# REVIEW FIX 2.4 / 2.5 — public request path hardening.
+t T14.28 "nginx rate-limits the expensive endpoint, never the probe" bash -c '
+  grep -q "limit_req_zone .*zone=submit" docker/frontend/nginx.conf &&
+  grep -q "limit_req zone=submit" docker/frontend/nginx.conf &&
+  grep -q "client_max_body_size" docker/frontend/nginx.conf &&
+  ! awk "/location \/healthz/,/}/" docker/frontend/nginx.conf | grep -q limit_req'
+
+# Behind an ALB every request arrives from a load balancer ENI, so a rate limit
+# keyed on the raw peer address puts the whole internet in one bucket: one
+# noisy visitor throttles everybody and an attacker is unaffected. The real_ip
+# directives are what make the limit per-client. Removing them independently
+# would leave a limit that is worse than none, so pin them together.
+t T14.29 "rate limiting keys on the real client, not the load balancer" bash -c '
+  grep -q "set_real_ip_from" docker/frontend/nginx.conf &&
+  grep -q "real_ip_header .*X-Forwarded-For" docker/frontend/nginx.conf &&
+  grep -q "real_ip_recursive off" docker/frontend/nginx.conf'
+
+# CORS was a phase 2 leftover: same-origin under Kubernetes, so allowing every
+# origin bought nothing and cost real exposure. Assert it stays gone from the
+# code AND from every dependency list that used to install it.
+t T14.30 "no wide-open CORS anywhere" bash -c '
+  ! grep -q "^CORS(app)" app/backend/app.py &&
+  ! grep -q "^from flask_cors" app/backend/app.py &&
+  ! grep -q "flask-cors" app/backend/requirements.txt &&
+  ! grep -q "flask-cors" jenkins/agent-tools/Dockerfile &&
+  ! grep -q "flask-cors" .github/workflows/ci.yml'
+
 t T14.27 "CD smoke test fails when the public URL does not serve" bash -c '
   grep -q "ALB_OK=1" Jenkinsfile-cd &&
   grep -q "ALB_OK. -ne 1" Jenkinsfile-cd &&

@@ -44,7 +44,6 @@ RUN pip3 install --no-cache-dir --break-system-packages \
         pytest-cov==6.0.0 \
         flake8==7.1.1 \
         flask==3.1.0 \
-        flask-cors==5.0.0 \
         psycopg2-binary==2.9.9 \
         boto3==1.37.0 \
         requests==2.32.3

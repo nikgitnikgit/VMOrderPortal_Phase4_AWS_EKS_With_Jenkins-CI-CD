@@ -20,10 +20,18 @@ import psycopg2
 import psycopg2.extras
 import requests
 from flask import Flask, request, jsonify
-from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app)  # Allow Frontend EC2 to call this API
+
+# REVIEW FIX 2.5 — CORS removed entirely.
+# `CORS(app)` allowed EVERY origin. It was a phase 2 leftover: back then the
+# browser talked to the frontend EC2 box and called this API on a different
+# host, so cross-origin headers were genuinely required.
+# Under Kubernetes the browser only ever talks to nginx, which proxies /api/
+# to this Service. Same origin, so the browser never sends an Origin header
+# that needs answering and CORS is not needed at all.
+# Removing it means a page on any other site can no longer read responses
+# from this API using a visitor's browser.
 
 # -----------------------------------------------------------------------
 # Config — loaded from environment variables (set on EC2)
