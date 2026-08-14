@@ -16,6 +16,25 @@ variable "kubernetes_version" {
 
 variable "private_subnet_ids" { type = list(string) }
 
+# REVIEW FIX 2.1 — no default ON PURPOSE. A default here would be either
+# insecure (0.0.0.0/0, the thing we are fixing) or wrong for everyone but its
+# author. Terraform prompts for it, and tests/run_all.sh T3.2 asserts that
+# every variable without a default appears in terraform.tfvars.example.
+variable "api_public_access_cidrs" {
+  description = "CIDRs allowed to reach the public EKS API endpoint. Never 0.0.0.0/0."
+  type        = list(string)
+
+  validation {
+    condition     = !contains(var.api_public_access_cidrs, "0.0.0.0/0")
+    error_message = "0.0.0.0/0 defeats the purpose of this variable. List explicit /32 addresses."
+  }
+
+  validation {
+    condition     = length(var.api_public_access_cidrs) > 0
+    error_message = "At least one CIDR is required, or nobody can run kubectl."
+  }
+}
+
 variable "node_instance_type" {
   type    = string
   default = "t3.small" # 2 GB RAM — realistic minimum; system pods eat ~30% of a node

@@ -62,6 +62,8 @@ module "eks" {
   node_desired       = var.node_count
   node_min           = var.node_count
   node_max           = var.node_count + 1
+
+  api_public_access_cidrs = var.api_public_access_cidrs
 }
 
 module "ecr" {

@@ -110,14 +110,15 @@ Also required:
 git clone <your-fork> && cd VMOrderPortal_Phase4
 
 cp terraform/terraform.tfvars.example terraform/terraform.tfvars
-$EDITOR terraform/terraform.tfvars          # 5 values
+curl -s https://checkip.amazonaws.com        # your public IP, for the next step
+$EDITOR terraform/terraform.tfvars           # 6 values
 
-export GITHUB_TOKEN=ghp_xxxxxxxx            # optional but recommended
+export GITHUB_TOKEN=ghp_xxxxxxxx             # optional but recommended
 
 ./scripts/deploy.sh                          # ~30 minutes
 ```
 
-### The five values in `terraform.tfvars`
+### The six values in `terraform.tfvars`
 
 | Variable | Notes |
 |---|---|
@@ -126,6 +127,7 @@ export GITHUB_TOKEN=ghp_xxxxxxxx            # optional but recommended
 | `notification_email` | Where SNS order alerts and Jenkins build emails go |
 | `ses_sender` | The SES address you verified in §2 |
 | `github_repo_url` | Your fork's HTTPS clone URL. Jenkins clones from here and the webhook is registered against it |
+| `api_public_access_cidrs` | Who may reach the Kubernetes API from the internet. See §10.1 — **list two addresses, not one** |
 
 `terraform.tfvars` is the single source of truth: every script reads these
 values back through `terraform output`, so nothing is duplicated or hard-coded.
@@ -317,6 +319,41 @@ bodies contain only build metadata and links.
 ---
 
 ## 10. Security
+
+### 10.1 Kubernetes API access, and how to get back in
+
+The EKS API endpoint is public but **CIDR-restricted** to the addresses in
+`api_public_access_cidrs`. Anyone outside that list is refused at the network
+layer, before IAM or RBAC is consulted.
+
+Find your address with `curl -s https://checkip.amazonaws.com`.
+
+**List two entries.** The second is a break-glass path — a phone hotspot works.
+If your ISP reassigns your address and you have only one entry, you lose
+`kubectl` and the only way back is `terraform apply`, which you would be
+running without being able to see the cluster.
+
+**What this does not affect.** Worker nodes and Jenkins agent Pods reach the
+API privately from inside the VPC (`endpoint_private_access = true`). Losing
+your own `kubectl` does not stop a running deployment, and it does not stop a
+Jenkins pipeline mid-build. It only stops *you*.
+
+**Operator recovery — your address changed:**
+
+```bash
+curl -s https://checkip.amazonaws.com                # the new address
+$EDITOR terraform/terraform.tfvars                   # update the list
+cd terraform && terraform apply                      # ~1 min, in place, no downtime
+```
+
+`terraform apply` needs AWS API credentials, not cluster access, so it works
+even while you are locked out. Symptom to recognise: `kubectl` hangs and then
+fails with a connection timeout rather than a `Forbidden` — a timeout is the
+network layer, `Forbidden` would be RBAC.
+
+Jenkins' own ALB is restricted the same way, but detects your address
+automatically at install time, so it is fixed by re-running
+`./scripts/configure-jenkins.sh` instead.
 
 ### RBAC
 

@@ -185,25 +185,65 @@ needs no credentials and adds no attack surface.
 
 ---
 
-## 2. P1 — Security findings carried over from Phase 3 🔄 OPEN
+## 2. P1 — Security findings carried over from Phase 3 (2.1 ✅ done, rest 🔄 open)
 
-### 2.1 🔄 EKS control-plane endpoint open to `0.0.0.0/0`
+### 2.1 ✅ EKS control-plane endpoint open to `0.0.0.0/0`
 
 > Review §5 (MEDIUM) and §8.3
 
-`modules/eks/main.tf` sets `endpoint_public_access = true` with no
-`public_access_cidrs`, so the Kubernetes API is internet-reachable with only
-IAM/RBAC in front of it.
+**Files:** `terraform/modules/eks/main.tf`, `terraform/modules/eks/variables.tf`,
+`terraform/variables.tf`, `terraform/main.tf`,
+`terraform/terraform.tfvars.example`, `README.md`
 
-**Plan.** Add an `api_public_access_cidrs` variable (no default — force an
-explicit decision) and wire it into the `vpc_config` block. The pattern already
-exists in this repo: `jenkins/values.yaml` restricts the Jenkins ALB with
-`alb.ingress.kubernetes.io/inbound-cidrs`.
+**What was wrong.** `modules/eks/main.tf` set `endpoint_public_access = true`
+with no `public_access_cidrs`, so the Kubernetes API was reachable from the
+whole internet with only IAM/RBAC in front of it.
 
-**Caveat to document:** Jenkins agents run inside the VPC and reach the API
-privately, so they are unaffected. A human operator on a rotating home IP will
-lose `kubectl` access until they re-apply. The README must record that recovery
-path — the review explicitly asks to *"document the operator access path."*
+**How it was fixed.** A new `api_public_access_cidrs` variable, wired through
+the root module into `vpc_config`:
+
+```hcl
+endpoint_public_access  = true
+endpoint_private_access = true
+public_access_cidrs     = var.api_public_access_cidrs
+```
+
+**Deliberately no default.** A default would be either insecure (`0.0.0.0/0`,
+the thing being fixed) or wrong for everyone but its author. Terraform now
+prompts if it is missing, and test T3.2 already asserts that every variable
+without a default appears in `terraform.tfvars.example` — so the documentation
+cannot drift from the code.
+
+Two `validation` blocks reject `0.0.0.0/0` explicitly and reject an empty list
+(which would lock everyone out).
+
+**Where the operator sets it.** `terraform/terraform.tfvars`, alongside
+`db_password` and the other per-contributor secrets. That file is gitignored,
+so no real address is ever committed.
+
+**Why two CIDRs, not one.** Public access stays enabled because a human needs
+`kubectl` from outside the VPC — `install-jenkins.sh`, `verify-jenkins.sh` and
+all debugging depend on it. But a static list plus a rotating ISP address means
+eventual lockout, and the only way back is `terraform apply` run blind. A
+second entry (phone hotspot) is the break-glass path. `tfvars.example` ships
+with two placeholder entries so the shape is obvious.
+
+**Blast radius is small by design.** Nodes and Jenkins agent Pods reach the API
+privately via `endpoint_private_access`. Losing your own `kubectl` stops
+neither a running deployment nor a pipeline mid-build.
+
+**Operator access path documented** in `README.md` §10.1, as the review
+explicitly requires — including the recovery procedure and the diagnostic that
+a *timeout* means the CIDR list while *Forbidden* means RBAC.
+
+**Verification.** `terraform fmt -check` clean; T3.0, T3.1 (module wiring) and
+T3.2 (tfvars coverage) pass; full suite 115/115.
+
+⚠️ **On first apply after this change** the cluster's endpoint access config is
+updated in place — roughly a minute, no downtime, no node restart. If your
+address is wrong in `tfvars`, the apply succeeds and *then* you cannot reach
+the API. Run `curl -s https://checkip.amazonaws.com` and check the value before
+applying.
 
 ### 2.2 🔄 One shared `app-secrets` object for backend and worker
 
@@ -463,7 +503,8 @@ demonstrates the capability Phase 3 lost points for claiming without proof.
 | When | Items | Rationale |
 |---|---|---|
 | **Done** | 1.1 – 1.5 | Turns CI green. The review's §9 conclusion names the red CI as a direct cause of the capped score |
-| **Next** | 2.1, 3.1 | Statically verifiable by a reviewer, and 3.1 restores the rollback safety net |
+| **Done** | 2.1, 4.8 | API endpoint restricted; functional test guard made honest |
+| **Next** | 3.1 | Restores the rollback safety net and unlocks the best evidence artifact |
 | **Then** | 2.4, 2.5, 3.3 | Public-facing hardening — §8.5 |
 | **Before submission** | Section 5 evidence, 4.5 | §7 states every runtime claim is currently unverified |
 
@@ -488,6 +529,10 @@ for f in glob.glob('jenkins/*.yaml') + glob.glob('helm/*/values.yaml'):
 
 # 1.5 — the full suite (expect 115 passed, 0 failed)
 bash tests/run_all.sh
+
+# 2.1 — confirm your address before the first apply
+curl -s https://checkip.amazonaws.com
+grep -A4 api_public_access_cidrs terraform/terraform.tfvars
 
 # 4.8 — T7.6 skips as non-root by design. To actually exercise the
 # end-to-end path (needs postgresql + nginx installed locally):

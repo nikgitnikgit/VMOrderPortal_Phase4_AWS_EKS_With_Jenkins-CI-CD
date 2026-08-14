@@ -36,9 +36,21 @@ resource "aws_eks_cluster" "main" {
   version  = var.kubernetes_version # pinned — never "latest" thinking here either
 
   vpc_config {
-    subnet_ids              = var.private_subnet_ids
-    endpoint_public_access  = true # your kubectl connects from home
-    endpoint_private_access = true # nodes talk to the API privately
+    subnet_ids = var.private_subnet_ids
+
+    # REVIEW FIX 2.1 — the API endpoint used to be public with no CIDR
+    # restriction, i.e. reachable from 0.0.0.0/0 with only IAM/RBAC in front
+    # of it. Public access stays ON because a human operator needs kubectl
+    # from outside the VPC (install-jenkins.sh, verify-jenkins.sh, debugging),
+    # but it is now reachable only from the addresses listed in tfvars.
+    #
+    # Private access stays ON and is what actually matters day to day: worker
+    # nodes and Jenkins agent Pods reach the API from INSIDE the VPC and are
+    # completely unaffected by this list. Locking yourself out of kubectl
+    # never breaks a running cluster or a running pipeline.
+    endpoint_public_access  = true
+    endpoint_private_access = true
+    public_access_cidrs     = var.api_public_access_cidrs
   }
 
   depends_on = [aws_iam_role_policy_attachment.cluster_policy]

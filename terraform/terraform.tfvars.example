@@ -1,7 +1,36 @@
 # terraform.tfvars.example — copy to terraform.tfvars and fill in
 # (same single-source-of-truth philosophy as phase 2)
+#
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# terraform.tfvars is gitignored: it holds per-contributor and sensitive
+# values. Never commit the filled-in copy.
+
 db_password        = "CHANGE_ME_strong_password"
 s3_bucket_name     = "vm-order-prod-s3-orders-CHANGEME" # lowercase only!
 notification_email = "your-email@example.com"
 ses_sender         = "your-verified-ses@email.com"
 github_repo_url    = "https://github.com/YOUR_USER/vm-order-portal-phase4.git"
+
+# --- EKS API endpoint access (REVIEW FIX 2.1) -------------------------------
+# Who may reach the Kubernetes API from the public internet. Previously this
+# was unrestricted (0.0.0.0/0) with only IAM/RBAC in front of it.
+#
+# Find your current address:
+#     curl -s https://checkip.amazonaws.com
+#
+# List TWO entries, not one. The second is your break-glass path: if your ISP
+# reassigns your address you are locked out of kubectl, and the only way back
+# in is `terraform apply` — which you can still run, but you will be flying
+# blind until it finishes. A phone hotspot as the second entry avoids that.
+#
+# This does NOT affect the cluster itself. Worker nodes and Jenkins agent Pods
+# reach the API privately from inside the VPC. A running deployment and a
+# running pipeline both survive you losing kubectl.
+#
+# When your address changes: update this list and re-run `terraform apply`.
+# It is an in-place update on the cluster, roughly one minute, no downtime.
+api_public_access_cidrs = [
+  "203.0.113.45/32", # home — REPLACE with your address
+  "198.51.100.22/32" # phone hotspot — REPLACE, or delete this line
+]

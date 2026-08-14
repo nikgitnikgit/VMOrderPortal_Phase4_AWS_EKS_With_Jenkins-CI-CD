@@ -90,3 +90,18 @@ variable "github_repo_url" {
   description = "GitHub repo URL for Jenkins to clone (each contributor sets their own)"
   type        = string
 }
+
+# REVIEW FIX 2.1 — see modules/eks/variables.tf for why there is no default.
+# Set this in terraform.tfvars alongside db_password and the other
+# per-contributor values. List TWO entries: your normal connection and a
+# fallback (phone hotspot). If your ISP rotates your address you still have a
+# way in without an apply, and an apply is what you would need to fix it.
+variable "api_public_access_cidrs" {
+  description = "CIDRs allowed to reach the public EKS API endpoint. Never 0.0.0.0/0."
+  type        = list(string)
+
+  validation {
+    condition     = !contains(var.api_public_access_cidrs, "0.0.0.0/0")
+    error_message = "0.0.0.0/0 defeats the purpose of this variable. List explicit /32 addresses."
+  }
+}
