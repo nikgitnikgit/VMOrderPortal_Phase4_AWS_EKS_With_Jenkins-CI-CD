@@ -38,9 +38,34 @@ metadata:
   labels:
     kubernetes.io/metadata.name: jenkins
     app.kubernetes.io/part-of: vm-order-portal
-    # NOT "restricted": Jenkins agent pods mount a workspace volume and the
-    # controller runs an init container that writes to its PVC. Enforcing
-    # restricted here would break the build system. Baseline still blocks
-    # privileged pods, host networking and host paths.
-    pod-security.kubernetes.io/enforce: baseline
+    # Pod Security Admission is deliberately NOT enforced here.
+    #
+    # An earlier version of this file set "baseline" and it broke CI on the
+    # first real run: the rootless BuildKit container in Jenkinsfile-ci must
+    # set seccompProfile.type=Unconfined and an unconfined AppArmor profile,
+    # because buildkitd cannot create its nested mount namespace otherwise.
+    # Baseline forbids both, so every agent pod was rejected at admission with
+    # 403 and no build could start. PSA is namespace-wide with no per-pod
+    # exemption, so there is no setting that admits BuildKit and still
+    # constrains the rest.
+    #
+    # This is a real relaxation, so it is worth being explicit about what
+    # still constrains this namespace instead:
+    #   * RBAC — jenkins-agent-ci cannot deploy, jenkins-agent-cd cannot push
+    #     images, neither can read Secrets (jenkins/rbac.yaml)
+    #   * NetworkPolicy — default-deny with named egress (jenkins/networkpolicy.yaml)
+    #   * IRSA — AWS permissions scoped per ServiceAccount
+    #   * A dedicated, tainted node group, so agents never share nodes with
+    #     the application
+    #   * The agent pods still set runAsNonRoot, numeric runAsUser, and
+    #     allowPrivilegeEscalation: false; BuildKit runs rootless and is NOT
+    #     a privileged container
+    #
+    # The application namespace above keeps "restricted", which is where the
+    # untrusted-input workloads actually live.
+    pod-security.kubernetes.io/enforce: privileged
     pod-security.kubernetes.io/enforce-version: latest
+    # Audit and warn at baseline: violations are logged and surfaced to anyone
+    # running kubectl, without blocking the build system.
+    pod-security.kubernetes.io/audit: baseline
+    pod-security.kubernetes.io/warn: baseline

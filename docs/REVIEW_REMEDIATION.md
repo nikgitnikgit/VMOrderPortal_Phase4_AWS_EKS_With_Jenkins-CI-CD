@@ -821,6 +821,47 @@ Security Admission labels:
 A future manifest that quietly drops those settings is now **rejected at
 admission** rather than discovered later by a reviewer.
 
+#### Follow-up: the PSA level for `jenkins` was wrong, and CI caught it
+
+Found on the **first real CI run**, not by any offline test.
+
+The `jenkins` namespace was set to `baseline`. Rootless BuildKit in
+`Jenkinsfile-ci` requires `seccompProfile.type: Unconfined` and an unconfined
+AppArmor profile — buildkitd cannot create its nested mount namespace
+otherwise, which the Jenkinsfile documents in place. **Baseline forbids both.**
+Every agent pod was rejected at admission with 403 and no build could start:
+
+```
+pods "application-ci-main-3-..." is forbidden: violates PodSecurity
+"baseline:latest": forbidden AppArmor profiles ... seccompProfile
+(container "buildkit" must not set securityContext.seccompProfile.type
+to "Unconfined")
+```
+
+**Why the original check missed it.** T14.46 asserted only that *some*
+`enforce` label existed. The label was present and syntactically valid — it was
+simply wrong for the workloads in that namespace. Checking that a policy is
+declared is not the same as checking it is satisfiable.
+
+**Fix.** `enforce: privileged` for `jenkins`, with `audit: baseline` and
+`warn: baseline` retained so violations stay visible in the API server audit
+log and in `kubectl` output rather than disappearing. PSA is namespace-wide
+with no per-pod exemption, so there is no level that admits BuildKit while
+constraining the rest.
+
+This is a genuine relaxation, so the compensating controls are worth naming:
+RBAC (CI cannot deploy, CD cannot push, neither reads Secrets), a default-deny
+NetworkPolicy, IRSA scoped per ServiceAccount, a dedicated tainted node group,
+and agent pods that still run as a numeric non-root user with
+`allowPrivilegeEscalation: false`. BuildKit is rootless, not privileged.
+
+`devops-app` keeps `restricted` — that is where the workloads handling
+untrusted input actually live, and nothing there needs a relaxation.
+
+**New test T14.57** compares the declared level against what the agent pod
+specs actually ask for, and fails if enforcement is relaxed without `audit`
+still set. Both mutations verified.
+
 ### 4.2 ✅ Base images tagged, not digest-pinned — tooling shipped
 
 **File:** `scripts/pin-base-images.sh` (new)

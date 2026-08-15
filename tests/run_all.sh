@@ -548,6 +548,36 @@ t T14.45 "namespaces are declared, not created imperatively" bash -c '
   grep -q "kubectl apply -f .*k8s/namespace.yaml" scripts/install-jenkins.sh &&
   ! grep -vE "^\s*#" scripts/install-jenkins.sh | grep -q "kubectl create namespace"'
 
+# REVIEW FIX 4.1 (follow-up) — the first real CI run was rejected at admission:
+# the jenkins namespace was set to "baseline", but rootless BuildKit REQUIRES
+# seccompProfile=Unconfined and an unconfined AppArmor profile, both of which
+# baseline forbids. Every agent pod got a 403 and no build could start.
+#
+# The original T14.46 only checked that SOME enforce label existed. It could
+# not have caught this, because the label was present and valid — it was just
+# wrong for the workloads in that namespace. This test compares the declared
+# level against what the agent pod specs actually ask for.
+t T14.57 "PSA level matches what the agent pods actually need" python3 -c "
+import re, yaml
+ns = {d['metadata']['name']: d['metadata']['labels']
+      for d in yaml.safe_load_all(open('k8s/namespace.yaml')) if d}
+
+ci = open('Jenkinsfile-ci').read()
+needs_unconfined = ('apparmor' in ci and 'unconfined' in ci) or 'type: Unconfined' in ci
+level = ns['jenkins']['pod-security.kubernetes.io/enforce']
+if needs_unconfined:
+    assert level == 'privileged', (
+        'Jenkinsfile-ci needs unconfined seccomp/AppArmor for rootless BuildKit, '
+        'which baseline and restricted both forbid; jenkins namespace is ' + level)
+    # Relaxing enforcement is only acceptable with the violations still visible.
+    assert ns['jenkins'].get('pod-security.kubernetes.io/audit') == 'baseline', \
+        'enforcement relaxed without audit=baseline to keep violations visible'
+
+# The application namespace must stay strict — that is where the workloads
+# handling untrusted input live, and nothing there needs a relaxation.
+assert ns['devops-app']['pod-security.kubernetes.io/enforce'] == 'restricted'
+"
+
 t T14.46 "namespace manifest carries the labels NetworkPolicies select on" python3 -c "
 import yaml
 docs = [d for d in yaml.safe_load_all(open('k8s/namespace.yaml')) if d]
