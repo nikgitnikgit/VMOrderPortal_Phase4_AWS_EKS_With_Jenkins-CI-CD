@@ -400,7 +400,7 @@ Currently documented as a future option only. Implementing it closes 2.2 and
 
 ---
 
-## 3. P2 — Correctness bugs (3.1, 3.3 ✅ done; 3.2, 3.4 🔄 open)
+## 3. P2 — Correctness bugs ✅ ALL DONE
 
 ### 3.1 ✅ False-success deployment — **the Phase 3 bug, in a new place**
 
@@ -489,26 +489,105 @@ the pipeline will now fail and roll back where it previously reported success �
 that is the point, but it is a behaviour change worth knowing about before the
 first live run.
 
-### 3.2 🔄 Order submission reports success on partial failure
+### 3.2 ✅ Order submission reports success on partial failure
 
 > Review §5 (MEDIUM), §6.2 and §8.6
 
-`app/backend/app.py` swallows both the S3 and the worker-notification
-exceptions — with comments saying so — then unconditionally returns
-`{"success": True}`. An order can land in RDS with no S3 record and no email
-while the customer sees a confirmation. There is no idempotency key either, so
-a double-click creates two orders.
+**Files:** `app/backend/app.py`, `app/worker/worker.py`, `app/index.html`,
+`app/worker/test_worker.py` (plus tests T14.38 / T14.39 / T14.40 / T14.41)
 
-**Plan (lab-scoped; a full outbox is out of scope and will be documented as
-the production answer):**
+**What was wrong.** Both the S3 upload and the worker notification were wrapped
+in bare `except` blocks — with comments saying so — and the handler then
+returned `{"success": True}` unconditionally. An order could land in RDS with
+no S3 archive and no email while the customer saw a confirmation screen. There
+was no idempotency key either, so a double-click created two VMs.
 
-1. `order_state` column: `received` → `stored` → `notified`
-2. Return HTTP 202 with the state instead of a blanket `success: true`
-3. Accept an `Idempotency-Key` header, `UNIQUE` in the DB, returning the
-   existing ticket on repeat
-4. Split `notification_sent` into `sns_sent` and `ses_sent` — `worker.py`
-   currently sets one flag if *either* channel succeeds, which the review
-   flags as losing channel-specific state
+#### Order state
+
+Three states, recorded as the order progresses:
+
+| State | Meaning |
+|---|---|
+| `received` | In RDS. Nothing downstream has run |
+| `stored` | Also archived to S3 |
+| `notified` | The worker accepted it and both channels delivered |
+
+The response is now **202 Accepted**, not 200 OK — notification is genuinely
+asynchronous, so saying the work is complete would be a lie:
+
+```json
+{"success": true, "ticket_id": "VM-NW755KP1", "state": "received", "notified": false}
+```
+
+S3 failure remains non-fatal, and that is a deliberate product decision: the
+order is safe in RDS and an archive should not be able to lose a customer's
+order. What changed is that the failure is **recorded** rather than swallowed,
+so an operator can find every affected row with one query.
+
+#### Idempotency
+
+An optional `Idempotency-Key` header. The subtlety is that a
+SELECT-then-INSERT check **cannot** be correct: two pods handling a genuine
+double-click both find no row and both proceed. So the database is the arbiter
+— a partial `UNIQUE` index, with the loser catching `UniqueViolation` and
+returning the winner's ticket. The lookup before it is only a fast path.
+
+#### Per-channel notification state
+
+`notification_sent` was set to 1 if **either** channel succeeded, so an order
+where SES failed and SNS worked looked identical to one where both worked —
+the customer never got their email and nothing recorded it. Now `sns_sent` and
+`ses_sent` are separate, the update always runs (previously a total failure
+wrote nothing at all, indistinguishable from an order never received), and the
+worker returns **207** on a partial send so the backend does not advance the
+order to `notified`.
+
+```sql
+SELECT ticket_id FROM vm_orders WHERE ses_sent = 0;   -- now answerable
+```
+
+`notification_sent` is kept with its original meaning so an older pod
+mid-rolling-update keeps working.
+
+#### Migration
+
+`CREATE TABLE IF NOT EXISTS` is a no-op on an existing table, so the new
+columns need explicit `ADD COLUMN IF NOT EXISTS`. Being idempotent is what
+makes it safe to run from gunicorn's `on_starting` hook on every pod start
+without a migration tool.
+
+#### Verified against real PostgreSQL
+
+Tested on a **pre-migration table containing a legacy row**, not a fresh one:
+
+| Test | Result |
+|---|---|
+| Legacy row after migration | Survived, defaults applied |
+| `init_db()` run twice | No error — idempotent |
+| S3 + worker both down | `202 state=received notified=false` (was `200 success=true`) |
+| Same key twice | Same ticket, `replay:true`, HTTP 200 |
+| **10 simultaneous requests, same key** | **1 ticket, 1 row in RDS** |
+| No key at all | Works — backwards compatible |
+| Malformed key | 400 |
+| Worker returns 200 / 207 / 500 | state `notified` / `received` / `received` |
+
+#### Unit tests updated, not accommodated
+
+Two tests in `test_worker.py` asserted the **old** behaviour and had to be
+inverted:
+
+- *"one channel failed but return `success: true`"* — the §5 defect
+- *"write nothing when both channels fail"* — the §6.2 silent data loss
+
+They were rewritten to assert the corrected behaviour and **confirmed to fail
+against the old worker code**, so they pin the fix rather than accommodate it.
+
+#### Still open
+
+A true transactional outbox is the production answer and remains out of scope;
+this is the lab-scoped version, documented as such. Backend escaping also still
+happens at input rather than output (see 3.3), which is the natural companion
+change if this area is revisited.
 
 ### 3.3 ✅ `innerHTML` with server-supplied values
 
@@ -581,20 +660,75 @@ literals** (the spinner, the "Checking availability" badge). Those carry no
 data and are not injection points; T14.31 permits static assignment and fails
 only on interpolation, so the distinction is enforced rather than assumed.
 
-### 3.4 🔄 Flask development server in production
+### 3.4 ✅ Flask development server in production
 
 > Review §3.12 and §6.2
 
-`app.py` and `worker.py` both call `app.run()`. Werkzeug's server is
-single-threaded by default and prints a production warning into the pod logs.
+**Files:** `app/backend/app.py`, `app/worker/worker.py`,
+`app/backend/gunicorn.conf.py` (new), `app/worker/gunicorn.conf.py` (new),
+`docker/backend/Dockerfile`, `docker/worker/Dockerfile`, both
+`requirements.txt`, `helm/backend/templates/deployment.yaml`
+(plus tests T14.35 / T14.36 / T14.37)
 
-**Plan.** Add `gunicorn` and switch the Dockerfile `CMD`.
+**What was wrong.** Both services called `app.run()`. Werkzeug is
+single-threaded by default, prints a production warning into the pod log on
+every start, and is explicitly not built to face traffic.
 
-**Caveat:** the backend runs a background health-check thread. With
-`--workers 2` it would run twice — drop it (there is already `/health/full`) or
-guard it.
+#### The trap that makes this more than a one-line change
 
----
+`init_db()` lived inside `if __name__ == "__main__"`. **Gunicorn imports the
+module rather than executing it**, so that block never runs — swapping the CMD
+alone would have left the table uncreated and every request failing, with
+nothing in the diff to suggest why.
+
+The fix is an `on_starting` hook in `gunicorn.conf.py`, which runs in the
+master process before any worker forks: once per pod, not once per worker.
+It retries a slow RDS five times and then exits 1, so a pod that cannot reach
+its database is restarted by Kubernetes rather than serving 500s forever.
+
+#### Two further container-specific hazards, both handled
+
+**Liveness could kill a healthy pod.** `on_starting` runs *before* the port is
+bound and can take ~40s against a cold RDS. The existing liveness probe would
+have started checking at 15s and killed the pod after three failures — a
+restart loop caused entirely by a slow database. A `startupProbe`
+(30 x 2s) now suspends liveness and readiness until startup completes.
+
+**`readOnlyRootFilesystem: true` versus gunicorn's heartbeat.** Gunicorn writes
+a heartbeat file per worker and its arbiter kills any worker whose file goes
+stale. On a read-only filesystem every worker looks hung and is killed in a
+loop. The chart already mounts an `emptyDir` at `/tmp`, so
+`worker_tmp_dir = "/tmp"` is pinned explicitly rather than left to `TMPDIR`.
+
+#### Other changes
+
+`gthread` workers rather than the default sync worker, because `/submit-order`
+blocks on RDS, then S3, then an HTTP call to the worker — sync workers would
+serialise concurrent orders behind each other. Timeouts are set relative to
+their neighbours: the backend's 60s is not shorter than nginx's
+`proxy_read_timeout`, and the worker's 30s reflects the backend giving up on it
+after 5s. `keepalive` sits above the ALB idle timeout so the ALB closes idle
+connections, not gunicorn — the other way round produces sporadic 502s.
+
+`check_worker_health()` was removed: a `while True` thread started per gunicorn
+worker would duplicate every log line, and it only printed. `/health/full`
+probes on demand and Kubernetes probes on a schedule.
+
+#### Verified
+
+| Check | Result |
+|---|---|
+| `Database initialized` in the log | **exactly once**, master pid, before 2 workers boot |
+| Werkzeug production warning | gone |
+| 6 parallel requests | 127 ms — not serialised |
+| Database unreachable at start | 5 retries logged, then `EXIT=1` |
+| Unwritable `TMPDIR` | healthy at start and after 12s, zero worker timeouts |
+| Pinned requirements in a clean venv | install OK |
+| Memory, master with boto3 resident | ~52 MiB against a 256Mi limit |
+
+⚠️ `gunicorn` is pinned to **26.0.0**, the version actually tested here. An
+earlier draft pinned 23.0.0; the configuration API is identical across both,
+but 26.0.0 is what these results came from.
 
 ## 4. P3 — Lower priority (4.8 ✅ done, rest 🔄 open)
 
@@ -712,7 +846,8 @@ insurance rather than a defect to close.
 | **Done** | 3.1 | Rollback safety net restored; CD pipeline made parseable at all |
 | **Done** | 2.4, 2.5 | Public request path hardened; dead CORS config removed |
 | **Done** | 3.3, 2.3 | XSS vectors closed; password read structurally |
-| **Next** | 3.4, 3.2 | gunicorn, then order state and idempotency |
+| **Done** | 3.4, 3.2 | gunicorn with startup/heartbeat handling; order state and idempotency |
+| **Next** | 2.2, 2.6, then the P3 list | Secret splitting, then External Secrets Operator |
 | **Then** | 2.4, 2.5, 3.3 | Public-facing hardening — §8.5 |
 | **Before submission** | Section 5 evidence, 4.5 | §7 states every runtime claim is currently unverified |
 

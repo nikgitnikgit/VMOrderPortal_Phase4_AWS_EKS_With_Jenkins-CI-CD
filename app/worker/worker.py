@@ -165,18 +165,46 @@ VM Order Portal Team
         return False
 
 
-def update_notification_sent(ticket_id: str) -> bool:
-    """Update notification_sent = 1 in RDS after emails are sent."""
+def update_notification_sent(ticket_id: str, sns_sent: bool, ses_sent: bool) -> bool:
+    """Record per-channel notification results in RDS.
+
+    REVIEW FIX 3.2 — this used to set a single notification_sent = 1 flag if
+    EITHER channel succeeded, so an order where SES failed and SNS worked was
+    indistinguishable from one where both worked. The customer never got their
+    confirmation email and nothing in the database said so.
+
+    sns_sent and ses_sent are now recorded separately, which makes the failure
+    queryable:
+
+        SELECT ticket_id FROM vm_orders WHERE ses_sent = 0;
+
+    notification_sent is still maintained, with its original "either channel"
+    meaning, so an older pod mid-rolling-update keeps working.
+    """
     try:
         conn = get_db_connection()
         try:
             with conn.cursor() as cur:
                 cur.execute(
-                    "UPDATE vm_orders SET notification_sent = 1 WHERE ticket_id = %s",
-                    (ticket_id,)
+                    """
+                    UPDATE vm_orders
+                       SET sns_sent          = %s,
+                           ses_sent          = %s,
+                           notification_sent = %s
+                     WHERE ticket_id = %s
+                    """,
+                    (
+                        1 if sns_sent else 0,
+                        1 if ses_sent else 0,
+                        1 if (sns_sent or ses_sent) else 0,
+                        ticket_id,
+                    )
                 )
             conn.commit()
-            print(f"RDS updated: notification_sent = 1 for {ticket_id}")
+            print(
+                f"RDS updated for {ticket_id}: "
+                f"sns_sent={int(sns_sent)} ses_sent={int(ses_sent)}"
+            )
             return True
         finally:
             conn.close()
@@ -230,22 +258,32 @@ def notify():
     # 2. Send SES confirmation to customer
     ses_sent = send_ses_confirmation(data)
 
-    # 3. Update RDS if at least one notification was sent
-    if sns_sent or ses_sent:
-        update_notification_sent(ticket_id)
+    # 3. Record BOTH results, including the failures.
+    # REVIEW FIX 3.2 — was `if sns_sent or ses_sent`, so a run where both
+    # channels failed wrote nothing at all and the row kept its default zeros,
+    # indistinguishable from an order the worker had never seen. Always write.
+    update_notification_sent(ticket_id, sns_sent, ses_sent)
 
+    # A partial send is not a success. 207 Multi-Status tells the backend that
+    # the notification was accepted but is incomplete, so it can leave the
+    # order at state=stored instead of claiming state=notified.
+    both = sns_sent and ses_sent
     return jsonify({
-        "success": True,
+        "success": both,
         "ticket_id": ticket_id,
         "sns_sent": sns_sent,
         "ses_sent": ses_sent
-    }), 200
+    }), 200 if both else 207
 
 
 # -----------------------------------------------------------------------
 # Startup
 # -----------------------------------------------------------------------
 
+# REVIEW FIX 3.4 — production runs under gunicorn, which imports this module.
+# The block below is local development only.
+
 if __name__ == "__main__":
-    print("Starting Worker service on port 5001...")
+    print("Starting Worker service on port 5001 (development server)...")
+    print("NOTE: production uses gunicorn — see docker/worker/Dockerfile")
     app.run(host="0.0.0.0", port=5001, debug=False)

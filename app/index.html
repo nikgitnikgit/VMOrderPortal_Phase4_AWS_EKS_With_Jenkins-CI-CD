@@ -209,6 +209,12 @@
 
   /* REVIEW FIX 3.3 — was an inline style="" on a span built with innerHTML.
      Moved to a class so the chips can be created as DOM nodes. */
+  .order-state {
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--text3);
+  }
+
   .suggestion-label {
     font-size: 12px;
     color: var(--text3);
@@ -980,8 +986,12 @@
   <div class="success-screen" id="successScreen">
     <div class="success-icon">✅</div>
     <h2>Order submitted!</h2>
-    <p>Your VM request has been received. We've saved your specs and you'll get a confirmation email shortly.</p>
+    <!-- REVIEW FIX 3.2 — the confirmation-email promise moved into
+         #orderState, which reflects what the backend actually reports. It was
+         previously asserted unconditionally, even when notification failed. -->
+    <p>Your VM request has been received and saved.</p>
     <div class="ticket-id" id="ticketId"></div>
+    <p class="order-state" id="orderState"></p>
   </div>
 
 </div>
@@ -1503,6 +1513,18 @@ async function submitForm() {
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span>Submitting...';
 
+  // REVIEW FIX 3.2 — one key per attempt at THIS order, generated before the
+  // request and reused across retries. A double-click, an impatient refresh or
+  // a network retry all carry the same key, so the backend returns the
+  // original ticket instead of provisioning a second VM.
+  // Not reset within a page load: on success the form is hidden, and a 400
+  // rejection creates no row for a later attempt to collide with.
+  if (!window.__orderKey) {
+    window.__orderKey = (crypto.randomUUID
+      ? crypto.randomUUID()
+      : 'k-' + Date.now() + '-' + Math.random().toString(36).slice(2)).slice(0, 64);
+  }
+
   const d = getFormData();
   const payload = {
     machine_name:  d.name,
@@ -1520,14 +1542,30 @@ async function submitForm() {
   try {
     const response = await fetch(`${BACKEND_URL}/submit-order`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': window.__orderKey
+      },
       body: JSON.stringify(payload)
     });
     const data = await response.json();
-    if (data.success) {
+    // 202 Accepted is the success path now; 200 means an idempotent replay.
+    if (data.success && data.ticket_id) {
       document.getElementById('vmForm').style.display = 'none';
       document.getElementById('progressBar').style.display = 'none';
       document.getElementById('ticketId').textContent = 'Ticket: ' + data.ticket_id;
+
+      // REVIEW FIX 3.2 — say what actually happened instead of promising an
+      // email that may never arrive.
+      const stateEl = document.getElementById('orderState');
+      if (data.replay) {
+        stateEl.textContent = 'This order was already submitted — same ticket, not a duplicate.';
+      } else if (data.state === 'notified') {
+        stateEl.textContent = 'A confirmation email is on its way.';
+      } else {
+        stateEl.textContent =
+          'Saved. The confirmation email is delayed — your order is safe and the team has been alerted.';
+      }
       document.getElementById('successScreen').className = 'success-screen visible';
     } else {
       btn.disabled = false;

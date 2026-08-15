@@ -11,8 +11,6 @@ import random
 import string
 import re
 import html
-import time
-import threading
 from datetime import datetime
 
 import boto3
@@ -99,10 +97,66 @@ def init_db():
                     notification_sent SMALLINT     DEFAULT 0
                 );
             """)
+
+            # REVIEW FIX 3.2 — additive migration.
+            #
+            # CREATE TABLE IF NOT EXISTS does nothing on an existing table, so
+            # the new columns need explicit ADD COLUMN IF NOT EXISTS. This runs
+            # on every start and is idempotent, which is what makes it safe to
+            # execute from gunicorn's on_starting hook without a migration tool.
+            #
+            # notification_sent is intentionally KEPT. Dropping it would break
+            # any older worker pod still running during a rolling update, and
+            # the review asked for channel-specific state, not a replacement.
+            cur.execute("""
+                ALTER TABLE vm_orders
+                    ADD COLUMN IF NOT EXISTS order_state     VARCHAR(20) DEFAULT 'received',
+                    ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(64),
+                    ADD COLUMN IF NOT EXISTS sns_sent        SMALLINT    DEFAULT 0,
+                    ADD COLUMN IF NOT EXISTS ses_sent        SMALLINT    DEFAULT 0;
+            """)
+
+            # The UNIQUE index is what actually enforces idempotency: two pods
+            # handling a double-click concurrently both reach the INSERT, and
+            # the database — not application logic — decides which one wins.
+            # A SELECT-then-INSERT check would race.
+            # Partial index so the many pre-migration NULL rows do not collide.
+            cur.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS vm_orders_idempotency_key_uniq
+                    ON vm_orders (idempotency_key)
+                    WHERE idempotency_key IS NOT NULL;
+            """)
+            cur.execute("""
+                CREATE INDEX IF NOT EXISTS vm_orders_ticket_id_idx
+                    ON vm_orders (ticket_id);
+            """)
         conn.commit()
         print("Database initialized successfully.")
     finally:
         conn.close()
+
+
+def set_order_state(ticket_id: str, state: str) -> None:
+    """Advance an order's state. Best-effort by design.
+
+    REVIEW FIX 3.2 — a failure to RECORD progress must never undo the progress
+    itself: if S3 succeeded but this update fails, the object still exists and
+    re-running the notification is harmless. The row simply reads one step
+    behind, which is the safe direction to be wrong in.
+    """
+    try:
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE vm_orders SET order_state = %s WHERE ticket_id = %s",
+                    (state, ticket_id)
+                )
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception as e:
+        print(f"Could not set state={state} for {ticket_id}: {e}")
 
 
 def generate_ticket_id():
@@ -242,16 +296,66 @@ def check_name():
 @app.route("/submit-order", methods=["POST"])
 def submit_order():
     """
-    Receive VM order from Frontend.
-    1. Validate input
-    2. Save to RDS
-    3. Upload JSON to S3
-    4. Notify Worker
-    Response: { "success": true, "ticket_id": "VM-XXXXXXXX" }
+    Receive a VM order from the frontend.
+
+    REVIEW FIX 3.2 — this used to return {"success": true} unconditionally, even
+    when the S3 upload and the worker notification had both failed and been
+    swallowed by bare excepts. An order could land in RDS with no S3 record and
+    no email while the customer saw a confirmation screen.
+
+    It now reports what actually happened:
+
+        received  the order is in RDS, nothing downstream has run
+        stored    also archived to S3
+        notified  the worker accepted it (SNS/SES are its problem from there)
+
+    202 Accepted, not 200 OK: the work genuinely is incomplete when we answer,
+    because notification is asynchronous. Saying so is the honest status code.
+
+    Idempotency-Key header (optional): repeating a request with the same key
+    returns the ORIGINAL ticket instead of creating a second order, so a
+    double-click or a client retry cannot produce duplicate VMs.
     """
-    data = request.get_json()
+    data = request.get_json(silent=True)
     if not data:
         return jsonify({"success": False, "error": "No data received"}), 400
+
+    # Trust the header only for its shape, never its content: it is echoed into
+    # a UNIQUE column, so bound the length and the alphabet.
+    idem_key = (request.headers.get("Idempotency-Key") or "").strip()[:64]
+    if idem_key and not re.match(r'^[A-Za-z0-9._-]+$', idem_key):
+        return jsonify({
+            "success": False,
+            "error": "Idempotency-Key must be alphanumeric, dot, dash or underscore"
+        }), 400
+
+    # Fast path: a key we have already completed. The UNIQUE index below is
+    # what makes this correct under concurrency; this lookup only spares the
+    # common case an exception round trip.
+    if idem_key:
+        try:
+            conn = get_db_connection()
+            try:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT ticket_id, order_state FROM vm_orders "
+                        "WHERE idempotency_key = %s", (idem_key,)
+                    )
+                    row = cur.fetchone()
+                if row:
+                    print(f"Idempotent replay for key {idem_key} -> {row['ticket_id']}")
+                    return jsonify({
+                        "success":   True,
+                        "ticket_id": row["ticket_id"],
+                        "state":     row["order_state"],
+                        "replay":    True,
+                    }), 200
+            finally:
+                conn.close()
+        except Exception as e:
+            # A lookup failure must not block a legitimate order; the UNIQUE
+            # constraint still prevents a duplicate below.
+            print(f"Idempotency lookup failed (continuing): {e}")
 
     # Sanitize all string inputs
     sanitized = {
@@ -285,8 +389,10 @@ def submit_order():
                 cur.execute("""
                     INSERT INTO vm_orders
                     (ticket_id, machine_name, os, cpu, ram, storage,
-                     region, environment, applications, contact_name, contact_email)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                     region, environment, applications, contact_name,
+                     contact_email, idempotency_key, order_state)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                            'received')
                 """, (
                     ticket_id,
                     sanitized["machine_name"],
@@ -299,14 +405,47 @@ def submit_order():
                     sanitized["applications"],
                     sanitized["contact_name"],
                     sanitized["contact_email"],
+                    idem_key or None,
                 ))
             conn.commit()
-            print(f"Order {ticket_id} saved to RDS.")
+            print(f"Order {ticket_id} saved to RDS (state=received).")
         finally:
             conn.close()
+
+    # REVIEW FIX 3.2 — the race the fast-path lookup above cannot close.
+    # Two pods handling a genuine double-click can both find no existing row
+    # and both reach this INSERT. The UNIQUE index makes the database the
+    # arbiter: the loser gets a violation and returns the winner's ticket.
+    except psycopg2.errors.UniqueViolation:
+        print(f"Concurrent duplicate for key {idem_key}; returning original")
+        try:
+            conn = get_db_connection()
+            try:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT ticket_id, order_state FROM vm_orders "
+                        "WHERE idempotency_key = %s", (idem_key,)
+                    )
+                    row = cur.fetchone()
+                if row:
+                    return jsonify({
+                        "success":   True,
+                        "ticket_id": row["ticket_id"],
+                        "state":     row["order_state"],
+                        "replay":    True,
+                    }), 200
+            finally:
+                conn.close()
+        except Exception as e:
+            print(f"Duplicate resolution failed: {e}")
+        return jsonify({"success": False, "error": "Duplicate request"}), 409
     except Exception as e:
         print(f"RDS error: {e}")
         return jsonify({"success": False, "error": "Database error"}), 500
+
+    # From here the order is durable. Everything below advances its state;
+    # nothing below may lose it.
+    order_state = "received"
 
     # 2. Upload JSON to S3
     try:
@@ -319,9 +458,16 @@ def submit_order():
             ContentType="application/json"
         )
         print(f"Order {ticket_id} uploaded to S3: {s3_key}")
+        order_state = "stored"
+        set_order_state(ticket_id, order_state)
     except Exception as e:
-        print(f"S3 error: {e}")
-        # Don't fail the whole order if S3 fails — just log it
+        # REVIEW FIX 3.2 — still non-fatal, and that is a deliberate product
+        # decision: the order is safe in RDS and S3 is an archive, so losing
+        # the archive should not lose the customer's order. What changed is
+        # that the failure is now RECORDED rather than swallowed. The response
+        # says state="received", so the caller can tell the difference and an
+        # operator can find every affected row with a single query.
+        print(f"S3 error (order stays state=received): {e}")
 
     # 3. Notify Worker
     try:
@@ -339,33 +485,42 @@ def submit_order():
             json=worker_payload,
             timeout=5
         )
-        print(f"Worker notified: {response.status_code}")
+        if response.status_code == 200:
+            order_state = "notified"
+            set_order_state(ticket_id, order_state)
+            print(f"Worker accepted {ticket_id} (state=notified)")
+        else:
+            # A non-200 is a FAILURE. The old code logged the status code and
+            # then reported success regardless.
+            print(f"Worker rejected {ticket_id}: HTTP {response.status_code}")
     except Exception as e:
-        print(f"Worker notification error: {e}")
-        # Don't fail the order if Worker is unreachable
+        print(f"Worker notification error (state stays {order_state}): {e}")
 
-    return jsonify({"success": True, "ticket_id": ticket_id}), 200
+    # REVIEW FIX 3.2 — 202 Accepted with the real state, not a blanket
+    # 200 {"success": true}. The caller can now distinguish "we have your
+    # order" from "your confirmation email is on its way".
+    return jsonify({
+        "success":   True,
+        "ticket_id": ticket_id,
+        "state":     order_state,
+        "notified":  order_state == "notified",
+    }), 202
 
 
 # -----------------------------------------------------------------------
 # Health checks
 # -----------------------------------------------------------------------
 
-def check_worker_health():
-    """Background thread — checks Worker health every 60 seconds."""
-    while True:
-        try:
-            r = requests.get(
-                f"{WORKER_URL.replace('/notify', '')}/health",
-                timeout=3
-            )
-            if r.status_code == 200:
-                print("[Health] Worker: OK")
-            else:
-                print(f"[Health] Worker: DEGRADED (status {r.status_code})")
-        except Exception as e:
-            print(f"[Health] Worker: UNREACHABLE ⚠️ ({e})")
-        time.sleep(60)
+# REVIEW FIX 3.4 — check_worker_health() was removed.
+#
+# It was a `while True` thread started from the __main__ block. Under gunicorn
+# it would run once PER WORKER, so two workers meant two threads polling the
+# same endpoint and interleaving duplicate lines into the pod log.
+#
+# It was also redundant: /health/full probes the worker on demand, and
+# Kubernetes already runs liveness and readiness probes on a schedule. A
+# background poller that only prints is monitoring the application has no way
+# to act on.
 
 
 @app.route("/health/full", methods=["GET"])
@@ -410,14 +565,19 @@ def health_full():
 # Startup
 # -----------------------------------------------------------------------
 
+# REVIEW FIX 3.4 — production now runs under gunicorn, which IMPORTS this
+# module rather than executing it. Everything below this line therefore runs
+# only for `python app.py`, which is local development.
+#
+# The consequence worth understanding: init_db() used to live here, so moving
+# to gunicorn without moving it would have left the table uncreated and every
+# request failing. It now runs from gunicorn.conf.py's on_starting hook, in the
+# master process before any worker forks — once per pod, not once per worker.
+
 if __name__ == "__main__":
     print("Initializing database...")
     init_db()
 
-    # Start Worker health check background thread
-    print("Starting Worker health check thread (every 60 seconds)...")
-    health_thread = threading.Thread(target=check_worker_health, daemon=True)
-    health_thread.start()
-
-    print("Starting Backend API on port 5000...")
+    print("Starting Backend API on port 5000 (development server)...")
+    print("NOTE: production uses gunicorn — see docker/backend/Dockerfile")
     app.run(host="0.0.0.0", port=5000, debug=False)

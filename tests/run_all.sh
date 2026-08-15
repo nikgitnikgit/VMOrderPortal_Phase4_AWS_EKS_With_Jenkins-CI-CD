@@ -451,6 +451,60 @@ t T14.34 "db_password read structurally, not by grep|cut" bash -c '
   grep -q "output \"db_password\"" terraform/outputs.tf &&
   grep -A2 "output \"db_password\"" terraform/outputs.tf | grep -q "sensitive = true"'
 
+# REVIEW FIX 3.4 — production must not run Flask's development server, and the
+# gunicorn switch must not silently drop init_db(). Gunicorn IMPORTS the module
+# instead of executing it, so anything left in `if __name__ == "__main__"` never
+# runs: the table would never be created and every request would fail. The
+# on_starting hook is what makes the move safe, so pin it explicitly.
+t T14.35 "app containers run gunicorn, not the Flask dev server" bash -c '
+  grep -q "gunicorn" docker/backend/Dockerfile &&
+  grep -q "gunicorn" docker/worker/Dockerfile &&
+  ! grep -qE "^CMD.*python3.*(app|worker)\.py" docker/backend/Dockerfile docker/worker/Dockerfile &&
+  grep -q "gunicorn==" app/backend/requirements.txt &&
+  grep -q "gunicorn==" app/worker/requirements.txt'
+
+t T14.36 "init_db survives the move to gunicorn (on_starting hook)" bash -c '
+  test -f app/backend/gunicorn.conf.py &&
+  grep -q "def on_starting" app/backend/gunicorn.conf.py &&
+  grep -q "from app import init_db" app/backend/gunicorn.conf.py &&
+  grep -q "gunicorn.conf.py" docker/backend/Dockerfile'
+
+# A `while True` thread started per gunicorn worker would duplicate every log
+# line and monitor nothing actionable. /health/full covers it on demand.
+t T14.37 "no per-worker background polling thread" bash -c '
+  ! grep -q "threading.Thread" app/backend/app.py &&
+  ! grep -q "def check_worker_health" app/backend/app.py'
+
+# REVIEW FIX 3.2 — the order pipeline must report what actually happened.
+t T14.38 "submit-order reports real state, not blanket success" bash -c '
+  grep -q "order_state" app/backend/app.py &&
+  grep -q "), 202" app/backend/app.py &&
+  ! grep -q "jsonify({\"success\": True, \"ticket_id\": ticket_id}), 200" app/backend/app.py'
+
+# Idempotency must be enforced by the DATABASE, not by a SELECT-then-INSERT
+# check: two pods handling a double-click concurrently both pass the check.
+t T14.39 "idempotency enforced by a unique index, not a race-prone lookup" bash -c '
+  grep -q "Idempotency-Key" app/backend/app.py &&
+  grep -q "CREATE UNIQUE INDEX IF NOT EXISTS vm_orders_idempotency_key_uniq" app/backend/app.py &&
+  grep -q "psycopg2.errors.UniqueViolation" app/backend/app.py &&
+  grep -q "Idempotency-Key" app/index.html'
+
+# The schema change must be ADDITIVE: CREATE TABLE IF NOT EXISTS is a no-op on
+# an existing table, so new columns need explicit ADD COLUMN IF NOT EXISTS or
+# an upgrade silently runs against the old schema.
+t T14.40 "schema migration is additive and idempotent" bash -c '
+  grep -q "ADD COLUMN IF NOT EXISTS order_state" app/backend/app.py &&
+  grep -q "ADD COLUMN IF NOT EXISTS idempotency_key" app/backend/app.py &&
+  grep -q "ADD COLUMN IF NOT EXISTS sns_sent" app/backend/app.py &&
+  grep -q "ADD COLUMN IF NOT EXISTS ses_sent" app/backend/app.py'
+
+# A single notification_sent flag set when EITHER channel succeeded could not
+# distinguish "customer got their email" from "only the ops alert went out".
+t T14.41 "notification results recorded per channel" bash -c '
+  grep -q "sns_sent" app/worker/worker.py &&
+  grep -q "ses_sent" app/worker/worker.py &&
+  ! grep -vE "^\s*(#|\*)" app/worker/worker.py | grep -q "if sns_sent or ses_sent:"'
+
 t T14.27 "CD smoke test fails when the public URL does not serve" bash -c '
   grep -q "ALB_OK=1" Jenkinsfile-cd &&
   grep -q "ALB_OK. -ne 1" Jenkinsfile-cd &&

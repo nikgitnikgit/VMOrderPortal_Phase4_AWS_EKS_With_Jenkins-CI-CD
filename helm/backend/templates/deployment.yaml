@@ -54,6 +54,24 @@ spec:
               cpu: {{ .Values.resources.limits.cpu }}
               memory: {{ .Values.resources.limits.memory }}
           # Your existing /health endpoint from phase 2 becomes the probe
+          # REVIEW FIX 3.4 — startupProbe added alongside the gunicorn switch.
+          #
+          # init_db() now runs in gunicorn's on_starting hook, BEFORE the port
+          # is bound, and retries a slow RDS up to 5 times. Worst case that is
+          # ~40s during which /health cannot answer at all.
+          #
+          # The liveness probe below would have started checking at 15s and
+          # killed the pod after three failures — a restart loop caused purely
+          # by a database that was still waking up. A startupProbe suspends
+          # both liveness and readiness until it passes, so slow starts are
+          # tolerated while a genuinely hung process is still caught: 30
+          # failures x 2s = 60s, then the pod is restarted.
+          startupProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.service.port }}
+            periodSeconds: 2
+            failureThreshold: 30
           readinessProbe:
             httpGet:
               path: /health
