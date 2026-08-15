@@ -58,7 +58,25 @@ if [ -z "$CERT_ARN" ]; then
     CERT_ARN=$(aws acm list-certificates --region "$AWS_REGION" \
         --query "CertificateSummaryList[?DomainName=='jenkins.vm-order.internal'].CertificateArn | [0]" \
         --output text)
-    [ "$CERT_ARN" = "None" ] && { echo "ERROR: no certificate found; run scripts/create-cert.sh" >&2; exit 1; }
+    [ "$CERT_ARN" = "None" ] && { echo "ERROR: no Jenkins certificate; run scripts/create-cert.sh" >&2; exit 1; }
+fi
+
+# The application ALB gets its OWN certificate, not the Jenkins one.
+# Jenkins is the admin plane, restricted to one operator IP and holding cluster
+# access; the app is on the public internet. Sharing a private key between them
+# means a compromise in either context is a compromise in both, and it couples
+# two rotation schedules that have no reason to be linked.
+#
+# Empty is tolerated: helm/frontend falls back to an HTTP-only listener, so a
+# cluster without an app certificate still deploys rather than failing with an
+# opaque ALB error.
+APP_CERT_ARN=$(aws acm list-certificates --region "$AWS_REGION" \
+    --query "CertificateSummaryList[?DomainName=='app.vm-order.internal'].CertificateArn | [0]" \
+    --output text 2>/dev/null || true)
+[ "$APP_CERT_ARN" = "None" ] && APP_CERT_ARN=""
+if [ -z "$APP_CERT_ARN" ]; then
+    echo "  NOTE: no app certificate found — the app ALB will serve HTTP only." >&2
+    echo "        Run: ./scripts/create-cert.sh --purpose app" >&2
 fi
 
 # Your public IP, detected now rather than committed to Git. Re-running this
@@ -116,7 +134,7 @@ controller:
                   # Jenkins also fronts the application ALB. Jenkinsfile-cd
                   # passes it to the frontend chart; empty means HTTP only.
                   - key: APP_CERT_ARN
-                    value: "${CERT_ARN:-}"
+                    value: "${APP_CERT_ARN:-}"
                   - key: GITHUB_REPO_URL
                     value: "${GITHUB_REPO_URL}"
                   - key: NOTIFICATION_EMAIL

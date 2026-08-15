@@ -487,6 +487,47 @@ Never edit `requirements.txt` by hand — the hashes must match the artifacts
 pip will actually download, and the Dockerfiles pass `--require-hashes`, so a
 mismatch fails the build rather than shipping something unverified.
 
+### TLS certificates — before they expire, annually
+
+`scripts/create-cert.sh` issues self-signed certificates valid for **365 days**
+and nothing renews them. When one expires the ALB keeps serving, but every
+client gets a hard TLS error rather than the usual "untrusted issuer" warning.
+
+There are two, deliberately — Jenkins is the admin plane (restricted to one
+operator IP, holding cluster access) while the application is public, so a
+shared private key would make a compromise in either context a compromise in
+both:
+
+| Purpose | Common name | Used by |
+|---|---|---|
+| `jenkins-ui` | `jenkins.vm-order.internal` | Jenkins Ingress |
+| `app` | `app.vm-order.internal` | Frontend Ingress |
+
+Check what you have and when it expires:
+
+```bash
+aws acm list-certificates --region "$AWS_REGION" \
+    --query "CertificateSummaryList[].[DomainName,NotAfter]" --output table
+```
+
+To renew, delete the old certificate in ACM and re-run — the script is
+idempotent and only creates one if none exists for that domain:
+
+```bash
+./scripts/create-cert.sh --purpose jenkins-ui
+./scripts/create-cert.sh --purpose app
+./scripts/configure-jenkins.sh        # re-points both Ingresses
+```
+
+Both certificates carry `subjectAltName=DNS:*.<region>.elb.amazonaws.com`.
+The wildcard is region-scoped on purpose: a wildcard matches exactly one
+label, and an ALB hostname is `<name>.<region>.elb.amazonaws.com`, so a bare
+`*.elb.amazonaws.com` would never match the host it was written for.
+
+Browsers still warn, because the issuer is not trusted. Registering a domain
+(~$12/year) and requesting a public ACM certificate would remove that; it is a
+cost decision, not a technical limitation.
+
 ### Not yet automated
 
 The review recommends *"automated dependency updates"* alongside digest

@@ -15,8 +15,20 @@ case "$1 $2" in
           *length\(*) echo "0" ;;   # verification: none left
           *)           echo "" ;;    # poll: released
       esac ;;
-  "acm list-certificates") echo "arn:aws:acm:us-east-1:123456789012:certificate/mock" ;;
-  "acm import-certificate") echo "arn:aws:acm:us-east-1:123456789012:certificate/mock" ;;
+  # Two certificates now: one for Jenkins, one for the app. Returning the same
+  # ARN for both would let a regression that reuses the Jenkins certificate for
+  # the application pass unnoticed — which is the exact thing being fixed.
+  "acm list-certificates")
+      case "$*" in
+          *app.vm-order.internal*)     echo "arn:aws:acm:us-east-1:123456789012:certificate/mock-app" ;;
+          *jenkins.vm-order.internal*) echo "arn:aws:acm:us-east-1:123456789012:certificate/mock-jenkins" ;;
+          *)                           echo "None" ;;
+      esac ;;
+  "acm import-certificate")
+      case "$*" in
+          *Purpose,Value=app*) echo "arn:aws:acm:us-east-1:123456789012:certificate/mock-app" ;;
+          *)                   echo "arn:aws:acm:us-east-1:123456789012:certificate/mock-jenkins" ;;
+      esac ;;
   "s3 rm") exit 0 ;;
   "s3 cp") exit 0 ;;
   "s3 ls") exit 0 ;;

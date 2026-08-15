@@ -927,6 +927,49 @@ The certificate comes from the existing `scripts/create-cert.sh`, exported by
 `configure-jenkins.sh` as `APP_CERT_ARN` and passed to the chart by
 `Jenkinsfile-cd`.
 
+#### Follow-up: two certificates, and a SAN that never matched
+
+Raised after the initial fix, when the shared-certificate question was asked
+directly. Two problems, one of them a genuine bug:
+
+**The SAN did not match the host it was written for.** `create-cert.sh` set
+`subjectAltName=...,DNS:*.elb.amazonaws.com`. A wildcard matches exactly ONE
+label, and an ALB hostname is
+`k8s-devopsap-frontend-abc123.us-east-1.elb.amazonaws.com` — two labels before
+`elb.amazonaws.com`. Proven with `openssl verify -verify_hostname` against a
+realistic hostname:
+
+| SAN | Result |
+|---|---|
+| `*.elb.amazonaws.com` (old) | hostname does **not** match |
+| `*.<region>.elb.amazonaws.com` (new) | matches |
+
+This does not remove the browser warning — the certificate is still
+self-signed, so the issuer is untrusted regardless. It removes the *second,
+separate* error about the name not matching the host.
+
+**Jenkins and the app shared one certificate.** Convenient, but Jenkins is the
+admin plane — restricted to a single operator IP, holding cluster access —
+while the application is on the public internet. One private key across both
+means a compromise in either context is a compromise in both, and it couples
+two rotation schedules that have no reason to be linked. It also blocks the
+obvious upgrade path: with a domain registered later, the app could take a
+publicly trusted certificate while Jenkins keeps a self-signed one.
+
+`create-cert.sh` now takes `--purpose jenkins-ui|app`, issuing distinct common
+names and ACM `Purpose` tags. `install-jenkins.sh` creates both, so the change
+stays inside `deploy.sh` with nothing extra to run by hand. An absent app
+certificate is tolerated: the chart falls back to HTTP-only rather than failing.
+
+**Test-quality note.** `tests/mocks/aws` previously returned the same ARN for
+every `acm list-certificates` call. A regression that quietly reused the
+Jenkins certificate for the app would have passed unnoticed, so the mock now
+returns distinct ARNs per domain.
+
+⚠️ **Certificates expire after 365 days and nothing renews them.** That is a
+third recurring task, documented in `README.md` §10.9 alongside the digest and
+dependency refreshes rather than left implicit.
+
 **This exposed two real bugs in the offline Helm renderer** (`check_helm.py`),
 both fixed:
 

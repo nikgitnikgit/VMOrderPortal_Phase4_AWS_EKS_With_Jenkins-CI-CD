@@ -178,9 +178,15 @@ echo "$RENDERED" | kubectl apply -f -
 
 # ------------------------------------------------------ 5. TLS certificate
 echo ""
-echo "[5/8] TLS certificate for the Jenkins Ingress..."
-CERT_ARN=$("$REPO_ROOT/scripts/create-cert.sh")
-echo "  certificate: ${CERT_ARN}"
+echo "[5/8] TLS certificates..."
+# Two certificates, deliberately. Jenkins is the admin plane (restricted to one
+# operator IP, holds cluster access); the application is public. A shared
+# private key would make a compromise in either context a compromise in both,
+# and would couple two rotation schedules that have no reason to be linked.
+CERT_ARN=$("$REPO_ROOT/scripts/create-cert.sh" --purpose jenkins-ui)
+echo "  jenkins: ${CERT_ARN}"
+APP_CERT_ARN=$("$REPO_ROOT/scripts/create-cert.sh" --purpose app)
+echo "  app    : ${APP_CERT_ARN}"
 
 # ------------------------------------------------- 6. build the agent image
 echo ""

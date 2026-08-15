@@ -629,6 +629,34 @@ t T14.54 "CI evidence collector exists and refuses to leak credentials" bash -c 
   grep -q "AKIA" scripts/collect-ci-evidence.sh &&
   grep -q "consoleText" scripts/collect-ci-evidence.sh'
 
+# REVIEW FIX 4.4 (follow-up) — Jenkins and the application must not share a
+# certificate. Jenkins is the admin plane, restricted to one operator IP and
+# holding cluster access; the app is public. One private key across both means
+# a compromise in either context is a compromise in both.
+t T14.55 "Jenkins and the app use separate certificates" python3 -c "
+import re
+inst = open('scripts/install-jenkins.sh').read()
+conf = open('scripts/configure-jenkins.sh').read()
+assert '--purpose jenkins-ui' in inst, 'jenkins cert not requested by purpose'
+assert '--purpose app' in inst, 'app cert not requested by purpose'
+assert 'app.vm-order.internal' in conf, 'no app certificate lookup'
+# The JCasC env block spans two lines, so a line-based grep cannot see the
+# pairing. Match the key and its value together.
+m = re.search(r'key: APP_CERT_ARN\s*\n\s*value: \"([^\"]*)\"', conf)
+assert m, 'APP_CERT_ARN is not exported to Jenkins'
+assert 'APP_CERT_ARN' in m.group(1), (
+    'APP_CERT_ARN reuses the Jenkins certificate: ' + m.group(1))
+"
+
+# A wildcard SAN matches exactly ONE label. ALB hostnames are
+# <name>.<region>.elb.amazonaws.com — two labels — so "*.elb.amazonaws.com"
+# never matched the host it was written for. Verified with openssl
+# verify -verify_hostname: the old form fails, the region-scoped form passes.
+t T14.56 "ALB SAN wildcard is region-scoped so it actually matches" bash -c '
+  grep -q "elb.amazonaws.com" scripts/create-cert.sh &&
+  grep -q "AWS_REGION}.elb.amazonaws.com" scripts/create-cert.sh &&
+  ! grep -q "DNS:\\*\\.elb\\.amazonaws\\.com" scripts/create-cert.sh'
+
 t T14.27 "CD smoke test fails when the public URL does not serve" bash -c '
   grep -q "ALB_OK=1" Jenkinsfile-cd &&
   grep -q "ALB_OK. -ne 1" Jenkinsfile-cd &&
