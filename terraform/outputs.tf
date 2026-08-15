@@ -17,6 +17,19 @@ output "github_repo_url" { value = var.github_repo_url }
 output "notification_email" { value = var.notification_email }
 output "vpc_cidr" { value = var.vpc_cidr }
 
+# REVIEW FIX 4.7 — destroy.sh verifies leftovers by tag, and every module tags
+# resources with Project = var.project_name. The script must read this BEFORE
+# `terraform destroy`, because afterwards the state is empty and no output can
+# be resolved at all.
+output "project_name" { value = var.project_name }
+
+# REVIEW FIX 4.6 — the backend/worker NetworkPolicies used to allow port 5432
+# to the entire VPC CIDR. They now allow it only to the database subnets, so
+# those CIDRs have to reach the cluster the same way vpc_cidr already does:
+# configure-jenkins.sh reads this output and injects it as a Jenkins global
+# env var, and Jenkinsfile-cd passes it to Helm.
+output "db_subnet_cidrs" { value = var.db_subnet_cidrs }
+
 # REVIEW FIX 2.3 — sensitive output so install-jenkins.sh can read the password
 # structurally instead of parsing terraform.tfvars with grep/cut.
 # Marking it sensitive keeps it out of `terraform output` (no args) and out of

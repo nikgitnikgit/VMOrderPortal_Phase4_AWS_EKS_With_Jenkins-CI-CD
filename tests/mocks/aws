@@ -6,13 +6,30 @@ case "$1 $2" in
   "ecr describe-repositories") exit 0 ;;
   "ecr describe-images") exit 1 ;;   # tag absent -> build/push proceeds
   "eks update-kubeconfig") exit 0 ;;
-  "elbv2 describe-load-balancers") echo "" ;;   # no ALBs left
+  # Two callers, two shapes: uninstall-jenkins.sh polls for a LIST of ALBs and
+  # treats empty output as "released", while destroy.sh's verification asks for
+  # a length(). Returning "0" to both would make the poll loop wait forever on
+  # a load balancer that does not exist.
+  "elbv2 describe-load-balancers")
+      case "$*" in
+          *length\(*) echo "0" ;;   # verification: none left
+          *)           echo "" ;;    # poll: released
+      esac ;;
   "acm list-certificates") echo "arn:aws:acm:us-east-1:123456789012:certificate/mock" ;;
   "acm import-certificate") echo "arn:aws:acm:us-east-1:123456789012:certificate/mock" ;;
   "s3 rm") exit 0 ;;
   "s3 cp") exit 0 ;;
   "s3 ls") exit 0 ;;
   "s3api list-object-versions") echo "null" ;;
+  # REVIEW FIX 4.7 — destroy.sh now verifies leftovers by tag rather than
+  # asking "is this ACCOUNT empty". Return 0 for every count, i.e. a clean
+  # teardown. tests/run_mock_destroy.sh additionally asserts the queries were
+  # actually made and were tag-scoped.
+  "ec2 describe-instances") echo "0" ;;
+  "ec2 describe-nat-gateways") echo "0" ;;
+  "ec2 describe-vpcs") echo "0" ;;
+  "eks list-clusters") echo "0" ;;
+  "rds describe-db-instances") echo "0" ;;
   "ec2 describe-network-interfaces") echo "" ;;
   "ec2 delete-network-interface") exit 0 ;;
   "ec2 describe-security-groups") echo "" ;;

@@ -64,8 +64,13 @@ echo "[2/8] Application namespace and Secret..."
 DB_PASSWORD=$(terraform output -raw db_password)
 [ -n "$DB_PASSWORD" ] || { echo "ERROR: db_password output is empty — is terraform.tfvars filled in?" >&2; exit 1; }
 
-kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
-kubectl label namespace "$NAMESPACE" "kubernetes.io/metadata.name=${NAMESPACE}" --overwrite >/dev/null
+# REVIEW FIX 4.1 — was two imperative lines (`create namespace` + `label`).
+# Both namespaces are now a declarative manifest, so their labels are
+# reviewable in Git rather than being a side effect of this script. This
+# matters because NetworkPolicies select peer namespaces by label, and it also
+# lets the manifest carry Pod Security Admission settings the scripts never
+# expressed. `apply` is idempotent, so re-running is still safe.
+kubectl apply -f "${REPO_ROOT}/k8s/namespace.yaml"
 # REVIEW FIX 2.2 — one shared "app-secrets" object was replaced by one Secret
 # per workload. Previously both Deployments pulled the whole thing in via
 # `envFrom: secretRef`, so the backend held SNS_TOPIC_ARN and SES_SENDER
@@ -138,8 +143,8 @@ kubectl rollout status daemonset/aws-node -n kube-system --timeout=300s
 # ------------------------------- 4. jenkins namespace, RBAC, ServiceAccounts
 echo ""
 echo "[4/8] Jenkins namespace, RBAC and ServiceAccounts..."
-kubectl create namespace jenkins --dry-run=client -o yaml | kubectl apply -f -
-kubectl label namespace jenkins "kubernetes.io/metadata.name=jenkins" --overwrite >/dev/null
+# REVIEW FIX 4.1 — the jenkins namespace is declared in k8s/namespace.yaml,
+# applied above alongside devops-app. Nothing to do here.
 kubectl apply -f "$REPO_ROOT/jenkins/rbac.yaml"
 
 # IRSA annotations carry the account ID, so they are applied here from

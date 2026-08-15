@@ -8,22 +8,45 @@ def get(values, path):
         cur = cur[part]
     return cur
 def render(tpl, values):
-    out, skip, depth, lines, i = [], False, 0, tpl.split("\n"), 0
+    # REVIEW FIX 4.4 — conditionals are tracked with a STACK, not a flat
+    # depth counter plus a single `skip` flag. The old model only evaluated
+    # the condition at depth 1, so an inner `if` nested inside the chart-wide
+    # `{{- if .Values.ingress.enabled }}` was never evaluated at all and BOTH
+    # branches were emitted. That produced invalid YAML for the HTTPS ingress
+    # and would have silently mis-rendered any future nested conditional.
+    out, stack, lines, i = [], [], tpl.split("\n"), 0
     while i < len(lines):
         line = lines[i]
         mif = re.match(r"\s*\{\{-? if (?:\.Values\.)([\w.]+) \}\}", line)
         mend = re.match(r"\s*\{\{-? end \}\}", line)
+        # REVIEW FIX 4.4 — {{- else }} support. helm/frontend/templates/
+        # ingress.yaml needs it to emit HTTPS annotations when a certificate is
+        # configured and plain HTTP when it is not. Without this the renderer
+        # emitted BOTH branches and produced invalid YAML.
+        melse = re.match(r"\s*\{\{-? else \}\}", line)
         mrange = re.match(r"(\s*)\{\{-? range \$key, \$val := \.Values\.([\w.]+) \}\}", line)
+        # REVIEW FIX 4.6 — list ranges, e.g. {{- range .Values.a.b }} ... {{ . }}
+        mrangelist = re.match(r"(\s*)\{\{-? range \.Values\.([\w.]+) \}\}", line)
         if mif:
-            depth += 1
-            if depth == 1 and not get(values, mif.group(1)): skip = True
+            stack.append(bool(get(values, mif.group(1))))
             i += 1; continue
         if mend:
-            if depth > 0:
-                depth -= 1
-                if depth == 0: skip = False
+            if stack: stack.pop()
             i += 1; continue
-        if skip: i += 1; continue
+        if melse:
+            if stack: stack[-1] = not stack[-1]
+            i += 1; continue
+        if not all(stack): i += 1; continue
+        if mrangelist:
+            path, body = mrangelist.group(2), []
+            i += 1
+            while not re.match(r"\s*\{\{-? end \}\}", lines[i]):
+                body.append(lines[i]); i += 1
+            i += 1
+            for item in (get(values, path) or []):
+                for b in body:
+                    out.append(b.replace("{{ . }}", str(item)))
+            continue
         if mrange:
             path, body = mrange.group(2), []
             i += 1

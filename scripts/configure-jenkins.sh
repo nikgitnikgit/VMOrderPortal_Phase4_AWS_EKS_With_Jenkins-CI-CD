@@ -43,6 +43,10 @@ ECR_REGISTRY=$(terraform output -raw ecr_registry)
 GITHUB_REPO_URL=$(terraform output -raw github_repo_url)
 S3_BUCKET=$(terraform output -raw s3_bucket_name)
 VPC_CIDR=$(terraform output -raw vpc_cidr)
+# REVIEW FIX 4.6 — `-raw` cannot render a list, so read it as JSON and join it
+# with commas. Helm's --set list syntax is {a,b}, which Jenkinsfile-cd builds
+# from this. jq is present in the agent image (see jenkins/agent-tools).
+DB_SUBNET_CIDRS=$(terraform output -json db_subnet_cidrs | tr -d '[]" ' )
 BACKEND_ROLE_ARN=$(terraform output -raw backend_irsa_role_arn)
 WORKER_ROLE_ARN=$(terraform output -raw worker_irsa_role_arn)
 NOTIFICATION_EMAIL=$(terraform output -raw notification_email)
@@ -106,6 +110,13 @@ controller:
                     value: "${S3_BUCKET}"
                   - key: VPC_CIDR
                     value: "${VPC_CIDR}"
+                  - key: DB_SUBNET_CIDRS
+                    value: "${DB_SUBNET_CIDRS}"
+                  # REVIEW FIX 4.4 — the same ACM certificate that fronts
+                  # Jenkins also fronts the application ALB. Jenkinsfile-cd
+                  # passes it to the frontend chart; empty means HTTP only.
+                  - key: APP_CERT_ARN
+                    value: "${CERT_ARN:-}"
                   - key: GITHUB_REPO_URL
                     value: "${GITHUB_REPO_URL}"
                   - key: NOTIFICATION_EMAIL

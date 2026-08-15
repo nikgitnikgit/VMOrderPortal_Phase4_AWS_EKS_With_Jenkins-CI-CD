@@ -213,6 +213,7 @@ spec:
                             --set config.AWS_REGION="$AWS_REGION" \
                             --set config.S3_BUCKET="$S3_BUCKET" \
                             --set networkPolicy.vpcCidr="$VPC_CIDR" \
+                            --set "networkPolicy.dbSubnetCidrs={$DB_SUBNET_CIDRS}" \
                             --wait --timeout 5m
 
                         helm upgrade --install worker helm/worker \
@@ -222,17 +223,24 @@ spec:
                             --set serviceAccount.roleArn="$WORKER_ROLE_ARN" \
                             --set config.AWS_REGION="$AWS_REGION" \
                             --set networkPolicy.vpcCidr="$VPC_CIDR" \
+                            --set "networkPolicy.dbSubnetCidrs={$DB_SUBNET_CIDRS}" \
                             --wait --timeout 5m
 
                         # networkPolicy.vpcCidr is passed explicitly rather
                         # than trusting the chart default: the ALB connects
                         # from inside the VPC, and a wrong CIDR here silently
                         # blocks all traffic (healthy pods, 504 at the ALB).
+                        # REVIEW FIX 4.4 — pass the ACM certificate so the app
+                        # ALB serves HTTPS and redirects 80 -> 443. Empty is
+                        # allowed: the chart falls back to HTTP-only rather
+                        # than failing, so a cluster without a certificate
+                        # still deploys.
                         helm upgrade --install frontend helm/frontend \
                             --namespace "$TARGET_NAMESPACE" \
                             --set image.registry="$ECR_REGISTRY" \
                             --set image.tag="$TAG" \
                             --set networkPolicy.vpcCidr="$VPC_CIDR" \
+                            --set ingress.certificateArn="${APP_CERT_ARN:-}" \
                             --wait --timeout 5m
                     '''
                 }

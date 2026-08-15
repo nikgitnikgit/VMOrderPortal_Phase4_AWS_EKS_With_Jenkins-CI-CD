@@ -26,10 +26,15 @@ spec:
           protocol: UDP
         - port: 53
           protocol: TCP
-    # RDS PostgreSQL (worker reads order details)
+    # RDS PostgreSQL — REVIEW FIX 4.6.
+    # Was the whole VPC /16 (~65k addresses), which includes the public
+    # subnets, the node subnets and every other pod. Narrowed to the two
+    # database subnets, where RDS actually lives.
     - to:
+{{- range .Values.networkPolicy.dbSubnetCidrs }}
         - ipBlock:
-            cidr: {{ .Values.networkPolicy.vpcCidr }}
+            cidr: {{ . }}
+{{- end }}
       ports:
         - port: 5432
     # AWS APIs (SNS, SES) over HTTPS

@@ -10,6 +10,12 @@ case "$1" in
       k8s_namespace) echo "devops-app" ;;
       vpc_id) echo "vpc-0abc123" ;;
       vpc_cidr) echo "10.23.0.0/16" ;;
+      # REVIEW FIX 4.6 — read as JSON (a list cannot be rendered with -raw)
+      # and joined with commas by configure-jenkins.sh.
+      db_subnet_cidrs) echo '["10.23.2.0/24","10.23.3.0/24"]' ;;
+      # REVIEW FIX 4.7 — destroy.sh captures this BEFORE destroy so its
+      # leftover check can be scoped by tag.
+      project_name) echo "vm-order" ;;
       alb_controller_role_arn) echo "arn:aws:iam::123456789012:role/alb" ;;
       backend_irsa_role_arn) echo "arn:aws:iam::123456789012:role/backend" ;;
       worker_irsa_role_arn) echo "arn:aws:iam::123456789012:role/worker" ;;

@@ -35,6 +35,16 @@ ingress:
   scheme: internet-facing
   healthcheckPath: /healthz
 
+  # REVIEW FIX 4.4 — set this to enable HTTPS (443 + redirect from 80).
+  # Empty by default so a fresh clone deploys without a certificate.
+  # Get an ARN with:  ./scripts/create-cert.sh
+  # Then pass it at deploy time:
+  #   helm upgrade ... --set ingress.certificateArn=arn:aws:acm:...
+  # Jenkins already does exactly this; the app was the one still on plain HTTP.
+  certificateArn: ""
+  # ELBSecurityPolicy-2016-08 (the ALB default) still allows TLS 1.0 and 1.1.
+  sslPolicy: ELBSecurityPolicy-TLS13-1-2-2021-06
+
 existingSecret: ""              # frontend needs NO secrets at all
 
 networkPolicy:

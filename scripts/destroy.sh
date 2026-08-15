@@ -13,6 +13,10 @@ NAMESPACE=$(terraform output -raw k8s_namespace 2>/dev/null || echo devops-app)
 S3_BUCKET=$(terraform output -raw s3_bucket_name 2>/dev/null || true)
 VPC_ID=$(terraform output -raw vpc_id 2>/dev/null || true)
 AWS_REGION=$(terraform output -raw aws_region 2>/dev/null || echo us-east-1)
+# REVIEW FIX 4.7 — captured HERE, before destroy. After destroy the state is
+# empty and `terraform output` returns nothing, so reading it at verification
+# time would silently fall back to the default and check the wrong tag.
+PROJECT_NAME=$(terraform output -raw project_name 2>/dev/null || echo vm-order)
 
 echo "============================================"
 echo "  VM Order Portal — Phase 4 Destroy"
@@ -142,6 +146,67 @@ fi
 
 echo ""
 echo "============================================"
-echo "✅ Everything destroyed — back to \$0/hour"
-echo "   Verify: aws eks list-clusters   (should be empty)"
+echo "✅ terraform destroy completed"
 echo "============================================"
+
+# REVIEW FIX 4.7 — the old advice was "aws eks list-clusters (should be empty)".
+# That is account-wide: it tells you nothing if a colleague has a cluster in the
+# same account, and it says "not empty" for resources this project never owned.
+# It also only checked EKS, so a leftover NAT Gateway or RDS instance — the two
+# things that actually keep billing — went unmentioned.
+#
+# Verify by TAG instead. Every module tags its resources Project/Environment
+# (see local.tags), so the question becomes "is anything of OURS still alive?",
+# which is both answerable and the one that matters for the bill.
+echo ""
+echo "Verifying nothing tagged Project=${PROJECT_NAME:-vm-order} is left..."
+
+leftovers=0
+report() {   # $1=label  $2=count
+    if [ "${2:-0}" -gt 0 ]; then
+        echo "   ⚠️  $1: $2 still present"
+        leftovers=$((leftovers + 1))
+    else
+        echo "   ✅ $1: none"
+    fi
+}
+
+TAG_FILTER="Name=tag:Project,Values=${PROJECT_NAME:-vm-order}"
+
+report "EC2 instances" "$(aws ec2 describe-instances --region "$AWS_REGION" \
+    --filters "$TAG_FILTER" "Name=instance-state-name,Values=running,pending,stopping,stopped" \
+    --query 'length(Reservations[].Instances[])' --output text 2>/dev/null)"
+
+report "NAT Gateways (\$0.045/hr each)" "$(aws ec2 describe-nat-gateways --region "$AWS_REGION" \
+    --filter "$TAG_FILTER" "Name=state,Values=available,pending" \
+    --query 'length(NatGateways)' --output text 2>/dev/null)"
+
+report "VPCs" "$(aws ec2 describe-vpcs --region "$AWS_REGION" \
+    --filters "$TAG_FILTER" --query 'length(Vpcs)' --output text 2>/dev/null)"
+
+report "Load balancers" "$(aws elbv2 describe-load-balancers --region "$AWS_REGION" \
+    --query "length(LoadBalancers[?contains(LoadBalancerName, '${PROJECT_NAME:-vm-order}')])" \
+    --output text 2>/dev/null)"
+
+# EKS and RDS do not support tag filters on their list APIs, so match by the
+# project name prefix that every resource here is named with.
+report "EKS clusters" "$(aws eks list-clusters --region "$AWS_REGION" \
+    --query "length(clusters[?contains(@, '${PROJECT_NAME:-vm-order}')])" --output text 2>/dev/null)"
+
+report "RDS instances" "$(aws rds describe-db-instances --region "$AWS_REGION" \
+    --query "length(DBInstances[?contains(DBInstanceIdentifier, '${PROJECT_NAME:-vm-order}')])" \
+    --output text 2>/dev/null)"
+
+echo ""
+if [ "$leftovers" -eq 0 ]; then
+    echo "============================================"
+    echo "✅ Nothing left — back to \$0/hour"
+    echo "============================================"
+else
+    echo "============================================"
+    echo "⚠️  $leftovers resource type(s) still present."
+    echo "   These are STILL BILLING. Re-run ./scripts/destroy.sh,"
+    echo "   or delete them in the console if destroy keeps failing."
+    echo "============================================"
+    exit 1
+fi

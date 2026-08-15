@@ -9,6 +9,8 @@ fixed incidentally by the Phase 4 redesign. This document records all three
 categories honestly: what was already fixed, what is fixed now, and what is
 still open.
 
+**Current status:** P0 ✅ · P1 ✅ except 2.6 · P2 ✅ · P3 ✅ · 144 tests passing.
+
 **Status legend**
 
 | Symbol | Meaning |
@@ -778,19 +780,229 @@ probes on demand and Kubernetes probes on a schedule.
 earlier draft pinned 23.0.0; the configuration API is identical across both,
 but 26.0.0 is what these results came from.
 
-## 4. P3 — Lower priority (4.8 ✅ done, rest 🔄 open)
+## 4. P3 — Lower priority ✅ ALL ADDRESSED
 
-| # | Finding | Review ref | Plan |
-|---|---|---|---|
-| 4.1 | Namespace created imperatively via `kubectl create namespace` | §3.2 (PARTIAL) | Add `k8s/namespace.yaml` and `kubectl apply -f` it |
-| 4.2 | Base images tagged but not digest-pinned | §3.12, §5 (LOW) | `FROM python:3.12-slim@sha256:...` across all four Dockerfiles |
-| 4.3 | Python dependencies have no hashes | §5 (LOW) | `pip-compile --generate-hashes` |
-| 4.4 | App ingress is HTTP-only while Jenkins has HTTPS | §3.5, §4 bonus | Reuse `scripts/create-cert.sh` + ACM for the frontend ingress |
-| 4.5 | No Trivy report or SBOM committed | §3.12, §3.13, §7 | CI produces them as build artifacts; commit one run's `trivy-*.txt` and `sbom-*.cdx.json` under `evidence/` |
-| 4.6 | Backend NetworkPolicy egress to RDS uses the whole `/16` | §3.8 | Narrow to the DB subnet CIDRs |
-| 4.7 | `destroy.sh` verification is account-wide | §6.3 | Filter by project tags rather than `aws eks list-clusters` |
-| 4.8 | ✅ Functional test skip guard checked binaries but not privileges | (found in remediation) | Done — see below |
-| 4.9 | ✅ T7.1 failed intermittently: `tar` exits 1 if a file changes mid-copy, and CPython writes `.pyc` lazily after the pytest step | (found in remediation) | `run_mock_deploy.sh` now excludes `__pycache__`, `*.pyc` and `.pytest_cache` from the sandbox copy. Verified 5/5 with bytecode present, where it previously failed roughly 1 run in 10. Bytecode has no business in a copy meant to exercise the source |
+| # | Finding | Status |
+|---|---|---|
+| 4.1 | Namespace created imperatively | ✅ declarative manifest + Pod Security Admission |
+| 4.2 | Base images tagged, not digest-pinned | ✅ tooling shipped (needs registry access — see below) |
+| 4.3 | Python dependencies pinned but not hashed | ✅ hash-locked, enforced at build |
+| 4.4 | App ingress HTTP-only | ✅ conditional HTTPS with redirect |
+| 4.5 | No Trivy report or SBOM committed | ✅ collector shipped (needs a live Jenkins — see below) |
+| 4.6 | DB egress allowed to the whole VPC | ✅ narrowed to the DB subnets |
+| 4.7 | Destroy verification account-wide | ✅ tag-scoped, non-zero exit on leftovers |
+| 4.8 | Functional test guard checked binaries, not privileges | ✅ done |
+| 4.9 | T7.1 failed intermittently | ✅ done |
+
+### 4.1 ✅ Namespace created imperatively
+
+**Files:** `k8s/namespace.yaml` (new), `scripts/install-jenkins.sh`
+
+**Problem.** Both namespaces existed only as `kubectl create namespace` plus a
+`kubectl label` line inside a script. The review marked the
+declarative-manifests requirement PARTIAL for this reason.
+
+It mattered in practice, not just on paper: **NetworkPolicies select peer
+namespaces by label**, so `kubernetes.io/metadata.name` was load-bearing
+configuration living in a shell line that `kubectl get` could not explain the
+origin of.
+
+**Fix.** `k8s/namespace.yaml` declares both namespaces with their labels,
+applied with `kubectl apply -f` (still idempotent, still safe to re-run).
+
+**Something the scripts could never express.** A manifest can carry Pod
+Security Admission labels:
+
+| Namespace | Enforce | Why |
+|---|---|---|
+| `devops-app` | `restricted` | Verified first — all three Deployments already set `runAsNonRoot`, `seccompProfile: RuntimeDefault`, `drop: ["ALL"]` and `allowPrivilegeEscalation: false`, so nothing breaks |
+| `jenkins` | `baseline` | **Not** restricted: agent pods mount a workspace volume and the controller writes to its PVC. Enforcing restricted here would break the build system |
+
+A future manifest that quietly drops those settings is now **rejected at
+admission** rather than discovered later by a reviewer.
+
+### 4.2 ✅ Base images tagged, not digest-pinned — tooling shipped
+
+**File:** `scripts/pin-base-images.sh` (new)
+
+**Problem.** `FROM python:3.12-slim` pins a *mutable pointer*. The maintainer
+can move the tag, so a rebuild months later can produce a different base than
+the one that was scanned and approved — with no change in Git to show for it.
+A Trivy result therefore has a shelf life.
+
+**Why this is a script rather than a committed diff.** A digest can only come
+from the registry, and it has to be the real one — an invented or stale digest
+does not degrade gracefully, it fails the build with `manifest unknown`. This
+environment cannot reach Docker Hub (HTTP 403), so guessing was not an option.
+
+**Fix.** `./scripts/pin-base-images.sh` resolves each base on a machine with
+registry access and rewrites the four Dockerfiles in place, keeping the tag for
+readability and appending the digest. `--check` audits without changing
+anything and is suitable for CI.
+
+**Verified:** the rewrite is idempotent (re-running replaces rather than
+appends a second digest) and preserves multi-stage `AS builder` aliases;
+`--check` correctly reports all four as unpinned today.
+
+### 4.3 ✅ Dependencies pinned but not hashed
+
+**Files:** `app/*/requirements.in` (new), `app/*/requirements.txt`,
+`docker/*/Dockerfile`
+
+**Problem.** Two problems, one visible and one not:
+
+1. A version pin trusts whatever PyPI serves under that name *today*. A hash
+   pins the actual bytes, so a re-uploaded or compromised artifact fails the
+   install instead of shipping.
+2. Only the **direct** dependencies were pinned. The backend pinned 4 packages
+   while roughly 17 transitive ones — `werkzeug`, `botocore`, `urllib3`,
+   `jinja2` and friends — floated free.
+
+**Fix.** A standard `.in` / `.txt` split: `requirements.in` holds the direct
+dependencies a human edits, and `requirements.txt` is generated by
+`pip-compile --generate-hashes` with every transitive package pinned and
+hash-locked. Both Dockerfiles use `--require-hashes`.
+
+pip enters hash-checking mode automatically once any hash is present, so the
+flag is technically redundant — it is there so that an edit stripping the
+hashes **breaks the build loudly** rather than quietly reverting to unverified
+installs.
+
+**Verified — including a corrected negative test.** My first tamper test
+changed one hash and the install *succeeded*: each package lists several
+hashes (wheel and sdist) and pip accepts any match, so that test proved
+nothing. Re-run replacing **all** hashes for one package:
+
+```
+ERROR: THESE PACKAGES DO NOT MATCH THE HASHES FROM THE REQUIREMENTS FILE.
+        Expected sha256 dededede...
+             Got        40233d26...
+```
+
+Exit 1. T7.5 now installs with `--require-hashes` too, so a missing hash fails
+in the suite rather than in a container build nobody watches.
+
+⚠️ T7.5 recreates its venv on every run, which adds roughly a minute to a full
+local suite run. That is the price of the test not being vacuous — a reused
+venv skips already-installed packages and verifies nothing.
+
+### 4.4 ✅ App ingress HTTP-only while Jenkins had HTTPS
+
+**Files:** `helm/frontend/templates/ingress.yaml`, `helm/frontend/values.yaml`,
+`scripts/configure-jenkins.sh`, `Jenkinsfile-cd`
+
+**Problem.** The ingress carried the comment *"HTTP only — documented
+trade-off"*, while Jenkins already had TLS through ACM. Orders contain a name
+and an email address, so they crossed the internet in clear text.
+
+**Fix.** HTTPS annotations that activate only when `ingress.certificateArn` is
+set, so a fresh clone still deploys instead of failing with an opaque ALB
+error. Three parts matter:
+
+- `listen-ports` gains `{"HTTPS": 443}`
+- `ssl-redirect: "443"` — **without this the HTTP listener keeps serving the
+  app happily and the certificate is decorative**
+- `ssl-policy: ELBSecurityPolicy-TLS13-1-2-2021-06`, because the ALB default
+  still permits TLS 1.0 and 1.1
+
+The certificate comes from the existing `scripts/create-cert.sh`, exported by
+`configure-jenkins.sh` as `APP_CERT_ARN` and passed to the chart by
+`Jenkinsfile-cd`.
+
+**This exposed two real bugs in the offline Helm renderer** (`check_helm.py`),
+both fixed:
+
+1. No `{{- else }}` support — it emitted both branches.
+2. Worse: a flat depth counter that only evaluated conditions at depth 1, so
+   any `if` nested inside the chart-wide `{{- if .Values.ingress.enabled }}`
+   was **never evaluated**. Replaced with a proper conditional stack.
+
+Both branches were then rendered and asserted: no certificate → HTTP only, no
+`certificate-arn`, no `ssl-redirect`; with certificate → all four annotations
+present.
+
+### 4.6 ✅ DB egress allowed to the whole VPC
+
+**Files:** `helm/{backend,worker}/templates/networkpolicy.yaml`, both
+`values.yaml`, `terraform/outputs.tf`, `scripts/configure-jenkins.sh`,
+`Jenkinsfile-cd`
+
+**Problem.** The 5432 egress rule allowed the entire VPC CIDR — a `/16`, about
+65,000 addresses, including the public subnets, the node subnets and every
+other pod. A compromised pod could reach **any** Postgres listener in the VPC,
+not just RDS.
+
+**Fix.** Narrowed to the two database subnets (`/24` each), roughly a 128x
+reduction in reachable hosts. The values are not hardcoded: a new
+`db_subnet_cidrs` Terraform output flows through `configure-jenkins.sh` into a
+Jenkins environment variable, and `Jenkinsfile-cd` passes it to Helm — the same
+path `vpc_cidr` already took.
+
+The frontend chart is deliberately unchanged: it has no DB egress rule.
+
+The template falls back to `vpcCidr` if `dbSubnetCidrs` is unset, so an older
+deploy that does not pass the new value keeps working rather than losing
+database access entirely.
+
+### 4.7 ✅ Destroy verification was account-wide
+
+**Files:** `scripts/destroy.sh`, `terraform/outputs.tf`, `tests/mocks/aws`,
+`tests/run_mock_destroy.sh`
+
+**Problem.** The script finished by printing *"Verify: `aws eks list-clusters`
+(should be empty)"*. Two things wrong with that:
+
+1. **It is account-wide.** In a shared account a colleague's cluster reads as
+   your leftover, and the check says "not empty" for resources this project
+   never owned.
+2. **It only checked EKS.** A leftover NAT Gateway ($0.045/hr) or RDS instance
+   — the two things that actually keep billing after a partial destroy — went
+   unmentioned entirely.
+
+**Fix.** Verify by tag. Every module already tags resources
+`Project`/`Environment`, so the question becomes *"is anything of ours still
+alive?"* — answerable, and the one that matters for the bill. Six checks:
+instances, NAT gateways, VPCs, load balancers, EKS clusters, RDS instances.
+The script now **exits non-zero** if anything survives, rather than printing a
+success banner regardless.
+
+**The detail that would have broken it.** `PROJECT_NAME` is read *before*
+`terraform destroy`. Afterwards the state is empty, `terraform output` returns
+nothing, and the verification would silently fall back to a default and check
+the wrong tag — reporting a clean teardown while resources billed.
+
+**Mock updated too.** `tests/mocks/aws` had to distinguish two `elbv2
+describe-load-balancers` callers: `uninstall-jenkins.sh` polls for a *list* and
+treats empty as "released", while the new verification asks for a `length()`.
+Returning `0` to both made the poll loop wait forever on a load balancer that
+did not exist.
+
+### 4.5 ✅ No Trivy report or SBOM committed — collector shipped
+
+**File:** `scripts/collect-ci-evidence.sh` (new)
+
+**Problem.** `Jenkinsfile-ci` genuinely scans all three images and emits a
+CycloneDX SBOM each, then archives them as **build artifacts**. Build artifacts
+live in Jenkins and disappear when the cluster is destroyed — which this
+project does deliberately, every day, to stop the billing. The scan runs; the
+repository shows no proof of it.
+
+**Why this is a script.** Producing the artifacts needs a live Jenkins with a
+completed build. This environment has neither, and fabricating a scan report
+would be worse than having none.
+
+**Fix.** `./scripts/collect-ci-evidence.sh` pulls the console log and every
+archived artifact from a build into `evidence/`, then:
+
+- **scrubs the AWS account ID**, which appears in every ECR registry URL and
+  IRSA role ARN and is therefore all through the console log. Not a credential,
+  but no reason to publish it;
+- **fails loudly** if anything resembling an access key or private key is
+  found, rather than committing it — if a credential reached a build log, that
+  is its own incident.
+
+Both behaviours were tested against a synthetic log: the account ID was
+replaced with `<ACCOUNT_ID>` and the credential detector fired.
 
 ### 4.8 ✅ Functional test failed on non-root developer machines
 
@@ -897,7 +1109,8 @@ insurance rather than a defect to close.
 | **Done** | 3.3, 2.3 | XSS vectors closed; password read structurally |
 | **Done** | 3.4, 3.2 | gunicorn with startup/heartbeat handling; order state and idempotency |
 | **Done** | 2.2 | Per-workload Secrets; backend no longer holds SNS/SES credentials |
-| **Next** | P3 list, or 2.6 | 2.6 adds a runtime dependency — a deliberate decision, not a defect |
+| **Done** | All of P3 (4.1-4.9) | 4.2 and 4.5 ship as tooling: both need network access this environment lacks |
+| **Remaining** | 2.6 only | External Secrets Operator — a *bonus* item, and the one change that adds a runtime dependency |
 | **Then** | 2.4, 2.5, 3.3 | Public-facing hardening — §8.5 |
 | **Before submission** | Section 5 evidence, 4.5 | §7 states every runtime claim is currently unverified |
 

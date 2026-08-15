@@ -1,0 +1,15 @@
+# app/backend/requirements.in — DIRECT dependencies only.
+#
+# REVIEW FIX 4.3 — this file is the human-edited input; requirements.txt is
+# generated from it and carries every transitive dependency with a sha256 hash.
+#
+# To change a dependency, edit THIS file and regenerate:
+#     pip install pip-tools
+#     pip-compile --generate-hashes --allow-unsafe \
+#         --output-file app/backend/requirements.txt app/backend/requirements.in
+#
+flask==3.1.0
+psycopg2-binary==2.9.9
+boto3==1.37.0
+requests==2.32.3
+gunicorn==26.0.0

@@ -150,9 +150,13 @@ echo "=== T7: Mock end-to-end script execution ==="
 t T7.1 "deploy.sh runs end-to-end against mocks" bash tests/run_mock_deploy.sh
 t T7.2 "destroy.sh runs end-to-end against mocks" bash tests/run_mock_destroy.sh
 
-t T7.5 "pip layer: exact pinned requirements install on python 3.12" bash -c '
-  [ -d /tmp/appvenv ] || python3 -m venv /tmp/appvenv
-  /tmp/appvenv/bin/pip install -q -r app/backend/requirements.txt -r app/worker/requirements.txt'
+# REVIEW FIX 4.3 — installs with --require-hashes, the same flag the
+# Dockerfiles use. A missing or wrong hash now fails HERE rather than in a
+# container build nobody watches.
+t T7.5 "pip layer: hash-locked requirements install on python 3.12" bash -c '
+  rm -rf /tmp/appvenv && python3 -m venv /tmp/appvenv
+  /tmp/appvenv/bin/pip install -q --require-hashes -r app/backend/requirements.txt &&
+  /tmp/appvenv/bin/pip install -q --require-hashes -r app/worker/requirements.txt'
 t T7.6 "FUNCTIONAL: real order through real app (nginx->backend->DB/S3->worker->SNS/SES)" bash tests/run_functional.sh
 
 echo "=== T8: Call-order assertions (from mock logs) ==="
@@ -534,6 +538,96 @@ t T14.43 "each chart consumes its own Secret" bash -c '
 t T14.44 "upgrade deletes the old shared Secret" bash -c '
   grep -q "kubectl delete secret app-secrets" scripts/install-jenkins.sh &&
   grep -q "ignore-not-found" scripts/install-jenkins.sh'
+
+# ---- P3 batch ----------------------------------------------------------
+# REVIEW FIX 4.1 — namespaces are declarative, not a side effect of a script.
+# NetworkPolicies select peer namespaces by LABEL, so those labels are load
+# bearing and belong in a reviewable file.
+t T14.45 "namespaces are declared, not created imperatively" bash -c '
+  [ -f k8s/namespace.yaml ] &&
+  grep -q "kubectl apply -f .*k8s/namespace.yaml" scripts/install-jenkins.sh &&
+  ! grep -vE "^\s*#" scripts/install-jenkins.sh | grep -q "kubectl create namespace"'
+
+t T14.46 "namespace manifest carries the labels NetworkPolicies select on" python3 -c "
+import yaml
+docs = [d for d in yaml.safe_load_all(open('k8s/namespace.yaml')) if d]
+names = {d['metadata']['name']: d['metadata'].get('labels', {}) for d in docs}
+assert 'devops-app' in names and 'jenkins' in names, names.keys()
+for ns, labels in names.items():
+    assert labels.get('kubernetes.io/metadata.name') == ns, ns
+    assert 'pod-security.kubernetes.io/enforce' in labels, ns
+assert names['devops-app']['pod-security.kubernetes.io/enforce'] == 'restricted'
+"
+
+# REVIEW FIX 4.3 — a version pin trusts whatever PyPI serves under that name
+# today; a hash pins the bytes. Transitive deps must be locked too, which is
+# the whole reason for the .in/.txt split.
+t T14.47 "python dependencies are hash-locked, not just pinned" bash -c '
+  [ -f app/backend/requirements.in ] && [ -f app/worker/requirements.in ] &&
+  grep -q "hash=sha256:" app/backend/requirements.txt &&
+  grep -q "hash=sha256:" app/worker/requirements.txt &&
+  grep -q "require-hashes" docker/backend/Dockerfile &&
+  grep -q "require-hashes" docker/worker/Dockerfile'
+
+t T14.48 "every pinned package carries at least one hash" python3 -c "
+import re
+for f in ['app/backend/requirements.txt', 'app/worker/requirements.txt']:
+    text = open(f).read()
+    blocks = re.split(r'(?m)^(?=[A-Za-z0-9_.-]+==)', text)
+    for b in blocks[1:]:
+        name = b.split('==')[0]
+        assert 'hash=sha256:' in b, f'{f}: {name} has no hash'
+"
+
+# REVIEW FIX 4.4 — orders carry a name and an email address. HTTP-only meant
+# they crossed the internet in clear text while Jenkins already had TLS.
+t T14.49 "app ingress supports HTTPS with redirect and a modern TLS policy" bash -c '
+  grep -q "certificate-arn" helm/frontend/templates/ingress.yaml &&
+  grep -q "ssl-redirect" helm/frontend/templates/ingress.yaml &&
+  grep -q "ssl-policy" helm/frontend/templates/ingress.yaml &&
+  grep -q "TLS13-1-2" helm/frontend/values.yaml &&
+  grep -q "ingress.certificateArn" Jenkinsfile-cd'
+
+# REVIEW FIX 4.6 — 5432 to a whole /16 let a compromised pod reach any
+# Postgres listener in the VPC, not just RDS.
+t T14.50 "DB egress is scoped to the database subnets, not the whole VPC" bash -c '
+  grep -q "range .Values.networkPolicy.dbSubnetCidrs" helm/backend/templates/networkpolicy.yaml &&
+  grep -q "range .Values.networkPolicy.dbSubnetCidrs" helm/worker/templates/networkpolicy.yaml &&
+  grep -q "dbSubnetCidrs" helm/backend/values.yaml &&
+  grep -q "db_subnet_cidrs" terraform/outputs.tf &&
+  grep -q "DB_SUBNET_CIDRS" scripts/configure-jenkins.sh'
+
+t T14.51 "the rendered DB egress rule is a /24, not a /16" python3 -c "
+import yaml
+v = yaml.safe_load(open('helm/backend/values.yaml'))
+cidrs = v['networkPolicy']['dbSubnetCidrs']
+assert cidrs, 'dbSubnetCidrs is empty'
+for c in cidrs:
+    assert int(c.split('/')[1]) >= 24, f'{c} is wider than a /24'
+assert v['networkPolicy']['vpcCidr'] not in cidrs, 'still using the VPC CIDR'
+"
+
+# REVIEW FIX 4.7 — "is this ACCOUNT empty" is unanswerable in a shared account
+# and silent about the resources that actually keep billing.
+t T14.52 "destroy verification is tag-scoped and checks the costly resources" bash -c '
+  grep -q "tag:Project" scripts/destroy.sh &&
+  grep -q "describe-nat-gateways" scripts/destroy.sh &&
+  grep -q "describe-db-instances" scripts/destroy.sh &&
+  grep -q "PROJECT_NAME=\$(terraform output" scripts/destroy.sh'
+
+# REVIEW FIX 4.2 / 4.5 — these two need network access this environment does
+# not have (a container registry, and a running Jenkins), so they ship as
+# tooling rather than as a committed diff. Assert the tooling exists and works.
+t T14.53 "base image digest pinning tooling exists and can audit" bash -c '
+  [ -x scripts/pin-base-images.sh ] &&
+  ./scripts/pin-base-images.sh --check >/dev/null 2>&1 ||
+  ./scripts/pin-base-images.sh --check 2>&1 | grep -q "UNPINNED\|digest-pinned"'
+
+t T14.54 "CI evidence collector exists and refuses to leak credentials" bash -c '
+  [ -x scripts/collect-ci-evidence.sh ] &&
+  grep -q "ACCOUNT_ID" scripts/collect-ci-evidence.sh &&
+  grep -q "AKIA" scripts/collect-ci-evidence.sh &&
+  grep -q "consoleText" scripts/collect-ci-evidence.sh'
 
 t T14.27 "CD smoke test fails when the public URL does not serve" bash -c '
   grep -q "ALB_OK=1" Jenkinsfile-cd &&

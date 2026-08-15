@@ -46,3 +46,9 @@ existingSecret: worker-secrets   # created by scripts/install-jenkins.sh, NOT by
 networkPolicy:
   enabled: true
   vpcCidr: 10.23.0.0/16
+  # REVIEW FIX 4.6 — 5432 egress is allowed only to the DB subnets, not the
+  # whole VPC. Overridden per environment by Jenkinsfile-cd from
+  # `terraform output db_subnet_cidrs`; these are the defaults.
+  dbSubnetCidrs:
+    - 10.23.2.0/24
+    - 10.23.3.0/24

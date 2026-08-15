@@ -8,7 +8,12 @@ WORKDIR /app
 # Dependencies first — Docker caches this layer, so code changes
 # do not trigger a full reinstall on every build
 COPY --chmod=0644 app/backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# REVIEW FIX 4.3 — --require-hashes makes the build FAIL if any package
+# lacks a hash or if the downloaded bytes do not match. pip already
+# enters hash-checking mode when hashes are present, but stating it
+# explicitly means a future edit that strips the hashes breaks the
+# build loudly instead of quietly reverting to unverified installs.
+RUN pip install --no-cache-dir --require-hashes -r requirements.txt
 
 # Application code (unchanged from phase 2)
 COPY --chmod=0644 app/backend/app.py .

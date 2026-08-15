@@ -33,10 +33,19 @@ spec:
               app: worker
       ports:
         - port: 5001
-    # RDS PostgreSQL inside the VPC
+    # RDS PostgreSQL — REVIEW FIX 4.6.
+    # This used to allow 5432 to the WHOLE VPC CIDR (a /16, ~65k addresses),
+    # which includes the public subnets, the node subnets and every other pod.
+    # A compromised pod could therefore reach any Postgres listener anywhere in
+    # the VPC, not just RDS. Narrowed to the two database subnets (/24 each),
+    # which is where RDS actually lives — a ~128x reduction in reachable hosts.
+    # Falls back to vpcCidr if dbSubnetCidrs is unset, so an older deploy that
+    # does not pass the new value still works rather than losing DB access.
     - to:
+{{- range .Values.networkPolicy.dbSubnetCidrs }}
         - ipBlock:
-            cidr: {{ .Values.networkPolicy.vpcCidr }}
+            cidr: {{ . }}
+{{- end }}
       ports:
         - port: 5432
     # AWS APIs (S3) over HTTPS

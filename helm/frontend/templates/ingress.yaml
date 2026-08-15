@@ -11,8 +11,27 @@ metadata:
     # target-type ip = ALB sends traffic straight to pod IPs (modern VPC CNI mode)
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/healthcheck-path: {{ .Values.ingress.healthcheckPath }}
-    # HTTP only — documented trade-off: HTTPS needs a domain + certificate
-    alb.ingress.kubernetes.io/listen-ports: "[{\"HTTP\": 80}]"
+{{- if .Values.ingress.certificateArn }}
+    # REVIEW FIX 4.4 — HTTPS. This used to be HTTP-only with the comment
+    # "documented trade-off", while Jenkins already had TLS via ACM. Orders
+    # carry a name and an email address, so they were crossing the internet in
+    # clear text where anyone on the path could read them.
+    #
+    # Enabled only when certificateArn is set, so a fresh clone still deploys
+    # without a certificate rather than failing with an opaque ALB error.
+    # scripts/create-cert.sh (already used for Jenkins) produces the ARN.
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/certificate-arn: {{ .Values.ingress.certificateArn }}
+    # Redirect 80 → 443 at the ALB, so the plaintext request is answered with a
+    # 301 and never reaches a pod. Without this the HTTP listener would still
+    # serve the app happily and the certificate would be decorative.
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    # TLS 1.2 minimum. The ALB default policy still permits TLS 1.0/1.1.
+    alb.ingress.kubernetes.io/ssl-policy: {{ .Values.ingress.sslPolicy }}
+{{- else }}
+    # No certificate configured — HTTP only. See values.yaml: ingress.certificateArn
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+{{- end }}
 spec:
   ingressClassName: alb
   rules:
