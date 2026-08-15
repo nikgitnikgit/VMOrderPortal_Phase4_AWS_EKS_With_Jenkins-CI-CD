@@ -22,6 +22,7 @@ identically.
 8. [Rollback](#8-rollback)
 9. [Credentials and secrets](#9-credentials-and-secrets)
 10. [Security](#10-security)
+    - [10.9 Recurring maintenance](#109-recurring-maintenance) — base image digests, dependency refresh
 11. [Cleanup](#11-cleanup)
 12. [Trade-offs and decisions](#12-trade-offs-and-decisions)
 13. [Testing](#13-testing)
@@ -431,6 +432,67 @@ NAT), the Kubernetes API (443, in-VPC), `updates.jenkins.io` (443, plugins),
 Trivy's vulnerability database (443).
 
 ---
+
+## 10.9 Recurring maintenance
+
+Two things in this project do **not** update themselves. Both are deliberate,
+and both need a calendar reminder rather than a script in the deploy path.
+
+### Base image digests — roughly monthly
+
+`docker/*/Dockerfile` and `jenkins/agent-tools/Dockerfile` pin their base
+images by digest (`FROM python:3.12-slim@sha256:...`), so a rebuild always
+produces the same bytes as the build that was scanned and approved.
+
+The cost of that guarantee: **you no longer pick up base image security
+patches automatically.** A digest is frozen until a human moves it.
+
+```bash
+./scripts/pin-base-images.sh          # resolve current digests, rewrite in place
+git diff -- docker jenkins/agent-tools
+bash tests/run_all.sh
+git commit -am "chore: refresh base image digests"
+```
+
+Push it and let CI run: Trivy scans the rebuilt images and **gates the push on
+fixable CRITICALs**, so a bad base is caught before it ships. That is the whole
+reason this is a deliberate commit rather than a step inside `deploy.sh` —
+auto-repinning on every deploy would change the bytes after CI approved them,
+which is mutable-tag behaviour with extra ceremony.
+
+To audit without changing anything:
+
+```bash
+./scripts/pin-base-images.sh --check   # exits non-zero if any base is unpinned
+```
+
+To move to a newer base version, edit the tag in the Dockerfile first, then run
+the script — it rewrites the digest to match the new tag.
+
+### Python dependencies — when a CVE lands, or quarterly
+
+`app/*/requirements.txt` is generated and hash-locked. Edit
+`requirements.in` (direct dependencies only), then regenerate:
+
+```bash
+pip install pip-tools
+pip-compile --generate-hashes --allow-unsafe \
+    --output-file app/backend/requirements.txt app/backend/requirements.in
+pip-compile --generate-hashes --allow-unsafe \
+    --output-file app/worker/requirements.txt app/worker/requirements.in
+bash tests/run_all.sh
+```
+
+Never edit `requirements.txt` by hand — the hashes must match the artifacts
+pip will actually download, and the Dockerfiles pass `--require-hashes`, so a
+mismatch fails the build rather than shipping something unverified.
+
+### Not yet automated
+
+The review recommends *"automated dependency updates"* alongside digest
+pinning. A scheduled workflow that runs `pin-base-images.sh` and opens a pull
+request would close that, keeping the CI gate in the path. Not implemented —
+tracked in `docs/REVIEW_REMEDIATION.md`.
 
 ## 11. Cleanup
 

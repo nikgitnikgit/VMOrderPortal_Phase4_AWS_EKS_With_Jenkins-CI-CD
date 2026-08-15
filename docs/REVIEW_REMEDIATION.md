@@ -844,6 +844,24 @@ anything and is suitable for CI.
 appends a second digest) and preserves multi-stage `AS builder` aliases;
 `--check` correctly reports all four as unpinned today.
 
+⚠️ **The trade-off, and where it is written down.** Pinning means base image
+security patches no longer arrive on their own — a digest is frozen until a
+human moves it. That turns a guarantee into a recurring chore, and an
+undocumented chore is one nobody does. It is therefore documented in
+**`README.md` §10.9 "Recurring maintenance"** alongside the dependency refresh
+procedure, not left in the script's closing message where it is only visible
+after running it.
+
+**Why this is not a step in `deploy.sh`.** Re-resolving digests on every deploy
+would change the bytes *after* CI scanned and approved them — mutable-tag
+behaviour with extra ceremony, and it would leave uncommitted edits to tracked
+Dockerfiles in the working tree mid-deploy. Refreshing is a deliberate commit
+so Trivy re-scans the new base through the normal gate.
+
+**Still open from the same review row:** *"add automated dependency updates"*.
+A scheduled workflow running `pin-base-images.sh` and opening a pull request
+would close it while keeping the CI gate in the path.
+
 ### 4.3 ✅ Dependencies pinned but not hashed
 
 **Files:** `app/*/requirements.in` (new), `app/*/requirements.txt`,
