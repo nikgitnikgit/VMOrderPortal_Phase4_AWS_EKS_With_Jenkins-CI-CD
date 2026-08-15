@@ -185,7 +185,7 @@ needs no credentials and adds no attack surface.
 
 ---
 
-## 2. P1 — Security findings carried over from Phase 3 (2.1, 2.3, 2.4, 2.5 ✅ done)
+## 2. P1 — Security findings (2.1–2.5 ✅ done; 2.6 🔄 open)
 
 ### 2.1 ✅ EKS control-plane endpoint open to `0.0.0.0/0`
 
@@ -245,18 +245,66 @@ address is wrong in `tfvars`, the apply succeeds and *then* you cannot reach
 the API. Run `curl -s https://checkip.amazonaws.com` and check the value before
 applying.
 
-### 2.2 🔄 One shared `app-secrets` object for backend and worker
+### 2.2 ✅ One shared `app-secrets` object for backend and worker
 
 > Review §3.7
 
-`scripts/install-jenkins.sh` creates a single Secret holding `DB_HOST`,
-`DB_PASSWORD`, `SNS_TOPIC_ARN` and `SES_SENDER`. Both Deployments consume all
-of it via `envFrom: secretRef`, so each workload sees values beyond its need.
+**Files:** `scripts/install-jenkins.sh`, `helm/backend/values.yaml`,
+`helm/worker/values.yaml`, `helm/*/templates/configmap.yaml`,
+`jenkins/secret.example.yaml`, `docs/WALKTHROUGH.md`, `docs/PHASE4_PLAN.md`
+(plus tests T12.4, T14.42, T14.43, T14.44)
 
-**Plan.** Split into `backend-secrets` and `worker-secrets`, selected per chart
-through the existing `existingSecret` value. Note the win is partial: the
-worker legitimately needs DB access to update `notification_sent`. The real
-gain is SES/SNS configuration no longer sitting in the backend.
+**What was wrong.** A single `app-secrets` object held `DB_HOST`,
+`DB_PASSWORD`, `SNS_TOPIC_ARN` and `SES_SENDER`, and both Deployments pulled
+all of it in with `envFrom: secretRef`.
+
+**What the split actually buys — stated honestly.** Checking which environment
+variables each service reads:
+
+| Key | Backend | Worker |
+|---|---|---|
+| `DB_HOST` | ✅ | ✅ |
+| `DB_PASSWORD` | ✅ | ✅ |
+| `SNS_TOPIC_ARN` | ❌ | ✅ |
+| `SES_SENDER` | ❌ | ✅ |
+
+**The worker needs all four**, because it publishes to SNS, sends the SES
+confirmation, *and* updates `sns_sent`/`ses_sent` on the order row. So the
+entire benefit is one-directional: the **backend** stops holding notification
+credentials it never uses. That is still worth doing — a compromised backend
+pod no longer leaks the topic ARN, which embeds the AWS account ID, or the
+verified sender address — but it is less than the finding's phrasing implies,
+and the doc says so rather than overclaiming.
+
+**How it was fixed.** `install-jenkins.sh` creates `backend-secrets` (two keys)
+and `worker-secrets` (four), and each chart points at its own via
+`existingSecret`.
+
+**The step that is easy to miss.** The script also runs:
+
+```bash
+kubectl delete secret app-secrets --namespace "$NAMESPACE" --ignore-not-found
+```
+
+On an upgrade of an existing cluster the old object would otherwise remain,
+still holding the full credential set and still readable by anything with
+`get secrets` in that namespace — making the whole fix cosmetic. T14.44 exists
+specifically to stop that line being dropped.
+
+**Note on an alternative considered.** Only `DB_PASSWORD` is truly secret;
+`SNS_TOPIC_ARN` and `SES_SENDER` are identifiers that could live in the
+worker's ConfigMap. That would mean fewer objects and stop mislabeling
+non-secrets as secrets. Splitting by workload was chosen instead because
+Secrets carry stricter default RBAC than ConfigMaps and the ARN does expose the
+account ID — keeping it in a Secret is the more conservative reading of the
+review.
+
+**Superseded by 2.6 if implemented.** With External Secrets Operator each
+workload gets an `ExternalSecret` naming exactly the keys it needs, so the
+sharing problem disappears rather than being divided.
+
+**Verification.** `shellcheck` clean; the example manifest parses as three
+valid documents; suite 134/134; T14.42-44 mutation-verified.
 
 ### 2.3 ✅ `grep`/`cut` parsing of `terraform.tfvars`
 
@@ -742,6 +790,7 @@ but 26.0.0 is what these results came from.
 | 4.6 | Backend NetworkPolicy egress to RDS uses the whole `/16` | §3.8 | Narrow to the DB subnet CIDRs |
 | 4.7 | `destroy.sh` verification is account-wide | §6.3 | Filter by project tags rather than `aws eks list-clusters` |
 | 4.8 | ✅ Functional test skip guard checked binaries but not privileges | (found in remediation) | Done — see below |
+| 4.9 | ✅ T7.1 failed intermittently: `tar` exits 1 if a file changes mid-copy, and CPython writes `.pyc` lazily after the pytest step | (found in remediation) | `run_mock_deploy.sh` now excludes `__pycache__`, `*.pyc` and `.pytest_cache` from the sandbox copy. Verified 5/5 with bytecode present, where it previously failed roughly 1 run in 10. Bytecode has no business in a copy meant to exercise the source |
 
 ### 4.8 ✅ Functional test failed on non-root developer machines
 
@@ -847,7 +896,8 @@ insurance rather than a defect to close.
 | **Done** | 2.4, 2.5 | Public request path hardened; dead CORS config removed |
 | **Done** | 3.3, 2.3 | XSS vectors closed; password read structurally |
 | **Done** | 3.4, 3.2 | gunicorn with startup/heartbeat handling; order state and idempotency |
-| **Next** | 2.2, 2.6, then the P3 list | Secret splitting, then External Secrets Operator |
+| **Done** | 2.2 | Per-workload Secrets; backend no longer holds SNS/SES credentials |
+| **Next** | P3 list, or 2.6 | 2.6 adds a runtime dependency — a deliberate decision, not a defect |
 | **Then** | 2.4, 2.5, 3.3 | Public-facing hardening — §8.5 |
 | **Before submission** | Section 5 evidence, 4.5 | §7 states every runtime claim is currently unverified |
 

@@ -38,7 +38,9 @@ config:                         # non-secret config → ConfigMap
   WORKER_URL: http://worker:5001   # K8s Service DNS — no IPs! (code appends /notify itself)
   PYTHONDONTWRITEBYTECODE: "1"  # nothing tries to write into the read-only image
 
-existingSecret: app-secrets     # created by scripts/create-secret.sh, NOT by Helm
+# REVIEW FIX 2.2 — was the shared "app-secrets". One Secret per workload:
+# DB_HOST + DB_PASSWORD only — the backend never calls SNS or SES.
+existingSecret: backend-secrets   # created by scripts/install-jenkins.sh, NOT by Helm
 
 networkPolicy:
   enabled: true

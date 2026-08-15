@@ -66,13 +66,36 @@ DB_PASSWORD=$(terraform output -raw db_password)
 
 kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
 kubectl label namespace "$NAMESPACE" "kubernetes.io/metadata.name=${NAMESPACE}" --overwrite >/dev/null
-kubectl create secret generic app-secrets \
+# REVIEW FIX 2.2 — one shared "app-secrets" object was replaced by one Secret
+# per workload. Previously both Deployments pulled the whole thing in via
+# `envFrom: secretRef`, so the backend held SNS_TOPIC_ARN and SES_SENDER
+# despite never touching SNS or SES.
+#
+# The gain is one-directional and worth stating plainly: the WORKER still needs
+# all four values, because it emails the customer AND updates sns_sent/ses_sent
+# on the order row. Only the backend's view actually narrows. That is still
+# worth doing — a compromised backend pod no longer leaks the notification
+# topic ARN (which embeds the account ID) or the verified sender address.
+kubectl create secret generic backend-secrets \
+    --namespace "$NAMESPACE" \
+    --from-literal=DB_HOST="$RDS_ADDRESS" \
+    --from-literal=DB_PASSWORD="$DB_PASSWORD" \
+    --dry-run=client -o yaml | kubectl apply -f -
+
+kubectl create secret generic worker-secrets \
     --namespace "$NAMESPACE" \
     --from-literal=DB_HOST="$RDS_ADDRESS" \
     --from-literal=DB_PASSWORD="$DB_PASSWORD" \
     --from-literal=SNS_TOPIC_ARN="$SNS_TOPIC_ARN" \
     --from-literal=SES_SENDER="$SES_SENDER" \
     --dry-run=client -o yaml | kubectl apply -f -
+
+# Remove the old shared object if this is an upgrade of an existing cluster.
+# Left in place it would keep the wide-open credentials readable by anything
+# with get-secrets in this namespace, so the fix would be cosmetic.
+# --ignore-not-found so a clean install does not fail here.
+kubectl delete secret app-secrets --namespace "$NAMESPACE" --ignore-not-found
+
 unset DB_PASSWORD
 
 # ------------------------------------------------------- 3. cluster add-ons

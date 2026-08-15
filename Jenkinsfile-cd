@@ -102,7 +102,7 @@ spec:
     environment {
         // Helm stores release history as Secrets by default, which would need
         // list/get on secrets. RBAC cannot scope `list` to one named object,
-        // so granting it would expose app-secrets. The configmap driver keeps
+        // so granting it would expose the application Secrets. The configmap driver keeps
         // history in ConfigMaps, which CD is already permitted to manage.
         HELM_DRIVER = 'configmap'
     }

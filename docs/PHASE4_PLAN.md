@@ -165,7 +165,7 @@ Developer pushes to GitHub
 | `jenkins-agent-ci` | push/scan images in ECR (IRSA) | **any** Kubernetes deploy; read Secrets |
 | `jenkins-agent-cd` | deploy the app in `devops-app` | push images; read Secrets |
 
-No identity can read `app-secrets`. Helm keeps release history in ConfigMaps
+No identity can read `backend-secrets` or `worker-secrets`. Helm keeps release history in ConfigMaps
 (`HELM_DRIVER=configmap`) precisely so that CD never needs Secret access.
 
 ---

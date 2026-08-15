@@ -5,7 +5,7 @@ metadata:
   labels:
     app: worker
 data:
-  # Non-secret configuration only — secrets live in the app-secrets Secret
+  # Non-secret configuration only — secrets live in the worker-secrets Secret
   {{- range $key, $val := .Values.config }}
   {{ $key }}: {{ $val | quote }}
   {{- end }}

@@ -38,7 +38,10 @@ config:
   DB_NAME: vmorders
   PYTHONDONTWRITEBYTECODE: "1"
 
-existingSecret: app-secrets
+# REVIEW FIX 2.2 — was the shared "app-secrets". One Secret per workload.
+# The worker legitimately needs all four keys: it publishes to SNS, sends the
+# SES confirmation, AND updates sns_sent/ses_sent on the order row in RDS.
+existingSecret: worker-secrets   # created by scripts/install-jenkins.sh, NOT by Helm
 
 networkPolicy:
   enabled: true

@@ -16,11 +16,20 @@ trap 'rm -rf "$WORK"' EXIT
 
 # Copy the repo, excluding state and the real tfvars — the sandbox gets the
 # example values, and the original is never opened.
+#
+# __pycache__/*.pyc are excluded for a subtler reason: tar exits 1 with
+# "file changed as we read it" if a file is written mid-copy, and CPython
+# writes .pyc files lazily after the suite's pytest step. That made this test
+# fail intermittently for reasons unrelated to deploy.sh. Bytecode has no
+# business in the sandbox copy anyway — deploy.sh should exercise the source.
 tar -C "$REPO" \
     --exclude='./.git' \
     --exclude='./terraform/.terraform' \
     --exclude='./terraform/terraform.tfvars' \
     --exclude='./terraform/terraform.tfstate*' \
+    --exclude='__pycache__' \
+    --exclude='*.pyc' \
+    --exclude='./.pytest_cache' \
     -cf - . | tar -C "$WORK" -xf -
 
 cp "$WORK/terraform/terraform.tfvars.example" "$WORK/terraform/terraform.tfvars"

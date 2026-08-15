@@ -218,8 +218,9 @@ t T12.2 "Dockerfiles: COPY --chmod (600-permission poisoning from zip)" bash -c 
 t T12.3 "checksum/config annotation (ConfigMap change must roll pods)" bash -c '
   grep -q "checksum/config" helm/backend/templates/deployment.yaml &&
   grep -q "checksum/config" helm/worker/templates/deployment.yaml'
-t T12.4 "app Secret created by bootstrap (Jenkins never sees the password)" bash -c '
-  grep -q "kubectl create secret generic app-secrets" scripts/install-jenkins.sh &&
+t T12.4 "app Secrets created by bootstrap (Jenkins never sees the password)" bash -c '
+  grep -q "kubectl create secret generic backend-secrets" scripts/install-jenkins.sh &&
+  grep -q "kubectl create secret generic worker-secrets" scripts/install-jenkins.sh &&
   grep -q "DB_PASSWORD" scripts/install-jenkins.sh &&
   [ ! -f scripts/create-secret.sh ] &&
   ! grep -q "DB_PASSWORD" Jenkinsfile'
@@ -504,6 +505,35 @@ t T14.41 "notification results recorded per channel" bash -c '
   grep -q "sns_sent" app/worker/worker.py &&
   grep -q "ses_sent" app/worker/worker.py &&
   ! grep -vE "^\s*(#|\*)" app/worker/worker.py | grep -q "if sns_sent or ses_sent:"'
+
+# REVIEW FIX 2.2 — one Secret per workload instead of a shared object.
+# The whole benefit is that the BACKEND stops holding notification credentials
+# it never uses; the worker legitimately needs all four keys. So the assertion
+# that matters is a NEGATIVE one about the backend.
+t T14.42 "backend Secret excludes notification credentials" python3 -c "
+import re
+src = open('scripts/install-jenkins.sh').read()
+m = re.search(r'kubectl create secret generic backend-secrets(.*?)dry-run', src, re.S)
+assert m, 'backend-secrets is not created by install-jenkins.sh'
+block = m.group(1)
+for leaked in ('SNS_TOPIC_ARN', 'SES_SENDER'):
+    assert leaked not in block, f'backend-secrets still carries {leaked}'
+for needed in ('DB_HOST', 'DB_PASSWORD'):
+    assert needed in block, f'backend-secrets is missing {needed}'
+"
+
+# Each chart must point at its OWN Secret. Both pointing at the same name would
+# reproduce the shared object under a new label.
+t T14.43 "each chart consumes its own Secret" bash -c '
+  grep -q "existingSecret: backend-secrets" helm/backend/values.yaml &&
+  grep -q "existingSecret: worker-secrets" helm/worker/values.yaml &&
+  ! grep -vE "^\s*#" helm/backend/values.yaml helm/worker/values.yaml | grep -q "existingSecret: app-secrets"'
+
+# An upgrade must REMOVE the old wide-open object. Leaving it behind would keep
+# the full credential set readable and make the fix cosmetic.
+t T14.44 "upgrade deletes the old shared Secret" bash -c '
+  grep -q "kubectl delete secret app-secrets" scripts/install-jenkins.sh &&
+  grep -q "ignore-not-found" scripts/install-jenkins.sh'
 
 t T14.27 "CD smoke test fails when the public URL does not serve" bash -c '
   grep -q "ALB_OK=1" Jenkinsfile-cd &&

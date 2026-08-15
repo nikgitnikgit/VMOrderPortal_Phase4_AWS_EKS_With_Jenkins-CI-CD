@@ -233,13 +233,27 @@ object without sending it, and `apply` then creates *or updates* it. The whole
 script can be re-run safely.
 
 ```bash
-kubectl create secret generic app-secrets \
+# REVIEW FIX 2.2 — one Secret per workload, not one shared object.
+kubectl create secret generic backend-secrets \
     --from-literal=DB_HOST="$RDS_ADDRESS" \
     --from-literal=DB_PASSWORD="$DB_PASSWORD" \
-    ...
     --dry-run=client -o yaml | kubectl apply -f -
+
+kubectl create secret generic worker-secrets \
+    --from-literal=DB_HOST="$RDS_ADDRESS" \
+    --from-literal=DB_PASSWORD="$DB_PASSWORD" \
+    --from-literal=SNS_TOPIC_ARN="$SNS_TOPIC_ARN" \
+    --from-literal=SES_SENDER="$SES_SENDER" \
+    --dry-run=client -o yaml | kubectl apply -f -
+
+kubectl delete secret app-secrets --ignore-not-found   # remove the old shared object
 unset DB_PASSWORD
 ```
+
+The backend never calls SNS or SES, so it no longer holds those values. The
+worker does need all four — it emails the customer *and* updates
+`sns_sent`/`ses_sent` on the order row — so the split narrows the backend's
+view rather than both.
 
 **This is the security-critical part of the project.** The password is read on
 *your* machine, sent straight to the Kubernetes API, and the variable is unset
@@ -1273,7 +1287,7 @@ create one.
 deploys an application whose database password it cannot read. It is also why
 both pipelines set `HELM_DRIVER=configmap` — Helm's default storage would
 require `list` on secrets, and RBAC cannot scope `list` to a single named
-object, so granting it would expose `app-secrets`.
+object, so granting it would expose the application Secrets.
 
 ```yaml
 subjects:
@@ -1746,12 +1760,13 @@ envFrom:
   - configMapRef:
       name: {{ .Release.Name }}-config
   - secretRef:
-      name: app-secrets
+      name: {{ .Values.existingSecret }}
 ```
 
 Non-secret configuration comes from a ConfigMap rendered by the chart; secrets
-come from `app-secrets`, which **already exists** because `install-jenkins.sh`
-created it. Helm references it and never creates it — which is exactly why
+come from `backend-secrets` or `worker-secrets` (chosen per chart by
+`existingSecret`), which **already exist** because `install-jenkins.sh`
+created them. Helm references it and never creates it — which is exactly why
 Jenkins needs no access to Secrets.
 
 ---
