@@ -7,7 +7,7 @@
 # Runs as a non-root user. Pinned base image, never :latest. This image is
 # itself scanned by Trivy in install-jenkins.sh before it is pushed.
 
-FROM debian:12.9-slim
+FROM debian:12.9-slim@sha256:12c396bd585df7ec21d5679bb6a83d4878bc4415ce926c9e5ea6426d23c60bdc
 
 # REVIEW FIX 1.3 (hadolint DL4006) — several RUN steps below pipe `curl` into
 # `tar`. The default /bin/sh reports only the exit status of the LAST command

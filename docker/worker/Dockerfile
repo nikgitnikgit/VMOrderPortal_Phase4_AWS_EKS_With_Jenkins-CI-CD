@@ -1,7 +1,7 @@
 # docker/worker/Dockerfile
 # Build from the REPO ROOT:  docker build -f docker/worker/Dockerfile -t vm-order-worker:1.0.0 .
 # Pinned base image — never "latest" (course requirement + reproducible builds)
-FROM python:3.12-slim
+FROM python:3.12-slim@sha256:dd29372629eeba2dd003fd9e9d35a5b8236c44727875a0364254b5127af88e65
 
 WORKDIR /app
 
