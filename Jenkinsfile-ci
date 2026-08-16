@@ -111,6 +111,9 @@ spec:
       image: aquasec/trivy:0.58.2
       command: ["sleep"]
       args: ["infinity"]
+      env:
+        - name: HOME
+          value: /tmp
       resources:
         requests: { cpu: "200m", memory: "512Mi" }
         limits:   { cpu: "1",    memory: "2Gi" }
