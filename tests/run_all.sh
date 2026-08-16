@@ -881,6 +881,27 @@ t T15.15 "PR builds never push to the registry" bash -c '
   grep -q "IS_PR" Jenkinsfile-ci &&
   grep -A2 "stage(.Push" Jenkinsfile-ci | grep -q "IS_PR"'
 
+# The build stage writes image tarballs to an absolute path OUTSIDE the
+# per-branch job workspace, so every later stage that touches them has to name
+# that same absolute path. The scan stage originally used a bare relative
+# filename, which resolves against the job workspace instead -- a sibling
+# directory -- so trivy failed with 'no such file or directory' and the gate
+# never actually ran. Three places must agree: the build --output dest=, the
+# scan --input, and the post-always cleanup.
+t T15.17 "image tarball path agrees across build, scan and cleanup stages" python3 -c "
+import re
+ci = open('Jenkinsfile-ci').read()
+dest  = re.search(r'dest=(\S*?)vm-order-', ci)
+scan  = re.search(r'def tar = \"([^\"]*?)vm-order-', ci)
+clean = re.search(r'rm -f (\S*?)\*\.tar', ci)
+assert dest,  'build stage: no dest= tarball path found'
+assert scan,  'scan stage: no tarball path found'
+assert clean, 'cleanup: no tarball rm found'
+assert scan.group(1).startswith('/'), \
+    f'scan path {scan.group(1)!r} is relative: resolves to the job workspace, not the build dir'
+assert dest.group(1) == scan.group(1) == clean.group(1), \
+    f'paths disagree: build={dest.group(1)!r} scan={scan.group(1)!r} cleanup={clean.group(1)!r}'"
+
 t T15.16 "documentation references no deleted or missing file" python3 tests/check_doc_links.py
 
 echo "=== T16: The tests test the tests ==="

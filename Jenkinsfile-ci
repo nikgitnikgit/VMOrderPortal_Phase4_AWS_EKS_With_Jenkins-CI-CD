@@ -101,6 +101,25 @@ spec:
       securityContext:
         runAsUser: 1000
         runAsGroup: 1000
+        # Rootless BuildKit's rootlesskit helper writes a UID/GID map for its
+        # nested user namespace by shelling out to the setuid-root
+        # newuidmap/newgidmap binaries. Granting SETUID/SETGID directly
+        # (tried first, see git history) was NOT enough on its own: this
+        # version of rootlesskit does not skip newuidmap/newgidmap just
+        # because the parent process already holds the capability — it
+        # invokes them unconditionally. Executing a setuid binary at all is
+        # blocked by allowPrivilegeEscalation: false regardless of held
+        # capabilities: the kernel clears the process's ambient capability
+        # set on exec of any setuid program specifically so a granted
+        # capability cannot be used to route around no_new_privs. So the
+        # setuid transition itself has to be permitted.
+        #
+        # This container never gains a privilege beyond what a normal build
+        # tool needs: it is still runAsUser 1000 (never root on the node),
+        # confined to its own nested user namespace, scoped by RBAC/IRSA/
+        # NetworkPolicy/node-taint like every other Jenkins agent container,
+        # and it is not the far larger `privileged: true` Docker-in-Docker
+        # alternative this project deliberately avoids.
         allowPrivilegeEscalation: true
         seccompProfile:
           type: Unconfined
@@ -112,6 +131,13 @@ spec:
       command: ["sleep"]
       args: ["infinity"]
       env:
+        # runAsUser: 1000 below has no matching /etc/passwd entry in this
+        # image, so nothing sets $HOME sensibly and it falls back to "/".
+        # Trivy writes its scan cache to $HOME/.cache, which then resolves
+        # to /.cache — the container's actual filesystem root, owned by
+        # root and unwritable by UID 1000 ("mkdir /.cache: permission
+        # denied"). /tmp is writable by any UID in this image, so pointing
+        # HOME there needs no extra volume.
         - name: HOME
           value: /tmp
       resources:
@@ -285,7 +311,17 @@ spec:
                 container('trivy') {
                     script {
                         for (svc in ['frontend', 'backend', 'worker']) {
-                            def tar = "vm-order-${svc}.tar"
+                            // The build stage writes tarballs to a fixed
+                            // absolute path (/home/jenkins/agent/workspace/*.tar),
+                            // deliberately outside the per-branch job workspace
+                            // (see the cleanup step, same path). A bare relative
+                            // filename here resolves against the trivy
+                            // container's actual cwd -- the job workspace
+                            // (e.g. .../workspace/application-ci_main) -- which
+                            // is a different, sibling directory, so trivy can't
+                            // find it ("no such file or directory"). Match the
+                            // absolute path the build stage actually used.
+                            def tar = "/home/jenkins/agent/workspace/vm-order-${svc}.tar"
                             // SBOM first (never fails), then the gate.
                             sh """
                                 trivy image --input ${tar} \\
