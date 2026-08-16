@@ -102,6 +102,8 @@ spec:
         runAsUser: 1000
         runAsGroup: 1000
         allowPrivilegeEscalation: false
+        capabilities:
+          add: ["SETUID", "SETGID"]
         seccompProfile:
           type: Unconfined
       volumeMounts:
