@@ -746,7 +746,7 @@ for path,names in paths.items():
     assert len(names)==1, f'{path} mounted from different volumes: {names}'
 assert '/home/jenkins/agent' not in paths, 'do not mount over the plugin workspace'"
 
-t T14.19 "rootless BuildKit has the three settings it needs" python3 -c "
+t T14.19 "rootless BuildKit has the four settings it needs" python3 -c "
 import re, yaml
 y=re.search(r'yaml \"\"\"\n(.*?)\n\"\"\"', open('Jenkinsfile-ci').read(), re.S).group(1)
 y=re.sub(r'\\\\$\{env\.\w+\}','X',y)
@@ -757,6 +757,14 @@ bk=[c for c in pod['spec']['containers'] if c['name']=='buildkit'][0]
 env={e['name']:e['value'] for e in bk.get('env',[])}
 assert '--oci-worker-no-process-sandbox' in env.get('BUILDKITD_FLAGS',''), 'missing no-process-sandbox'
 assert bk['securityContext']['seccompProfile']['type']=='Unconfined', 'missing seccomp Unconfined'
+# newuidmap/newgidmap (rootlesskit's UID/GID map helpers) run as setuid-root
+# and are invoked unconditionally by this rootlesskit version — granting
+# SETUID/SETGID capabilities alone does NOT make it skip them (tried and
+# ruled out live: identical 'Could not set caps' failure either way).
+# allowPrivilegeEscalation: false blocks the setuid transition itself via
+# no_new_privs, regardless of held capabilities, so the setuid transition has
+# to be permitted for this one container.
+assert bk['securityContext']['allowPrivilegeEscalation'] is True, 'missing allowPrivilegeEscalation for newuidmap/newgidmap'
 assert 'privileged' not in bk['securityContext'], 'must NOT be privileged'"
 
 t T14.20 "Helm uses configmap driver so RBAC never needs secrets" python3 -c "
@@ -846,6 +854,13 @@ t T15.12 "no Docker socket is mounted anywhere" bash -c '
   ! grep -rq "docker.sock" Jenkinsfile-ci Jenkinsfile-cd jenkins/'
 t T15.13 "agent containers declare resources and drop capabilities" python3 -c "
 import re, yaml
+# buildkit is a single, named exception, not a loosened rule: rootless
+# BuildKit's newuidmap/newgidmap need allowPrivilegeEscalation: true to run
+# at all (see T14.19 for why). Every other agent container in both
+# Jenkinsfiles must still have it strictly false — this test asserts BOTH
+# directions, so it fails just as loudly if the exception ever spreads to a
+# container that should not have it, or disappears from the one that needs it.
+EXEMPT = {('Jenkinsfile-ci', 'buildkit')}
 for f in ['Jenkinsfile-ci','Jenkinsfile-cd']:
     y=re.search(r'yaml \"\"\"\n(.*?)\n\"\"\"', open(f).read(), re.S).group(1)
     y=re.sub(r'\\\\$\{env\.\w+\}','X',y)
@@ -853,7 +868,10 @@ for f in ['Jenkinsfile-ci','Jenkinsfile-cd']:
     for c in pod['spec']['containers']:
         assert 'resources' in c, f'{f}: {c[\"name\"]} has no resources'
         sc=c.get('securityContext',{})
-        assert sc.get('allowPrivilegeEscalation') is False, f'{f}: {c[\"name\"]} allows privilege escalation'
+        if (f, c['name']) in EXEMPT:
+            assert sc.get('allowPrivilegeEscalation') is True, f'{f}: {c[\"name\"]} expected the documented newuidmap exception'
+        else:
+            assert sc.get('allowPrivilegeEscalation') is False, f'{f}: {c[\"name\"]} allows privilege escalation'
         assert 'privileged' not in sc, f'{f}: {c[\"name\"]} is privileged'"
 t T15.14 "NetworkPolicies defined for the jenkins namespace" bash -c '
   [ -f jenkins/networkpolicy.yaml ] &&
