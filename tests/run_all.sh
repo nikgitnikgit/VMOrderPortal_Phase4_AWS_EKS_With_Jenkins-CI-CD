@@ -838,6 +838,26 @@ t T14.22 "every kubectl resource the pipeline requests is granted in RBAC" pytho
 t T14.23 "Jenkins agent IAM allows scoped S3 write for build evidence" bash -c '
   grep -q "s3:PutObject" terraform/modules/irsa/main.tf &&
   grep -q "builds/\*" terraform/modules/irsa/main.tf'
+
+# Every prefix the pipelines LIST needs s3:ListBucket on the bucket arn --
+# an object-level PutObject/GetObject grant does not authorise ListObjectsV2.
+# CD uploaded its evidence fine and then failed listing it back, because only
+# PutObject was granted. The listing grant must stay prefix-scoped: this bucket
+# holds customer orders, and an unconditional ListBucket would let the pipeline
+# enumerate all of them.
+t T14.61 "S3 evidence listing is granted, and scoped to its prefix" python3 -c "
+import re
+tf=open('terraform/modules/irsa/main.tf').read()
+cd=open('Jenkinsfile-cd').read()
+if 's3 ls' in cd:
+    # Anchor on the Action line, not a bare substring: the surrounding comment
+    # mentions s3:ListBucket too, and matching that would test the prose.
+    m=re.search(r'Action\s*=\s*\[\"s3:ListBucket\"\]', tf)
+    assert m, 'Jenkinsfile-cd lists an S3 prefix but no role is granted s3:ListBucket'
+    stmt=tf[m.end():m.end()+400]
+    assert 's3:prefix' in stmt, \
+        's3:ListBucket granted without an s3:prefix condition — that lists the whole orders bucket'
+    assert 'deployments/' in stmt, 's3:prefix condition does not name the deployments prefix'"
 t T14.24 "S3 upload failures are not masked with || true" python3 -c "
 import re
 body=open('Jenkinsfile-cd').read()

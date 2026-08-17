@@ -268,6 +268,26 @@ resource "aws_iam_role_policy" "jenkins_cd" {
         Effect   = "Allow"
         Action   = ["s3:PutObject"]
         Resource = "${var.s3_bucket_arn}/deployments/*"
+      },
+      {
+        # PutObject alone is not enough: the Record deployment stage lists the
+        # prefix back to prove the evidence actually landed, and ListObjectsV2
+        # is authorised by s3:ListBucket on the BUCKET arn — not by an object
+        # grant. Uploads succeeded while the listing returned AccessDenied.
+        #
+        # Scoped by prefix condition rather than granted outright. This bucket
+        # holds customer orders; a bare ListBucket would let CD enumerate every
+        # object in it. The condition confines listing to deployments/, which
+        # is the only prefix CD writes.
+        Sid      = "S3DeploymentEvidenceList"
+        Effect   = "Allow"
+        Action   = ["s3:ListBucket"]
+        Resource = var.s3_bucket_arn
+        Condition = {
+          StringLike = {
+            "s3:prefix" = ["deployments/*"]
+          }
+        }
       }
     ]
   })
