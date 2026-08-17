@@ -767,6 +767,26 @@ assert bk['securityContext']['seccompProfile']['type']=='Unconfined', 'missing s
 assert bk['securityContext']['allowPrivilegeEscalation'] is True, 'missing allowPrivilegeEscalation for newuidmap/newgidmap'
 assert 'privileged' not in bk['securityContext'], 'must NOT be privileged'"
 
+# The agent pod spec lives inside a Groovy GString (yaml """..."""), so Groovy
+# interpolates it BEFORE Kubernetes sees it. A bare $NAME is valid interpolation
+# syntax, so it is resolved against the pipeline binding -- even inside a YAML
+# comment, which Groovy has no concept of. A prose mention of $HOME in a comment
+# killed every build with "No such property: HOME for class: groovy.lang.Binding"
+# before a single stage ran, and every YAML-parsing test here stayed green
+# because they read the block as text and never evaluate interpolation.
+# Only ${env.X} is legitimate; anything else must be escaped or reworded.
+t T14.58 "pod YAML has no accidental Groovy interpolation" python3 -c "
+import re
+for f in ['Jenkinsfile-ci','Jenkinsfile-cd']:
+    y=re.search(r'yaml \"\"\"\n(.*?)\n\"\"\"', open(f).read(), re.S).group(1)
+    for m in re.finditer(r'(?<!\\\\)\\\$(\{)?\s*([A-Za-z_][\w.]*)?', y):
+        expr=m.group(0)
+        ok=m.group(1)=='{' and (m.group(2) or '').startswith('env.')
+        assert ok, (
+            f'{f}: bare Groovy interpolation {expr!r} in the pod YAML -- '
+            'Groovy resolves this against the build binding before Kubernetes '
+            'sees it. Escape it as \\\\\$ or reword (comments are NOT exempt).')"
+
 t T14.20 "Helm uses configmap driver so RBAC never needs secrets" python3 -c "
 cd=open('Jenkinsfile-cd').read()
 assert 'HELM_DRIVER' in cd and 'configmap' in cd, 'CD must set HELM_DRIVER=configmap'

@@ -132,12 +132,16 @@ spec:
       args: ["infinity"]
       env:
         # runAsUser: 1000 below has no matching /etc/passwd entry in this
-        # image, so nothing sets $HOME sensibly and it falls back to "/".
-        # Trivy writes its scan cache to $HOME/.cache, which then resolves
-        # to /.cache — the container's actual filesystem root, owned by
-        # root and unwritable by UID 1000 ("mkdir /.cache: permission
-        # denied"). /tmp is writable by any UID in this image, so pointing
-        # HOME there needs no extra volume.
+        # image, so nothing sets the HOME variable sensibly and it falls
+        # back to "/". Trivy writes its scan cache under HOME/.cache, which
+        # then resolves to /.cache — the container's actual filesystem root,
+        # owned by root and unwritable by UID 1000 ("mkdir /.cache:
+        # permission denied"). /tmp is writable by any UID in this image, so
+        # pointing HOME there needs no extra volume.
+        #
+        # NOTE: this whole block is a Groovy GString. Do not write a bare
+        # dollar sign here, not even inside a comment — Groovy interpolates
+        # it before Kubernetes ever sees the YAML. See T14.58.
         - name: HOME
           value: /tmp
       resources:
