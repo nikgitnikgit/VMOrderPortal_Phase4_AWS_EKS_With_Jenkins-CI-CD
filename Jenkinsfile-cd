@@ -334,21 +334,62 @@ spec:
                             exit 1
                         fi
 
-                        # A new ALB takes 2-3 minutes to become healthy, so
-                        # retry — but record whether it EVER succeeded.
+                        # A brand-new ALB is NOT reachable the moment the
+                        # Ingress reports a hostname. The controller fills in
+                        # status.loadBalancer as soon as the ALB is CREATED,
+                        # but it then has to reach "active", register the pod
+                        # IPs as targets, pass health checks, and — slowest of
+                        # all — have its DNS name propagate. On a first deploy
+                        # that routinely runs 3-5 minutes.
+                        #
+                        # The old budget was 12 x 10s = 2 minutes, which
+                        # contradicted this comment's own "2-3 minutes"
+                        # estimate. It expired while DNS was still propagating
+                        # and rolled back a deployment whose in-cluster checks
+                        # (1/3 and 2/3 above) had both just passed. Symptom:
+                        # every curl failing instantly rather than timing out,
+                        # which is DNS refusing to resolve, not the ALB
+                        # refusing to serve.
+                        #
+                        # This does NOT weaken REVIEW FIX 3.1b: ALB_OK stays 0
+                        # unless a request genuinely succeeds, the budget is
+                        # still bounded, and it still exits 1 and rolls back.
+                        # Only the budget grew. See T14.59.
+                        # Since REVIEW FIX 4.4 the ALB redirects 80 -> 443, and
+                        # `curl -sf` treats a 301 as SUCCESS — --fail only
+                        # trips on >= 400. The old probe therefore went green
+                        # on the redirect alone, having never reached a pod:
+                        # the ALB emits that redirect at the LISTENER, before
+                        # it selects a target, so this passed even with every
+                        # pod dead. That is the same false-success shape
+                        # REVIEW FIX 3.1b removed, reappearing one layer down.
+                        #
+                        # So: follow the redirect and demand exactly 200.
+                        # -k is required and safe here — create-cert.sh issues
+                        # a deliberately SELF-SIGNED certificate, so chain
+                        # verification can never succeed. This check asks "does
+                        # the app serve?", not "is the issuer trusted?".
+                        # See T14.60.
                         ALB_OK=0
-                        for i in $(seq 1 12); do
-                            if curl -sf --max-time 10 "http://${ALB}/healthz" > /dev/null; then
-                                echo "    public URL OK: http://${ALB}"
+                        ATTEMPTS=30
+                        for i in $(seq 1 "$ATTEMPTS"); do
+                            CODE=$(curl -s -o /dev/null -w '%{http_code}' -L -k \
+                                --max-time 10 "http://${ALB}/healthz" 2>/dev/null || echo 000)
+                            if [ "$CODE" = "200" ]; then
+                                echo "    public URL OK: http://${ALB} (200 after redirect)"
                                 ALB_OK=1
                                 break
                             fi
-                            echo "    waiting for ALB to serve ($i/12)"
+                            if getent hosts "$ALB" > /dev/null 2>&1; then
+                                echo "    DNS resolves, ALB returned $CODE, waiting ($i/$ATTEMPTS)"
+                            else
+                                echo "    waiting for ALB DNS to propagate ($i/$ATTEMPTS)"
+                            fi
                             sleep 10
                         done
 
                         if [ "$ALB_OK" -ne 1 ]; then
-                            echo "    FAIL: http://${ALB}/healthz never returned 200 after 2 minutes."
+                            echo "    FAIL: http://${ALB}/healthz never returned 200 after 5 minutes."
                             echo "    The deployment is NOT serving traffic. Rolling back."
                             exit 1
                         fi

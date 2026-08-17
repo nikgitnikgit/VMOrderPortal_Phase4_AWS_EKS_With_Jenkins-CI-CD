@@ -691,6 +691,38 @@ t T14.27 "CD smoke test fails when the public URL does not serve" bash -c '
   grep -q "ALB_OK=1" Jenkinsfile-cd &&
   grep -q "ALB_OK. -ne 1" Jenkinsfile-cd &&
   ! grep -q "skipping external check" Jenkinsfile-cd'
+# The counterpart to T14.27. That test keeps the smoke check CAPABLE of
+# failing; this one keeps it from failing SPURIOUSLY. A first deploy creates
+# the ALB from scratch, and its DNS name needs 3-5 minutes to propagate -- the
+# Ingress reports a hostname long before that. A 2-minute budget expired mid
+# propagation and rolled back a healthy deployment. Keep at least 4 minutes,
+# or the rollback fires on ALB warm-up rather than on a real fault.
+# The third guard on this one check. T14.27 keeps it capable of failing,
+# T14.59 keeps it from failing spuriously, and this keeps it from PASSING
+# spuriously. Since the ALB redirects 80 -> 443, `curl -sf` returns 0 on the
+# 301 (--fail only trips on >= 400) -- so the probe reported success without
+# ever reaching a pod, because the ALB serves that redirect at the listener
+# before selecting a target. Verified against a local 301: `curl -sf` exits 0.
+t T14.60 "CD smoke test is not satisfied by a 30x redirect" python3 -c "
+cd=open('Jenkinsfile-cd').read()
+i=cd.index('3/3 public ALB')
+blk=cd[i:i+8000]
+assert 'http_code' in blk, 'ALB probe never captures an HTTP status code'
+assert '\"200\"' in blk, 'ALB probe does not require exactly 200'
+assert ' -L ' in blk, 'ALB probe does not follow the 80->443 redirect'
+assert 'curl -sf --max-time' not in blk, \
+    'bare curl -sf exits 0 on a 301: it would pass on the redirect alone'"
+
+t T14.59 "CD smoke test waits long enough for a cold ALB" python3 -c "
+import re
+cd=open('Jenkinsfile-cd').read()
+n=re.search(r'ATTEMPTS=(\d+)', cd)
+s=re.search(r'sleep (\d+)\s*\n\s*done', cd)
+assert n, 'smoke test has no ATTEMPTS budget'
+assert s, 'smoke test retry loop has no sleep'
+budget=int(n.group(1))*int(s.group(1))
+assert budget >= 240, f'ALB retry budget is only {budget}s; a cold ALB needs 3-5 min'"
+
 t T14.11 "agent-tools image has its own ECR repo (not squatting in an app repo)" bash -c '
   grep -q "jenkins-agent" terraform/main.tf &&
   grep -q "vm-order-jenkins-agent" scripts/install-jenkins.sh'
