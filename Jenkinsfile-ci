@@ -514,10 +514,7 @@ EOF
             echo "CI FAILED — nothing was promoted, application-cd was not triggered."
             // Email notification (bonus). No secret is interpolated into the
             // body: only build metadata and a link back to Jenkins.
-            emailext(
-                to: "${env.NOTIFICATION_EMAIL}",
-                subject: "CI FAILED - vm-order-portal #${env.BUILD_NUMBER} (${env.GIT_SHA})",
-                body: """The CI pipeline failed. No image was promoted and
+            notify("CI FAILED - vm-order-portal #${env.BUILD_NUMBER} (${env.GIT_SHA})", """The CI pipeline failed. No image was promoted and
 application-cd was NOT triggered.
 
   Build   : ${env.BUILD_NUMBER}
@@ -530,11 +527,67 @@ Scan reports and the SBOM are attached to the build as artifacts.
             )
         }
         fixed {
-            emailext(
-                to: "${env.NOTIFICATION_EMAIL}",
-                subject: "CI recovered - vm-order-portal #${env.BUILD_NUMBER}",
-                body: "CI is green again at commit ${env.GIT_FULL}.\n${env.BUILD_URL}"
+            notify("CI recovered - vm-order-portal #${env.BUILD_NUMBER}", "CI is green again at commit ${env.GIT_FULL}.\n${env.BUILD_URL}"
             )
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// notify — build notifications without a stored secret.
+//
+// Replaces emailext. The mailer was pointed at SES SMTP on port 587, which the
+// jenkins-controller NetworkPolicy never permitted (its only internet egress
+// is 443), so every send failed with "SMTP connection error". It could not
+// have worked even with the port open: no SMTP credential was configured
+// anywhere, and the create-smtp-secret.sh referenced in configure-jenkins.sh
+// does not exist. email-ext never fails a build over a delivery failure, so
+// the stage stayed green while nothing was ever delivered.
+//
+// SNS instead: the topic already carries the email subscription, it is reached
+// over HTTPS 443 (already allowed for agents), and it is authorised by IRSA —
+// so no SMTP username and password have to exist. That is what the bonus asks
+// for: notifications "without exposing secrets".
+//
+// A publish failure marks the build UNSTABLE rather than passing silently or
+// failing the deploy. A notification is not worth failing a good deployment
+// over, but it must never again look like it succeeded when it did not.
+def notify(String subject, String message) {
+    // container('tools') needs a node context. post{} blocks run WITHOUT one
+    // when the build died before the agent pod existed -- a Groovy error in
+    // the pod YAML does exactly that, and it is the case where a notification
+    // matters most. emailext ran on the controller and never needed a node, so
+    // moving to an agent-side publish introduced this exposure.
+    //
+    // Without the guard the post block throws
+    //   MissingContextVariableException: Required context class hudson.model.Node
+    // which is how a real build already failed here once.
+    try {
+        container('tools') {
+            withEnv(["NOTIFY_SUBJECT=${subject}", "NOTIFY_MESSAGE=${message}"]) {
+                def rc = sh(returnStatus: true, script: '''
+                    if [ -z "${SNS_TOPIC_ARN:-}" ]; then
+                        echo "SNS_TOPIC_ARN is not set — cannot notify."
+                        exit 1
+                    fi
+                    aws sns publish \
+                        --topic-arn "$SNS_TOPIC_ARN" \
+                        --region "$AWS_REGION" \
+                        --subject "$NOTIFY_SUBJECT" \
+                        --message "$NOTIFY_MESSAGE" \
+                        --output text > /dev/null
+                    echo "notification published to $SNS_TOPIC_ARN"
+                ''')
+                if (rc != 0) {
+                    unstable("notification failed (aws sns publish exit ${rc})")
+                }
+            }
+        }
+    } catch (Exception e) {
+        // No agent to publish from. Say so loudly in the log and mark the build
+        // UNSTABLE rather than letting the post block explode, which would bury
+        // the ORIGINAL failure behind a stack trace.
+        echo "NOTIFICATION NOT SENT — no agent context (the build failed before the pod started). Subject was: ${subject}"
+        unstable("notification could not be sent: no agent context")
     }
 }

@@ -125,7 +125,7 @@ export GITHUB_TOKEN=ghp_xxxxxxxx             # optional but recommended
 |---|---|
 | `db_password` | RDS master password. Rejects `/`, `@`, `"` and spaces. Never committed — the file is gitignored |
 | `s3_bucket_name` | Must be globally unique across all of AWS, and lowercase. Add a random suffix |
-| `notification_email` | Where SNS order alerts and Jenkins build emails go |
+| `notification_email` | Where SNS order alerts and Jenkins build notifications go |
 | `ses_sender` | The SES address you verified in §2 |
 | `github_repo_url` | Your fork's HTTPS clone URL. Jenkins clones from here and the webhook is registered against it |
 | `api_public_access_cidrs` | Who may reach the Kubernetes API from the internet. See §10.1 — **list two addresses, not one** |
@@ -236,7 +236,8 @@ are gated on `IS_PR != true`, so an unapproved PR can never reach the registry
 or the cluster.
 
 **Failure behaviour.** Any failing stage fails the build, so the push never
-happens and `application-cd` is never triggered. An email is sent. The
+happens and `application-cd` is never triggered. A notification is published
+to SNS, which forwards it to the subscribed address. The
 workspace and the ECR token are removed in `post { always }`.
 
 ---
@@ -307,15 +308,15 @@ Nothing sensitive is committed. `terraform.tfvars`, `*.tfstate`, `backend.tf`,
 | AWS credentials | **do not exist** — IRSA only | anywhere |
 | ECR token | generated per build, RAM-only, ~12 h | disk, Git, Jenkins |
 | GitHub token | `$GITHUB_TOKEN` or `~/.github_token` on your machine | the cluster, Jenkins, Git |
-| SES SMTP | Kubernetes Secret `jenkins-smtp` | Git |
+| Build notifications | **no credential exists** — SNS via IRSA | anywhere |
 
 Shapes and rotation/revocation procedures for every one:
 [`jenkins/secret.example.yaml`](jenkins/secret.example.yaml).
 Example Jenkins values: [`jenkins/values.example.yaml`](jenkins/values.example.yaml).
 
 **Masking.** No pipeline echoes a secret. The ECR token is written with
-`umask 077` and `chmod 600`, never printed, and `unset` immediately. Email
-bodies contain only build metadata and links.
+`umask 077` and `chmod 600`, never printed, and `unset` immediately.
+Notification bodies contain only build metadata and links.
 
 ---
 

@@ -50,7 +50,7 @@ DB_SUBNET_CIDRS=$(terraform output -json db_subnet_cidrs | tr -d '[]" ' )
 BACKEND_ROLE_ARN=$(terraform output -raw backend_irsa_role_arn)
 WORKER_ROLE_ARN=$(terraform output -raw worker_irsa_role_arn)
 NOTIFICATION_EMAIL=$(terraform output -raw notification_email)
-SES_SENDER=$(terraform output -raw ses_sender)
+SNS_TOPIC_ARN=$(terraform output -raw sns_topic_arn)
 
 [ -n "$NODE_GROUP" ]  || NODE_GROUP="${CLUSTER_NAME}-jenkins-nodes"
 [ -n "$TOOLS_IMAGE" ] || TOOLS_IMAGE="${ECR_REGISTRY}/vm-order-jenkins-agent:tools-1.1"
@@ -139,22 +139,24 @@ controller:
                     value: "${GITHUB_REPO_URL}"
                   - key: NOTIFICATION_EMAIL
                     value: "${NOTIFICATION_EMAIL}"
-      # Email notifications (bonus). SES SMTP credentials are supplied as a
-      # Kubernetes Secret by create-smtp-secret.sh, never stored in Git.
-      mail: |
-        unclassified:
-          # NOTE: adminAddress does NOT belong here. The mailer plugin
-          # deprecated it and JCasC now refuses to start with
-          # "Failed to configure 'mailer': 'adminAddress' is deprecated".
-          # The admin address moved to unclassified.location, below.
-          mailer:
-            smtpHost: "email-smtp.${AWS_REGION}.amazonaws.com"
-            smtpPort: "587"
-            useTls: true
-            charset: "UTF-8"
-            replyToAddress: "${SES_SENDER}"
-          location:
-            adminAddress: "${SES_SENDER}"
+                  # Build notifications (bonus) go to this SNS topic, which
+                  # already carries the email subscription. See the notify()
+                  # helper at the foot of both Jenkinsfiles for why this
+                  # replaced SES SMTP: the mailer needed port 587, which the
+                  # jenkins-controller NetworkPolicy has never permitted (only
+                  # 443 leaves the controller), and it had no credential
+                  # either — the create-smtp-secret.sh once referenced here
+                  # does not exist, and Terraform creates no SES resources.
+                  # Every send failed with "SMTP connection error" while the
+                  # stage stayed green, because email-ext does not fail a
+                  # build over a delivery failure.
+                  #
+                  # SNS needs no SMTP username or password at all: the agents
+                  # publish over HTTPS 443 authorised by IRSA, which is what
+                  # the bonus asks for — notifications without exposing
+                  # secrets.
+                  - key: SNS_TOPIC_ARN
+                    value: "${SNS_TOPIC_ARN}"
       # The two jobs, defined as code via Job DSL. The seed script lives in
       # jenkins/jobs/ so it can be reviewed like any other source file.
       jobs: |

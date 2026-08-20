@@ -38,11 +38,11 @@ flowchart TB
     HANDOFF --> D1
     REG -.->|"the same artifact CI scanned — never rebuilt"| D3
 
-    FAILCI["<b>CI FAILED</b><br/>nothing pushed to the registry<br/>application-cd never triggered<br/>email notification sent"]
+    FAILCI["<b>CI FAILED</b><br/>nothing pushed to the registry<br/>application-cd never triggered<br/>SNS notification sent"]
     C2 -.->|a test fails| FAILCI
     C3 -.->|CRITICAL vulnerability| FAILCI
 
-    FAILCD["<b>ROLLBACK</b><br/>collect events and pod logs <i>first</i><br/>then helm rollback x3<br/>build FAILED · email sent"]
+    FAILCD["<b>ROLLBACK</b><br/>collect events and pod logs <i>first</i><br/>then helm rollback x3<br/>build FAILED · SNS notification"]
     D4 -.->|rollout or smoke test fails| FAILCD
 
     LIVE(["<b>Application live in devops-app</b><br/>fully traceable:<br/>CD build → CI build → commit → image digest"])

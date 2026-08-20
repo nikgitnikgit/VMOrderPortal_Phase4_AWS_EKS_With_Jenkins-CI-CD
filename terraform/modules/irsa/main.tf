@@ -202,6 +202,17 @@ resource "aws_iam_role_policy" "jenkins_ci" {
         Effect   = "Allow"
         Action   = ["s3:PutObject"]
         Resource = "${var.s3_bucket_arn}/builds/*"
+      },
+      {
+        # Build notifications. The pipelines publish to the SNS topic that
+        # already has the email subscription, rather than speaking SMTP to
+        # SES: SNS is reached over HTTPS 443, which the agent NetworkPolicy
+        # already permits, and it is authorised by IRSA, so no SMTP username
+        # and password have to exist anywhere. Scoped to our topic only.
+        Sid      = "SnsBuildNotifications"
+        Effect   = "Allow"
+        Action   = ["sns:Publish"]
+        Resource = var.sns_topic_arn
       }
     ]
   })
@@ -288,6 +299,14 @@ resource "aws_iam_role_policy" "jenkins_cd" {
             "s3:prefix" = ["deployments/*"]
           }
         }
+      },
+      {
+        # See the matching statement on the CI role: notifications go to SNS
+        # over HTTPS with IRSA, so no SMTP credential exists to leak.
+        Sid      = "SnsBuildNotifications"
+        Effect   = "Allow"
+        Action   = ["sns:Publish"]
+        Resource = var.sns_topic_arn
       }
     ]
   })

@@ -41,8 +41,9 @@ controller:
     - job-dsl                 # required for the `jobs:` root element
     - pipeline-stage-view     # stage view in the UI
     - junit                   # publish test results
-    - mailer                  # email notifications (bonus)
-    - email-ext               # emailext step used by both pipelines
+    # mailer / email-ext deliberately absent: build notifications publish to
+    # SNS from the agent (IRSA, HTTPS 443) instead of speaking SMTP to SES
+    # from the controller. See the notify() helper in both Jenkinsfiles.
     - pipeline-utility-steps  # readJSON in the CI pipeline
     - timestamper             # the timestamps() pipeline option
     - ws-cleanup              # the cleanWs() step in both pipelines

@@ -859,6 +859,57 @@ if 's3 ls' in cd:
         's3:ListBucket granted without an s3:prefix condition — that lists the whole orders bucket'
     assert 'deployments/' in stmt, 's3:prefix condition does not name the deployments prefix'"
 
+# Build notifications must not depend on a path the NetworkPolicy forbids.
+# The mailer was configured for SES SMTP on port 587, but the only internet
+# egress the jenkins-controller policy allows is 443, so every send failed with
+# "SMTP connection error" -- and email-ext never fails a build over a delivery
+# failure, so the stage stayed green while nothing was ever delivered. It could
+# not have worked regardless: no SMTP credential was configured anywhere, and
+# the create-smtp-secret.sh that configure-jenkins.sh referenced does not exist.
+# Notifications now publish to SNS over HTTPS 443 with IRSA, which needs no
+# stored secret -- the bonus asks for notifications "without exposing secrets".
+t T14.63 "notifications use SNS over an allowed port, not blocked SMTP" python3 -c "
+import re, yaml
+cfg=open('scripts/configure-jenkins.sh').read()
+assert 'smtpPort' not in cfg, \
+    'mailer SMTP config is back; port 587 is not permitted by the controller NetworkPolicy'
+assert 'SNS_TOPIC_ARN' in cfg, 'SNS_TOPIC_ARN is not exported to the pipelines'
+tf=open('terraform/modules/irsa/main.tf').read()
+# worker already had one; the CI and CD agent roles each need their own.
+assert tf.count('sns:Publish') >= 3, \
+    'both Jenkins agent roles need sns:Publish (worker already had one)'
+plugins=yaml.safe_load(open('jenkins/values.yaml'))['controller']['installPlugins']
+for jf in ['Jenkinsfile-ci','Jenkinsfile-cd']:
+    code='\n'.join(l for l in open(jf).read().splitlines() if not l.strip().startswith('//'))
+    assert 'emailext' not in code, jf+': emailext is back but its delivery path is blocked'
+    assert 'aws sns publish' in code, jf+': no SNS notification'
+    assert 'unstable(' in code, jf+': a failed notification must not pass silently'
+    assert 'email-ext' not in plugins, 'email-ext plugin reinstalled but unused'"
+
+# The notify() helper runs `container('tools')`, which REQUIRES a node context.
+# post{} blocks run without one when the build died before the agent pod
+# existed -- a Groovy error in the pod YAML does exactly that, and it already
+# happened here once: the post block threw
+#   MissingContextVariableException: Required context class hudson.model.Node
+# emailext ran on the controller and never needed a node, so moving the
+# notification onto an agent introduced this exposure. It matters precisely in
+# the early-failure case, which is when a notification is most wanted, and an
+# unguarded throw buries the ORIGINAL failure behind a stack trace.
+t T14.64 "notify() survives a build that failed before the agent existed" python3 -c "
+import re
+for jf in ['Jenkinsfile-ci','Jenkinsfile-cd']:
+    src=open(jf).read()
+    m=re.search(r'def notify\(String subject, String message\) \{(.*?)\n\}', src, re.S)
+    assert m, jf+': notify() helper not found'
+    # Strip comments before indexing: the explanatory comment inside notify()
+    # names container() too, and matching that would test the prose.
+    body='\n'.join(l for l in m.group(1).splitlines() if not l.strip().startswith('//'))
+    assert 'try {' in body, \
+        jf+': notify() calls container() unguarded; no agent means MissingContextVariableException'
+    assert 'catch' in body, jf+': notify() has no catch for the missing-node case'
+    ci=body.index('container(')
+    assert body.index('try {') < ci, jf+': the try must wrap container(), not sit inside it'"
+
 # image-manifest.json is the CI->CD contract, so its VALUES have to be right,
 # not merely parseable. It was assembled by closing and reopening a
 # double-quoted echo around each variable, and those quote characters landed
