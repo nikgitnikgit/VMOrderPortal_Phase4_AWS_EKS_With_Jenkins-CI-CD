@@ -41,6 +41,21 @@ CLUSTER_NAME=$(terraform output -raw cluster_name)
 AWS_REGION=$(terraform output -raw aws_region)
 ECR_REGISTRY=$(terraform output -raw ecr_registry)
 GITHUB_REPO_URL=$(terraform output -raw github_repo_url)
+# seed.groovy needs the owner and repo SEPARATELY: the multibranch job uses the
+# GitHub branch source (so that /github-webhook/ actually triggers it and so
+# pull requests are discovered at all), and that source addresses a repository
+# by owner+name rather than by clone URL. Derived from the same Terraform
+# output, so nothing new has to be set in terraform.tfvars. Tolerates a
+# trailing .git and either https:// or git@ form.
+GITHUB_REPO_SLUG=$(printf '%s' "$GITHUB_REPO_URL" \
+    | sed -e 's|\.git$||' -e 's|^git@github\.com:||' -e 's|^https\?://github\.com/||')
+GITHUB_REPO_OWNER=${GITHUB_REPO_SLUG%%/*}
+GITHUB_REPO_NAME=${GITHUB_REPO_SLUG##*/}
+if [ -z "$GITHUB_REPO_OWNER" ] || [ -z "$GITHUB_REPO_NAME" ] || [ "$GITHUB_REPO_OWNER" = "$GITHUB_REPO_SLUG" ]; then
+    echo "ERROR: could not parse owner/repo from github_repo_url: ${GITHUB_REPO_URL}" >&2
+    echo "       Expected https://github.com/<owner>/<repo>[.git]" >&2
+    exit 1
+fi
 S3_BUCKET=$(terraform output -raw s3_bucket_name)
 VPC_CIDR=$(terraform output -raw vpc_cidr)
 # REVIEW FIX 4.6 — `-raw` cannot render a list, so read it as JSON and join it
@@ -193,6 +208,8 @@ controller:
           # code after it and the script fails to compile.
           - script: |
 $(sed -e "s|__GITHUB_REPO_URL__|${GITHUB_REPO_URL}|g" \
+       -e "s|__GITHUB_REPO_OWNER__|${GITHUB_REPO_OWNER}|g" \
+       -e "s|__GITHUB_REPO_NAME__|${GITHUB_REPO_NAME}|g" \
        -e 's/^/              /' "$REPO_ROOT/jenkins/jobs/seed.groovy")
 EOF
 
@@ -206,6 +223,7 @@ echo "  cluster    : ${CLUSTER_NAME}"
 echo "  node group : ${NODE_GROUP}"
 echo "  your IP    : ${MY_IP}/32"
 echo "  allowlist  : ${ALLOWED_CIDRS}"
+echo "  repo       : ${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}"
 echo "  certificate: ${CERT_ARN}"
 echo "  notify     : ${NOTIFICATION_EMAIL}"
 

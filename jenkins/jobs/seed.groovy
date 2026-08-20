@@ -25,11 +25,35 @@ multibranchPipelineJob('application-ci') {
                    Branch main pushes images and triggers application-cd;
                    pull requests build and scan but never push.''')
 
+    // GitHub source, not the generic git one. This was `git { remote(...) }`
+    // with includes('main PR-*'), which was broken in two ways at once:
+    //
+    //   1. /github-webhook/ answers 200 to any payload, then looks for jobs
+    //      configured with a GITHUB source to notify. A plain git source is not
+    //      registered as a listener, so a push produced a successful delivery
+    //      and no build -- CI ran only off the 5-minute poll fallback, and no
+    //      build was attributable to a push.
+    //
+    //   2. Pull requests are not branches in this repository. They live at
+    //      refs/pull/N/head, which only the GitHub source knows how to
+    //      discover, so the `PR-*` half of that include never matched anything
+    //      and PR builds could not happen at all.
+    //
+    // github-branch-source was already installed (jenkins/values.yaml); the job
+    // simply was not using it. See T13.16.
     branchSources {
-        git {
+        github {
             id('vm-order-portal')
-            remote('__GITHUB_REPO_URL__')
-            includes('main PR-*')
+            repoOwner('__GITHUB_REPO_OWNER__')
+            repository('__GITHUB_REPO_NAME__')
+            // Anonymous API access is enough for a public repository. A
+            // credential would only raise the rate limit.
+            buildOriginBranch(true)
+            buildOriginBranchWithPR(false)
+            buildOriginPRHead(true)
+            buildOriginPRMerge(false)
+            buildForkPRHead(false)
+            buildForkPRMerge(false)
         }
     }
 

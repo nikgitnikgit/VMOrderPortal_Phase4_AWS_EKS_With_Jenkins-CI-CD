@@ -373,7 +373,17 @@ spec:
         }
 
         stage('ECR login') {
-            when { expression { env.IS_PR != 'true' } }
+            // branch 'main' as well as IS_PR, not IS_PR alone. The job used to
+            // discover only main, so "not a PR" implied "is main" and the two
+            // were interchangeable. The GitHub branch source discovers every
+            // origin branch, at which point a feature branch would satisfy
+            // IS_PR != 'true' and push to the registry. Only main publishes.
+            when {
+                allOf {
+                    expression { env.IS_PR != 'true' }
+                    branch 'main'
+                }
+            }
             steps {
                 container('tools') {
                     // BuildKit reads a standard docker config.json. We write one
@@ -396,7 +406,13 @@ EOF
         }
 
         stage('Push + record digest') {
-            when { expression { env.IS_PR != 'true' } }
+            // Same reasoning as ECR login: main only, never merely "not a PR".
+            when {
+                allOf {
+                    expression { env.IS_PR != 'true' }
+                    branch 'main'
+                }
+            }
             steps {
                 container('buildkit') {
                     script {

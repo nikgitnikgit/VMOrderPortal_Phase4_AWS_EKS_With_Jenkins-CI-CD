@@ -304,6 +304,42 @@ t T13.10 "EBS CSI driver addon present" bash -c '
 t T13.11 "Jenkins agent IRSA role scoped to ECR repos" bash -c '
   grep -q "jenkins-agent" terraform/modules/irsa/main.tf &&
   grep -q "ecr_repo_arns" terraform/modules/irsa/main.tf'
+# The multibranch job must use the GITHUB branch source, not the generic git
+# one. With a plain git source /github-webhook/ answers 200 and notifies
+# nothing (only GitHub sources are registered listeners), so a push produced a
+# successful delivery and no build, leaving CI on the 5-minute poll. And pull
+# requests live at refs/pull/N/head, which only the GitHub source discovers, so
+# a PR-* branch filter matched nothing and PR builds were impossible.
+t T13.16 "application-ci uses the GitHub branch source so webhooks and PRs work" python3 -c "
+import re
+g=open('jenkins/jobs/seed.groovy').read()
+cj=open('scripts/configure-jenkins.sh').read()
+m=re.search(r'branchSources \{(.*?)\n    \}', g, re.S)
+assert m, 'no branchSources block in seed.groovy'
+bs=m.group(1)
+assert 'github {' in bs, 'branchSources uses the generic git source, so /github-webhook/ notifies nothing and PRs are never discovered'
+assert not re.search(r'^\s+git \{', bs, re.M), 'a plain git source is still present in branchSources'
+for tok in ['__GITHUB_REPO_OWNER__', '__GITHUB_REPO_NAME__']:
+    assert tok in bs, f'branchSources does not use {tok}'
+    assert tok in cj, f'configure-jenkins.sh never substitutes {tok}'
+assert 'buildOriginPRHead(true)' in bs, 'pull request heads are not discovered'"
+
+# The GitHub source discovers EVERY origin branch, not just main. Before that
+# change "not a PR" implied "is main", so gating the registry stages on IS_PR
+# alone was safe. It no longer is: a feature branch satisfies IS_PR != true and
+# would push to ECR. Both stages must require branch main explicitly.
+t T13.17 "only main can reach the registry, not merely 'not a PR'" python3 -c "
+import re
+ci=open('Jenkinsfile-ci').read()
+for stage in ['ECR login', 'Push + record digest']:
+    i=ci.index(\"stage('\" + stage + \"')\")
+    blk=ci[i:i+700]
+    j=blk.index('steps')
+    guard=blk[:j]
+    assert 'IS_PR' in guard, f'{stage}: no IS_PR guard'
+    assert \"branch 'main'\" in guard, \
+        f'{stage}: gated on IS_PR alone; a feature branch would push to the registry'"
+
 t T13.12 "destroy.sh removes Jenkins (incl. PVC) before terraform destroy" bash -c '
   grep -q "uninstall-jenkins.sh" scripts/destroy.sh &&
   grep -q "helm uninstall jenkins" scripts/uninstall-jenkins.sh &&
@@ -1043,9 +1079,12 @@ t T15.14 "NetworkPolicies defined for the jenkins namespace" bash -c '
   [ -f jenkins/networkpolicy.yaml ] &&
   grep -q "default-deny-all" jenkins/networkpolicy.yaml &&
   grep -q "169.254.169.254/32" jenkins/networkpolicy.yaml'
+# Window widened from -A2 to -A8: the guard is now an allOf block (IS_PR AND
+# branch main) with a comment above it, so IS_PR sits further from the stage
+# line. The assertion is unchanged and T13.17 checks the stronger property.
 t T15.15 "PR builds never push to the registry" bash -c '
   grep -q "IS_PR" Jenkinsfile-ci &&
-  grep -A2 "stage(.Push" Jenkinsfile-ci | grep -q "IS_PR"'
+  grep -A8 "stage(.Push" Jenkinsfile-ci | grep -q "IS_PR"'
 
 # The build stage writes image tarballs to an absolute path OUTSIDE the
 # per-branch job workspace, so every later stage that touches them has to name
