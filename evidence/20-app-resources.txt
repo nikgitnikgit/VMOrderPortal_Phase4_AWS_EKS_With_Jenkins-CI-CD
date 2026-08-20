@@ -1,0 +1,20 @@
+NAME                       READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/backend    2/2     2            2           144m
+deployment.apps/frontend   2/2     2            2           143m
+deployment.apps/worker     2/2     2            2           144m
+
+NAME                            READY   STATUS    RESTARTS   AGE
+pod/backend-68dcb48c7f-crrpl    1/1     Running   0          40m
+pod/backend-68dcb48c7f-vn7lj    1/1     Running   0          40m
+pod/frontend-5d5fb5b6c6-mp75w   1/1     Running   0          39m
+pod/frontend-5d5fb5b6c6-zqtxb   1/1     Running   0          39m
+pod/worker-c8c79b7-wjtr4        1/1     Running   0          40m
+pod/worker-c8c79b7-xtqhz        1/1     Running   0          39m
+
+NAME               TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AGE
+service/backend    ClusterIP   172.20.30.252    <none>        5000/TCP   144m
+service/frontend   ClusterIP   172.20.185.114   <none>        8080/TCP   143m
+service/worker     ClusterIP   172.20.19.252    <none>        5001/TCP   144m
+
+NAME                                 CLASS   HOSTS   ADDRESS                                                                   PORTS   AGE
+ingress.networking.k8s.io/frontend   alb     *       k8s-devopsap-frontend-2ab58a2c34-1959234067.us-east-1.elb.amazonaws.com   80      143m

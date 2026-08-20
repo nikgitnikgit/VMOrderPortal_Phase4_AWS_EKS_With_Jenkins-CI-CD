@@ -1,0 +1,67 @@
+LAST SEEN   TYPE      REASON                         OBJECT                                                MESSAGE
+40m         Normal    ScalingReplicaSet              deployment/backend                                    Scaled down replica set backend-797d8bd97f from 2 to 1
+40m         Normal    ScalingReplicaSet              deployment/backend                                    Scaled down replica set backend-797d8bd97f from 1 to 0
+40m         Warning   FailedGetResourceMetric        horizontalpodautoscaler/backend                       failed to get cpu utilization: did not receive metrics for targeted pods (pods might be unready)
+40m         Warning   FailedComputeMetricsReplicas   horizontalpodautoscaler/backend                       invalid metrics (1 invalid out of 1), first error is: failed to get cpu resource metric value: failed to get cpu utilization: did not receive metrics for targeted pods (pods might be unready)
+40m         Normal    ScalingReplicaSet              deployment/worker                                     Scaled down replica set worker-7ff8b6874c from 2 to 1
+39m         Normal    ScalingReplicaSet              deployment/worker                                     Scaled down replica set worker-7ff8b6874c from 1 to 0
+39m         Normal    ScalingReplicaSet              deployment/frontend                                   Scaled down replica set frontend-6f7bcf7d68 from 2 to 1
+39m         Normal    SuccessfullyReconciled         targetgroupbinding/k8s-devopsap-frontend-8a6376c04b   Successfully reconciled
+39m         Normal    ScalingReplicaSet              deployment/frontend                                   Scaled down replica set frontend-6f7bcf7d68 from 1 to 0
+39m         Warning   FailedComputeMetricsReplicas   horizontalpodautoscaler/frontend                      invalid metrics (1 invalid out of 1), first error is: failed to get cpu resource metric value: failed to get cpu utilization: did not receive metrics for targeted pods (pods might be unready)
+39m         Warning   FailedGetResourceMetric        horizontalpodautoscaler/frontend                      failed to get cpu utilization: did not receive metrics for targeted pods (pods might be unready)
+40m         Normal    Scheduled                      pod/backend-68dcb48c7f-crrpl                          Successfully assigned devops-app/backend-68dcb48c7f-crrpl to ip-10-23-6-204.ec2.internal
+40m         Normal    SuccessfulCreate               replicaset/backend-68dcb48c7f                         Created pod: backend-68dcb48c7f-crrpl
+40m         Normal    ScalingReplicaSet              deployment/backend                                    Scaled up replica set backend-68dcb48c7f from 0 to 1
+40m         Normal    Pulling                        pod/backend-68dcb48c7f-crrpl                          Pulling image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-backend:be9b7e9536fc"
+40m         Normal    Created                        pod/backend-68dcb48c7f-crrpl                          Container created
+40m         Normal    Pulled                         pod/backend-68dcb48c7f-crrpl                          Successfully pulled image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-backend:be9b7e9536fc" in 1.736s (1.736s including waiting). Image size: 67927008 bytes.
+40m         Normal    Started                        pod/backend-68dcb48c7f-crrpl                          Container started
+40m         Normal    ScalingReplicaSet              deployment/backend                                    Scaled up replica set backend-68dcb48c7f from 1 to 2
+40m         Normal    SuccessfulDelete               replicaset/backend-797d8bd97f                         Deleted pod: backend-797d8bd97f-p6jk6
+40m         Normal    Killing                        pod/backend-797d8bd97f-p6jk6                          Stopping container backend
+40m         Normal    SuccessfulCreate               replicaset/backend-68dcb48c7f                         Created pod: backend-68dcb48c7f-vn7lj
+40m         Normal    Scheduled                      pod/backend-68dcb48c7f-vn7lj                          Successfully assigned devops-app/backend-68dcb48c7f-vn7lj to ip-10-23-4-139.ec2.internal
+40m         Normal    Pulling                        pod/backend-68dcb48c7f-vn7lj                          Pulling image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-backend:be9b7e9536fc"
+40m         Normal    Created                        pod/backend-68dcb48c7f-vn7lj                          Container created
+40m         Normal    Pulled                         pod/backend-68dcb48c7f-vn7lj                          Successfully pulled image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-backend:be9b7e9536fc" in 1.829s (1.829s including waiting). Image size: 67927008 bytes.
+40m         Normal    Started                        pod/backend-68dcb48c7f-vn7lj                          Container started
+40m         Normal    Killing                        pod/backend-797d8bd97f-5bjlj                          Stopping container backend
+40m         Normal    SuccessfulCreate               replicaset/worker-c8c79b7                             Created pod: worker-c8c79b7-wjtr4
+40m         Normal    ScalingReplicaSet              deployment/worker                                     Scaled up replica set worker-c8c79b7 from 0 to 1
+40m         Normal    SuccessfulDelete               replicaset/backend-797d8bd97f                         Deleted pod: backend-797d8bd97f-5bjlj
+40m         Normal    Scheduled                      pod/worker-c8c79b7-wjtr4                              Successfully assigned devops-app/worker-c8c79b7-wjtr4 to ip-10-23-6-204.ec2.internal
+40m         Normal    Pulling                        pod/worker-c8c79b7-wjtr4                              Pulling image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-worker:be9b7e9536fc"
+40m         Normal    Started                        pod/worker-c8c79b7-wjtr4                              Container started
+40m         Normal    Created                        pod/worker-c8c79b7-wjtr4                              Container created
+40m         Normal    Pulled                         pod/worker-c8c79b7-wjtr4                              Successfully pulled image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-worker:be9b7e9536fc" in 1.878s (1.878s including waiting). Image size: 67174866 bytes.
+40m         Warning   Unhealthy                      pod/worker-7ff8b6874c-jsqdl                           Readiness probe failed: Get "http://10.23.6.5:5001/health": dial tcp 10.23.6.5:5001: connect: connection refused
+40m         Normal    Scheduled                      pod/worker-c8c79b7-xtqhz                              Successfully assigned devops-app/worker-c8c79b7-xtqhz to ip-10-23-6-162.ec2.internal
+40m         Normal    SuccessfulDelete               replicaset/worker-7ff8b6874c                          Deleted pod: worker-7ff8b6874c-jsqdl
+40m         Normal    SuccessfulCreate               replicaset/worker-c8c79b7                             Created pod: worker-c8c79b7-xtqhz
+40m         Normal    ScalingReplicaSet              deployment/worker                                     Scaled up replica set worker-c8c79b7 from 1 to 2
+40m         Normal    Killing                        pod/worker-7ff8b6874c-jsqdl                           Stopping container worker
+40m         Normal    Pulling                        pod/worker-c8c79b7-xtqhz                              Pulling image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-worker:be9b7e9536fc"
+39m         Normal    Pulled                         pod/worker-c8c79b7-xtqhz                              Successfully pulled image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-worker:be9b7e9536fc" in 1.742s (1.742s including waiting). Image size: 67174866 bytes.
+39m         Normal    Created                        pod/worker-c8c79b7-xtqhz                              Container created
+39m         Normal    Started                        pod/worker-c8c79b7-xtqhz                              Container started
+39m         Normal    Killing                        pod/worker-7ff8b6874c-rzwxj                           Stopping container worker
+39m         Normal    SuccessfulDelete               replicaset/worker-7ff8b6874c                          Deleted pod: worker-7ff8b6874c-rzwxj
+39m         Normal    SuccessfulCreate               replicaset/frontend-5d5fb5b6c6                        Created pod: frontend-5d5fb5b6c6-mp75w
+39m         Normal    ScalingReplicaSet              deployment/frontend                                   Scaled up replica set frontend-5d5fb5b6c6 from 0 to 1
+39m         Normal    Scheduled                      pod/frontend-5d5fb5b6c6-mp75w                         Successfully assigned devops-app/frontend-5d5fb5b6c6-mp75w to ip-10-23-6-204.ec2.internal
+39m         Normal    Pulling                        pod/frontend-5d5fb5b6c6-mp75w                         Pulling image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-frontend:be9b7e9536fc"
+39m         Normal    Pulled                         pod/frontend-5d5fb5b6c6-mp75w                         Successfully pulled image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-frontend:be9b7e9536fc" in 404ms (405ms including waiting). Image size: 23104354 bytes.
+39m         Normal    Created                        pod/frontend-5d5fb5b6c6-mp75w                         Container created
+39m         Normal    Started                        pod/frontend-5d5fb5b6c6-mp75w                         Container started
+39m         Normal    SuccessfulDelete               replicaset/frontend-6f7bcf7d68                        Deleted pod: frontend-6f7bcf7d68-swvcp
+39m         Normal    Scheduled                      pod/frontend-5d5fb5b6c6-zqtxb                         Successfully assigned devops-app/frontend-5d5fb5b6c6-zqtxb to ip-10-23-4-139.ec2.internal
+39m         Normal    SuccessfulCreate               replicaset/frontend-5d5fb5b6c6                        Created pod: frontend-5d5fb5b6c6-zqtxb
+39m         Normal    Killing                        pod/frontend-6f7bcf7d68-swvcp                         Stopping container frontend
+39m         Normal    ScalingReplicaSet              deployment/frontend                                   Scaled up replica set frontend-5d5fb5b6c6 from 1 to 2
+39m         Normal    Created                        pod/frontend-5d5fb5b6c6-zqtxb                         Container created
+39m         Normal    Pulled                         pod/frontend-5d5fb5b6c6-zqtxb                         Successfully pulled image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-frontend:be9b7e9536fc" in 401ms (401ms including waiting). Image size: 23104354 bytes.
+39m         Normal    Pulling                        pod/frontend-5d5fb5b6c6-zqtxb                         Pulling image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-frontend:be9b7e9536fc"
+39m         Normal    Started                        pod/frontend-5d5fb5b6c6-zqtxb                         Container started
+39m         Normal    Killing                        pod/frontend-6f7bcf7d68-nctsl                         Stopping container frontend
+39m         Normal    SuccessfulDelete               replicaset/frontend-6f7bcf7d68                        Deleted pod: frontend-6f7bcf7d68-nctsl

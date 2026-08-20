@@ -1,0 +1,7 @@
+cd_build=3
+ci_build=4
+git_commit=be9b7e9536fc733bdc4872f8310d14462aa96bb8
+image_tag=be9b7e9536fc
+namespace=devops-app
+cluster=vm-order-prod-eks
+deployed_at=2026-08-17T18:02:20Z
