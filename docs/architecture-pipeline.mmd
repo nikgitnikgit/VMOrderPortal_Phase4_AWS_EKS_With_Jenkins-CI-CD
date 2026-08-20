@@ -1,78 +1,63 @@
 %% docs/architecture-pipeline.mmd — Pipeline Flow
 %% The logical order from commit to running application, and the hard
 %% boundary between CI and CD.
-%% Renders natively in GitHub; also embedded in README.md.
-graph TD
+flowchart TB
 
- COMMIT["git push to main<br/>or open a pull request"]
- HOOK{"GitHub webhook"}
+    PUSH(["git push to main"])
+    PRQ(["pull request opened"])
+    HOOK{{"GitHub webhook"}}
+    PUSH --> HOOK
+    PRQ --> HOOK
 
- COMMIT --> HOOK
+    HOOK -->|pull request| PRGATE["<b>PR build</b> — same Jenkinsfile, gated<br/>runs validate · lint · test · build · scan<br/><b>Push and Trigger CD are SKIPPED</b><br/>an unapproved PR can never reach the registry"]
 
- subgraph CI["application-ci — Jenkinsfile-ci · SA jenkins-agent-ci · NO deploy permission"]
- direction TB
- C1["1 Checkout<br/>record commit SHA, branch, build number"]
- C2["2 Validate<br/>structure · hadolint · shellcheck · helm lint/template"]
- C3["3 Static analysis<br/>flake8"]
- C4["4 Unit tests<br/>pytest JUnit published in Jenkins"]
- C5["5 Build ×3<br/>BuildKit rootless local OCI tarball<br/>nothing pushed yet"]
- C6["6 Scan ×3<br/>Trivy: SBOM (CycloneDX) + CRITICAL gate"]
- C7["7 ECR login<br/>IRSA token, RAM-only, ~12h"]
- C8["8 Push ×3<br/>tag = git short SHA · record digest"]
- C9["9 Metadata<br/>image-manifest.json archived"]
- C1 --> C2 --> C3 --> C4 --> C5 --> C6 --> C7 --> C8 --> C9
- end
+    HOOK -->|push to main| CI
 
- HOOK -->|push to main| CI
- HOOK -->|pull request| CIPR
+    subgraph CI["application-ci &nbsp;—&nbsp; Jenkinsfile-ci &nbsp;—&nbsp; SA jenkins-agent-ci &nbsp;—&nbsp; <b>CANNOT DEPLOY</b>"]
+        C1["<b>1-2 &nbsp; Checkout and validate</b><br/>git short SHA becomes the image tag<br/>hadolint x4 · shellcheck · helm lint · helm template"]
+        C2["<b>3-4 &nbsp; Lint and test</b><br/>flake8 · pytest<br/>results published to Jenkins as JUnit"]
+        C3["<b>5-6 &nbsp; Build and scan</b><br/>BuildKit rootless x3 → local OCI tarball<br/>Trivy: CycloneDX SBOM + CRITICAL gate<br/><i>nothing has been pushed yet</i>"]
+        C4["<b>7-9 &nbsp; Push and record</b><br/>ECR login via IRSA (RAM-only token)<br/>push x3, tag = git SHA, digest captured<br/>image-manifest.json archived"]
+        C1 --> C2 --> C3 --> C4
+    end
 
- subgraph CIPR["application-ci on a PR — same file, gated"]
- P1["Validate · lint · test · build · scan"]
- P2["ECR login, Push and Trigger CD are SKIPPED<br/>an unapproved PR can never reach the registry"]
- P1 --> P2
- end
+    REG[("<b>ECR</b><br/>vm-order-*:&lt;git-sha&gt;<br/>IMMUTABLE tags")]
+    C4 --> REG
 
- FAILCI{"any stage failed?"}
- C9 --> FAILCI
- FAILCI -->|yes| STOP["build marked FAILED<br/>nothing pushed · CD never triggered<br/> email notification"]
+    HANDOFF{{"<b>hand-off</b> — build job: application-cd<br/>IMAGE_TAG · 3 digests · CI build number · commit SHA"}}
+    C4 --> HANDOFF
 
- REG[("ECR<br/>vm-order-*:&lt;sha&gt;<br/>IMMUTABLE")]
- C8 --> REG
+    subgraph CD["application-cd &nbsp;—&nbsp; Jenkinsfile-cd &nbsp;—&nbsp; SA jenkins-agent-cd &nbsp;—&nbsp; <b>CANNOT BUILD</b>"]
+        D1["<b>1-3 &nbsp; Validate the request</b><br/>reject empty · reject 'latest' · must match a git SHA<br/>verify the tag exists in ECR (read-only)<br/>helm lint + server-side dry run"]
+        D2["<b>4 &nbsp; APPROVAL</b><br/>a human clicks Deploy<br/>Jenkins records who, what version, which namespace"]
+        D3["<b>5-6 &nbsp; Deploy and roll out</b><br/>helm upgrade --install x3 --wait<br/>kubectl rollout status x3"]
+        D4["<b>7-9 &nbsp; Verify</b><br/>running image == requested tag<br/>smoke test: /healthz · /api/health · public ALB<br/>deployment record → S3"]
+        D1 --> D2 --> D3 --> D4
+    end
 
- FAILCI -->|no| HANDOFF
+    HANDOFF --> D1
+    REG -.->|"the same artifact CI scanned — never rebuilt"| D3
 
- HANDOFF["Hand-off<br/>build job: application-cd<br/>IMAGE_TAG · digests · CI build · commit"]
+    FAILCI["<b>CI FAILED</b><br/>nothing pushed to the registry<br/>application-cd never triggered<br/>email notification sent"]
+    C2 -.->|a test fails| FAILCI
+    C3 -.->|CRITICAL vulnerability| FAILCI
 
- subgraph CD["application-cd — Jenkinsfile-cd · SA jenkins-agent-cd · NO build capability"]
- direction TB
- D1["1 Validate input<br/>reject empty · reject 'latest' · must match a git SHA"]
- D2["2 Verify image exists in ECR<br/>read-only — proves CI really produced it"]
- D3["3 Manifest validation<br/>helm lint + server-side dry run"]
- D4["4 ⏸ Manual approval<br/>who · what version · which namespace"]
- D5["5 Deploy<br/>helm upgrade --install ×3 --wait"]
- D6["6 Rollout<br/>kubectl rollout status ×3"]
- D7["7 Verify running version<br/>image on the Deployment == tag requested"]
- D8["8 Smoke test<br/>/healthz · /api/health · public ALB"]
- D9["9 Record deployment S3"]
- D1 --> D2 --> D3 --> D4 --> D5 --> D6 --> D7 --> D8 --> D9
- end
+    FAILCD["<b>ROLLBACK</b><br/>collect events and pod logs <i>first</i><br/>then helm rollback x3<br/>build FAILED · email sent"]
+    D4 -.->|rollout or smoke test fails| FAILCD
 
- HANDOFF --> CD
- REG -.->|same artifact CI scanned<br/>never rebuilt| D5
+    LIVE(["<b>Application live in devops-app</b><br/>fully traceable:<br/>CD build → CI build → commit → image digest"])
+    D4 --> LIVE
 
- FAILCD{"rollout or smoke test failed?"}
- D9 --> FAILCD
- FAILCD -->|yes| RB["Collect events + logs<br/>then helm rollback ×3<br/>build FAILED · email"]
- FAILCD -->|no| LIVE["Application live<br/>traceable: CD build CI build commit digest"]
+    classDef ci fill:#e3f0ff,stroke:#2563a8,stroke-width:1.5px
+    classDef cd fill:#e6f7ee,stroke:#1d7a4c,stroke-width:1.5px
+    classDef bad fill:#ffe5e5,stroke:#c0392b,stroke-width:2px
+    classDef good fill:#d4f4dd,stroke:#1d7a4c,stroke-width:3px
+    classDef gate fill:#fff6d6,stroke:#b8860b,stroke-width:2px
+    classDef store fill:#f3ecff,stroke:#6b3fa0,stroke-width:2px
 
- classDef ci fill:#e3f0ff,stroke:#2563a8,stroke-width:2px
- classDef cd fill:#e6f7ee,stroke:#1d7a4c,stroke-width:2px
- classDef bad fill:#ffe0e0,stroke:#c0392b,stroke-width:2px
- classDef good fill:#d4f4dd,stroke:#1d7a4c,stroke-width:3px
- classDef gate fill:#fff3cd,stroke:#b8860b,stroke-width:2px
-
- class C1,C2,C3,C4,C5,C6,C7,C8,C9 ci
- class D1,D2,D3,D5,D6,D7,D8,D9 cd
- class STOP,RB,P2 bad
- class LIVE good
- class D4,HANDOFF,HOOK gate
+    class C1,C2,C3,C4 ci
+    class D1,D3,D4 cd
+    class FAILCI,FAILCD,PRGATE bad
+    class LIVE good
+    class D2,HANDOFF,HOOK gate
+    class REG store
