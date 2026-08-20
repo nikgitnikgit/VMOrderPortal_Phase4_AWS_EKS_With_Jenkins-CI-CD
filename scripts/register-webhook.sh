@@ -107,6 +107,14 @@ fi
 echo "  created hook ${HOOK_ID}"
 
 # ------------------------------------------------------------------- test
+#
+# This block used to read last_response, print it, and then announce success
+# regardless. A real run reported
+#     last response: connection_error
+#     Webhook registered. A push to main will now trigger application-ci.
+# which was false: GitHub could not reach the ALB at all, the hook never
+# delivered, and CI quietly ran off the 5-minute poll instead. Creating a hook
+# in GitHub proves nothing about whether it can be delivered.
 echo ""
 echo "[3/3] Sending a test delivery..."
 curl -sS -X POST "${AUTH[@]}" "${API}/${HOOK_ID}/tests" >/dev/null
@@ -114,6 +122,33 @@ sleep 3
 LAST=$(curl -sS "${AUTH[@]}" "${API}/${HOOK_ID}" | jq -r '.last_response.status // "unknown"')
 echo "  last response: ${LAST}"
 
-echo ""
-echo "Webhook registered. A push to main will now trigger application-ci."
-echo "Evidence: GitHub > Settings > Webhooks > Recent Deliveries"
+case "$LAST" in
+    2*|active)
+        echo ""
+        echo "Webhook registered and delivering. A push to main triggers application-ci."
+        echo "Evidence: GitHub > Settings > Webhooks > Recent Deliveries"
+        ;;
+    connection_error|timeout|unknown|"")
+        echo "" >&2
+        echo "ERROR: the webhook was created but GitHub could NOT reach Jenkins." >&2
+        echo "" >&2
+        echo "  Almost always the ALB allowlist: inbound-cidrs must include GitHub's" >&2
+        echo "  webhook ranges, not just your own IP. configure-jenkins.sh composes" >&2
+        echo "  that list; re-run it and confirm the 'allowlist' line names more than" >&2
+        echo "  one CIDR:" >&2
+        echo "" >&2
+        echo "      ./scripts/configure-jenkins.sh" >&2
+        echo "      curl -s https://api.github.com/meta | jq -r '.hooks[]'" >&2
+        echo "" >&2
+        echo "  Until this is fixed CI still builds, but only via the 5-minute poll," >&2
+        echo "  and no build will be attributable to a push." >&2
+        exit 1
+        ;;
+    *)
+        echo "" >&2
+        echo "ERROR: unexpected webhook response '${LAST}'. The hook exists but its" >&2
+        echo "       first delivery did not succeed. Check GitHub > Settings >" >&2
+        echo "       Webhooks > Recent Deliveries before relying on it." >&2
+        exit 1
+        ;;
+esac

@@ -83,6 +83,32 @@ fi
 # script after your ISP reassigns your address restores access in ~1 minute.
 MY_IP=$(curl -s https://checkip.amazonaws.com)
 
+# GitHub's webhook senders have to reach the ALB too, or the hook is created and
+# never delivers. The allowlist was MY_IP/32 alone, so GitHub's POST was dropped
+# at the security group: register-webhook.sh reported
+# "last response: connection_error" and CI silently fell back to the 5-minute
+# poll. The IP restriction that satisfies the security requirement was quietly
+# breaking the webhook requirement.
+#
+# Fetched at run time rather than hardcoded: GitHub rotates these ranges and
+# publishes the current set at /meta. IPv6 entries are FILTERED OUT --
+# inbound-cidrs takes IPv4 only (IPv6 belongs in inbound-ipv6-cidrs) and the AWS
+# Load Balancer Controller rejects the whole Ingress if they are mixed, which
+# would leave the security group stale and lock you out with no obvious error.
+#
+# This widens access from one address to GitHub's ranges, which can reach the
+# login page and /github-webhook/ only. inbound-cidrs is a security-group rule,
+# so it cannot be scoped to a single path. Still closed to the world: see T15.11.
+GITHUB_HOOK_CIDRS=$(curl -s https://api.github.com/meta \
+    | jq -r '.hooks[] | select(test(":") | not)' 2>/dev/null | paste -sd, - || true)
+if [ -z "$GITHUB_HOOK_CIDRS" ]; then
+    echo "  WARNING: could not fetch GitHub webhook ranges from api.github.com/meta." >&2
+    echo "           The webhook will NOT deliver; CI falls back to the 5-minute poll." >&2
+    ALLOWED_CIDRS="${MY_IP}/32"
+else
+    ALLOWED_CIDRS="${MY_IP}/32,${GITHUB_HOOK_CIDRS}"
+fi
+
 OVERRIDES=$(mktemp /tmp/jenkins-overrides-XXXXXX.yaml)
 
 cat > "$OVERRIDES" <<EOF
@@ -94,7 +120,7 @@ controller:
       alb.ingress.kubernetes.io/scheme: internet-facing
       alb.ingress.kubernetes.io/target-type: ip
       alb.ingress.kubernetes.io/healthcheck-path: /login
-      alb.ingress.kubernetes.io/inbound-cidrs: "${MY_IP}/32"
+      alb.ingress.kubernetes.io/inbound-cidrs: "${ALLOWED_CIDRS}"
       alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443},{"HTTP":80}]'
       alb.ingress.kubernetes.io/certificate-arn: "${CERT_ARN}"
       alb.ingress.kubernetes.io/ssl-redirect: "443"
@@ -179,6 +205,7 @@ echo "Applying configuration to the running Jenkins..."
 echo "  cluster    : ${CLUSTER_NAME}"
 echo "  node group : ${NODE_GROUP}"
 echo "  your IP    : ${MY_IP}/32"
+echo "  allowlist  : ${ALLOWED_CIDRS}"
 echo "  certificate: ${CERT_ARN}"
 echo "  notify     : ${NOTIFICATION_EMAIL}"
 

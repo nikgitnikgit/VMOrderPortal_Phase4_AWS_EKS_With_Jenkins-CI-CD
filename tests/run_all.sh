@@ -991,6 +991,31 @@ t T15.11 "Jenkins UI is not open to the world and uses HTTPS" bash -c '
   grep -q "certificate-arn" scripts/configure-jenkins.sh &&
   grep -q "checkip.amazonaws.com" scripts/configure-jenkins.sh &&
   ! grep -q "inbound-cidrs: \"0.0.0.0/0\"" jenkins/values.yaml scripts/configure-jenkins.sh'
+# The counterpart to T15.11. That test keeps Jenkins closed to the world; this
+# one keeps it OPEN ENOUGH for the webhook. inbound-cidrs was MY_IP/32 alone, so
+# GitHub's POST was dropped at the security group -- the hook was created, never
+# delivered, and CI fell back to the 5-minute poll with nothing attributable to
+# a push. The IP restriction satisfying one spec requirement silently broke
+# another.
+#
+# IPv6 must stay filtered out: inbound-cidrs is IPv4-only (IPv6 belongs in
+# inbound-ipv6-cidrs) and the ALB controller rejects the whole Ingress if they
+# are mixed, leaving the security group stale.
+t T15.18 "the Jenkins allowlist admits GitHub's webhook senders" bash -c '
+  grep -q "api.github.com/meta" scripts/configure-jenkins.sh &&
+  grep -q "hooks\[\]" scripts/configure-jenkins.sh &&
+  grep -q "select(test(\":\") | not)" scripts/configure-jenkins.sh &&
+  grep -q "inbound-cidrs: \"\${ALLOWED_CIDRS}\"" scripts/configure-jenkins.sh &&
+  ! grep -q "inbound-cidrs: \"\${MY_IP}/32\"" scripts/configure-jenkins.sh'
+
+# Creating a hook in GitHub proves nothing about whether it can be DELIVERED.
+# The script used to print "last response: connection_error" and then announce
+# "Webhook registered" on the next line. A non-2xx test delivery must fail.
+t T15.19 "register-webhook fails when the test delivery does not arrive" bash -c '
+  grep -q "connection_error" scripts/register-webhook.sh &&
+  grep -qE "exit 1" scripts/register-webhook.sh &&
+  ! grep -qE "^echo \"Webhook registered\." scripts/register-webhook.sh'
+
 t T15.12 "no Docker socket is mounted anywhere" bash -c '
   ! grep -rq "docker.sock" Jenkinsfile-ci Jenkinsfile-cd jenkins/'
 t T15.13 "agent containers declare resources and drop capabilities" python3 -c "
