@@ -1,0 +1,4 @@
+NAME                 POD-SELECTOR                                     AGE
+default-deny-all     <none>                                           29m
+jenkins-agents       jenkins/agent=true                               29m
+jenkins-controller   app.kubernetes.io/component=jenkins-controller   29m

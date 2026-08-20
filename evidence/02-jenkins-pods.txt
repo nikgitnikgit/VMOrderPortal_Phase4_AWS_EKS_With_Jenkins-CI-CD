@@ -1,0 +1,12 @@
+NAME                                      READY   STATUS    RESTARTS   AGE   IP            NODE                          NOMINATED NODE   READINESS GATES
+application-ci-main-2-81crm-dk94r-wcvvs   4/4     Running   0          3s    10.23.4.164   ip-10-23-4-196.ec2.internal   <none>           <none>
+jenkins-0                                 2/2     Running   0          36m   10.23.4.213   ip-10-23-4-196.ec2.internal   <none>           <none>
+
+--- CI agent gone; CD agent now running (2 containers - no buildkit, CD cannot build) ---
+NAME                                 READY   STATUS    RESTARTS   AGE    IP            NODE                          NOMINATED NODE   READINESS GATES
+application-cd-2-f3x7q-f6mk6-wk0fd   2/2     Running   0          3m6s   10.23.4.20    ip-10-23-4-196.ec2.internal   <none>           <none>
+jenkins-0                            2/2     Running   0          40m    10.23.4.213   ip-10-23-4-196.ec2.internal   <none>           <none>
+
+--- both builds finished: only the controller remains ---
+NAME        READY   STATUS    RESTARTS   AGE   IP            NODE                          NOMINATED NODE   READINESS GATES
+jenkins-0   2/2     Running   0          48m   10.23.4.213   ip-10-23-4-196.ec2.internal   <none>           <none>

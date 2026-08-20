@@ -1,0 +1,2 @@
+NAME   	NAMESPACE	REVISION	UPDATED                                	STATUS  	CHART         	APP VERSION
+jenkins	jenkins  	2       	2026-08-20 19:36:23.232085418 +0000 UTC	deployed	jenkins-5.9.45	2.568.1    

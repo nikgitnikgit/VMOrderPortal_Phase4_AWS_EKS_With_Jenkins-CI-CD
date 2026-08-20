@@ -1,0 +1,7 @@
+NAME              STATUS   AGE
+default           Active   39m
+devops-app        Active   30m
+jenkins           Active   30m
+kube-node-lease   Active   39m
+kube-public       Active   39m
+kube-system       Active   39m

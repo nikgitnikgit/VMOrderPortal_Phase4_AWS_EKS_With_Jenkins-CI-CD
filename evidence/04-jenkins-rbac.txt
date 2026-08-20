@@ -1,0 +1,15 @@
+NAME                              AGE
+serviceaccount/default            30m
+serviceaccount/jenkins            29m
+serviceaccount/jenkins-agent-cd   29m
+serviceaccount/jenkins-agent-ci   29m
+
+NAME                                                     CREATED AT
+role.rbac.authorization.k8s.io/jenkins-agent-manager     2026-08-20T19:33:47Z
+role.rbac.authorization.k8s.io/jenkins-casc-reload       2026-08-20T19:35:00Z
+role.rbac.authorization.k8s.io/jenkins-schedule-agents   2026-08-20T19:35:00Z
+
+NAME                                                             ROLE                           AGE
+rolebinding.rbac.authorization.k8s.io/jenkins-agent-manager      Role/jenkins-agent-manager     29m
+rolebinding.rbac.authorization.k8s.io/jenkins-schedule-agents    Role/jenkins-schedule-agents   28m
+rolebinding.rbac.authorization.k8s.io/jenkins-watch-configmaps   Role/jenkins-casc-reload       28m

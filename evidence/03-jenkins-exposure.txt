@@ -1,0 +1,9 @@
+NAME                    TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)     AGE
+service/jenkins         ClusterIP   172.20.215.125   <none>        8080/TCP    28m
+service/jenkins-agent   ClusterIP   172.20.42.53     <none>        50000/TCP   28m
+
+NAME                                CLASS   HOSTS   ADDRESS                                                                 PORTS   AGE
+ingress.networking.k8s.io/jenkins   alb     *       k8s-jenkins-jenkins-af144c33a9-1998056517.us-east-1.elb.amazonaws.com   80      28m
+
+NAME                            STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   VOLUMEATTRIBUTESCLASS   AGE
+persistentvolumeclaim/jenkins   Bound    pvc-9d6e1be6-2e4f-41fc-8e2c-33b3394a7569   8Gi        RWO            gp2            <unset>                 28m

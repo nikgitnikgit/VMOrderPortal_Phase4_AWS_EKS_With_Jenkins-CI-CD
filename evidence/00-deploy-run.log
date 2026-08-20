@@ -1,0 +1,2731 @@
+==================================================
+  VM Order Portal — Phase 4 deploy
+==================================================
+
+STEP 1/5: terraform apply (EKS takes 15-20 minutes — this is normal)
+[0m[1mInitializing the backend...[0m
+
+[0m[1mInitializing modules...[0m
+
+[0m[1mInitializing provider plugins...[0m
+- Reusing previous version of hashicorp/aws from the dependency lock file
+- Reusing previous version of hashicorp/tls from the dependency lock file
+- Using previously-installed hashicorp/tls v4.3.0
+- Using previously-installed hashicorp/aws v5.100.0
+
+
+[0m[1m[32mTerraform has been successfully initialized![0m[32m[0m
+[0m[32m
+You may now begin working with Terraform. Try running "terraform plan" to see
+any changes that are required for your infrastructure. All Terraform commands
+should now work.
+
+If you ever set or change modules or backend configuration for Terraform,
+rerun this command to reinitialize your working directory. If you forget, other
+commands will detect it and remind you to do so if necessary.[0m
+[0m[1mmodule.vpc.data.aws_availability_zones.available: Reading...[0m[0m
+[0m[1mmodule.vpc.data.aws_availability_zones.available: Read complete after 1s [id=us-east-1][0m
+
+Terraform used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  [32m+[0m create[0m
+ [36m<=[0m read (data resources)[0m
+
+Terraform will perform the following actions:
+
+[1m  # aws_eks_addon.ebs_csi[0m will be created
+[0m  [32m+[0m[0m resource "aws_eks_addon" "ebs_csi" {
+      [32m+[0m[0m addon_name                  = "aws-ebs-csi-driver"
+      [32m+[0m[0m addon_version               = (known after apply)
+      [32m+[0m[0m arn                         = (known after apply)
+      [32m+[0m[0m cluster_name                = "vm-order-prod-eks"
+      [32m+[0m[0m configuration_values        = (known after apply)
+      [32m+[0m[0m created_at                  = (known after apply)
+      [32m+[0m[0m id                          = (known after apply)
+      [32m+[0m[0m modified_at                 = (known after apply)
+      [32m+[0m[0m resolve_conflicts_on_create = "OVERWRITE"
+      [32m+[0m[0m resolve_conflicts_on_update = "OVERWRITE"
+      [32m+[0m[0m service_account_role_arn    = (known after apply)
+      [32m+[0m[0m tags                        = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m tags_all                    = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+    }
+
+[1m  # module.ecr.aws_ecr_repository.repos["backend"][0m will be created
+[0m  [32m+[0m[0m resource "aws_ecr_repository" "repos" {
+      [32m+[0m[0m arn                  = (known after apply)
+      [32m+[0m[0m force_delete         = true
+      [32m+[0m[0m id                   = (known after apply)
+      [32m+[0m[0m image_tag_mutability = "IMMUTABLE"
+      [32m+[0m[0m name                 = "vm-order-backend"
+      [32m+[0m[0m registry_id          = (known after apply)
+      [32m+[0m[0m repository_url       = (known after apply)
+      [32m+[0m[0m tags                 = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m tags_all             = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+
+      [32m+[0m[0m image_scanning_configuration {
+          [32m+[0m[0m scan_on_push = true
+        }
+    }
+
+[1m  # module.ecr.aws_ecr_repository.repos["frontend"][0m will be created
+[0m  [32m+[0m[0m resource "aws_ecr_repository" "repos" {
+      [32m+[0m[0m arn                  = (known after apply)
+      [32m+[0m[0m force_delete         = true
+      [32m+[0m[0m id                   = (known after apply)
+      [32m+[0m[0m image_tag_mutability = "IMMUTABLE"
+      [32m+[0m[0m name                 = "vm-order-frontend"
+      [32m+[0m[0m registry_id          = (known after apply)
+      [32m+[0m[0m repository_url       = (known after apply)
+      [32m+[0m[0m tags                 = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m tags_all             = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+
+      [32m+[0m[0m image_scanning_configuration {
+          [32m+[0m[0m scan_on_push = true
+        }
+    }
+
+[1m  # module.ecr.aws_ecr_repository.repos["jenkins-agent"][0m will be created
+[0m  [32m+[0m[0m resource "aws_ecr_repository" "repos" {
+      [32m+[0m[0m arn                  = (known after apply)
+      [32m+[0m[0m force_delete         = true
+      [32m+[0m[0m id                   = (known after apply)
+      [32m+[0m[0m image_tag_mutability = "IMMUTABLE"
+      [32m+[0m[0m name                 = "vm-order-jenkins-agent"
+      [32m+[0m[0m registry_id          = (known after apply)
+      [32m+[0m[0m repository_url       = (known after apply)
+      [32m+[0m[0m tags                 = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m tags_all             = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+
+      [32m+[0m[0m image_scanning_configuration {
+          [32m+[0m[0m scan_on_push = true
+        }
+    }
+
+[1m  # module.ecr.aws_ecr_repository.repos["worker"][0m will be created
+[0m  [32m+[0m[0m resource "aws_ecr_repository" "repos" {
+      [32m+[0m[0m arn                  = (known after apply)
+      [32m+[0m[0m force_delete         = true
+      [32m+[0m[0m id                   = (known after apply)
+      [32m+[0m[0m image_tag_mutability = "IMMUTABLE"
+      [32m+[0m[0m name                 = "vm-order-worker"
+      [32m+[0m[0m registry_id          = (known after apply)
+      [32m+[0m[0m repository_url       = (known after apply)
+      [32m+[0m[0m tags                 = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m tags_all             = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+
+      [32m+[0m[0m image_scanning_configuration {
+          [32m+[0m[0m scan_on_push = true
+        }
+    }
+
+[1m  # module.eks.data.tls_certificate.oidc[0m will be read during apply
+  # (config refers to values not yet known)
+[0m [36m<=[0m[0m data "tls_certificate" "oidc" {
+      [32m+[0m[0m certificates = (known after apply)
+      [32m+[0m[0m id           = (known after apply)
+      [32m+[0m[0m url          = (known after apply)
+    }
+
+[1m  # module.eks.aws_eks_addon.vpc_cni[0m will be created
+[0m  [32m+[0m[0m resource "aws_eks_addon" "vpc_cni" {
+      [32m+[0m[0m addon_name                  = "vpc-cni"
+      [32m+[0m[0m addon_version               = (known after apply)
+      [32m+[0m[0m arn                         = (known after apply)
+      [32m+[0m[0m cluster_name                = "vm-order-prod-eks"
+      [32m+[0m[0m configuration_values        = jsonencode(
+            {
+              [32m+[0m[0m enableNetworkPolicy = "true"
+            }
+        )
+      [32m+[0m[0m created_at                  = (known after apply)
+      [32m+[0m[0m id                          = (known after apply)
+      [32m+[0m[0m modified_at                 = (known after apply)
+      [32m+[0m[0m resolve_conflicts_on_create = "OVERWRITE"
+      [32m+[0m[0m resolve_conflicts_on_update = "OVERWRITE"
+      [32m+[0m[0m tags                        = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m tags_all                    = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+    }
+
+[1m  # module.eks.aws_eks_cluster.main[0m will be created
+[0m  [32m+[0m[0m resource "aws_eks_cluster" "main" {
+      [32m+[0m[0m arn                           = (known after apply)
+      [32m+[0m[0m bootstrap_self_managed_addons = true
+      [32m+[0m[0m certificate_authority         = (known after apply)
+      [32m+[0m[0m cluster_id                    = (known after apply)
+      [32m+[0m[0m created_at                    = (known after apply)
+      [32m+[0m[0m endpoint                      = (known after apply)
+      [32m+[0m[0m id                            = (known after apply)
+      [32m+[0m[0m identity                      = (known after apply)
+      [32m+[0m[0m name                          = "vm-order-prod-eks"
+      [32m+[0m[0m platform_version              = (known after apply)
+      [32m+[0m[0m role_arn                      = (known after apply)
+      [32m+[0m[0m status                        = (known after apply)
+      [32m+[0m[0m tags                          = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m tags_all                      = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m version                       = "1.35"
+
+      [32m+[0m[0m access_config (known after apply)
+
+      [32m+[0m[0m kubernetes_network_config (known after apply)
+
+      [32m+[0m[0m upgrade_policy (known after apply)
+
+      [32m+[0m[0m vpc_config {
+          [32m+[0m[0m cluster_security_group_id = (known after apply)
+          [32m+[0m[0m endpoint_private_access   = true
+          [32m+[0m[0m endpoint_public_access    = true
+          [32m+[0m[0m public_access_cidrs       = [
+              [32m+[0m[0m "5.29.60.20/32",
+            ]
+          [32m+[0m[0m subnet_ids                = (known after apply)
+          [32m+[0m[0m vpc_id                    = (known after apply)
+        }
+    }
+
+[1m  # module.eks.aws_eks_node_group.app[0m will be created
+[0m  [32m+[0m[0m resource "aws_eks_node_group" "app" {
+      [32m+[0m[0m ami_type               = (known after apply)
+      [32m+[0m[0m arn                    = (known after apply)
+      [32m+[0m[0m capacity_type          = (known after apply)
+      [32m+[0m[0m cluster_name           = "vm-order-prod-eks"
+      [32m+[0m[0m disk_size              = (known after apply)
+      [32m+[0m[0m id                     = (known after apply)
+      [32m+[0m[0m instance_types         = [
+          [32m+[0m[0m "t3.small",
+        ]
+      [32m+[0m[0m node_group_name        = "vm-order-prod-eks-app-nodes"
+      [32m+[0m[0m node_group_name_prefix = (known after apply)
+      [32m+[0m[0m node_role_arn          = (known after apply)
+      [32m+[0m[0m release_version        = (known after apply)
+      [32m+[0m[0m resources              = (known after apply)
+      [32m+[0m[0m status                 = (known after apply)
+      [32m+[0m[0m subnet_ids             = (known after apply)
+      [32m+[0m[0m tags                   = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+          [32m+[0m[0m "Role"        = "app"
+        }
+      [32m+[0m[0m tags_all               = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+          [32m+[0m[0m "Role"        = "app"
+        }
+      [32m+[0m[0m version                = (known after apply)
+
+      [32m+[0m[0m node_repair_config (known after apply)
+
+      [32m+[0m[0m scaling_config {
+          [32m+[0m[0m desired_size = 3
+          [32m+[0m[0m max_size     = 4
+          [32m+[0m[0m min_size     = 3
+        }
+
+      [32m+[0m[0m update_config (known after apply)
+    }
+
+[1m  # module.eks.aws_eks_node_group.jenkins[0m will be created
+[0m  [32m+[0m[0m resource "aws_eks_node_group" "jenkins" {
+      [32m+[0m[0m ami_type               = (known after apply)
+      [32m+[0m[0m arn                    = (known after apply)
+      [32m+[0m[0m capacity_type          = (known after apply)
+      [32m+[0m[0m cluster_name           = "vm-order-prod-eks"
+      [32m+[0m[0m disk_size              = (known after apply)
+      [32m+[0m[0m id                     = (known after apply)
+      [32m+[0m[0m instance_types         = [
+          [32m+[0m[0m "m7i-flex.large",
+        ]
+      [32m+[0m[0m node_group_name        = "vm-order-prod-eks-jenkins-nodes"
+      [32m+[0m[0m node_group_name_prefix = (known after apply)
+      [32m+[0m[0m node_role_arn          = (known after apply)
+      [32m+[0m[0m release_version        = (known after apply)
+      [32m+[0m[0m resources              = (known after apply)
+      [32m+[0m[0m status                 = (known after apply)
+      [32m+[0m[0m subnet_ids             = (known after apply)
+      [32m+[0m[0m tags                   = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+          [32m+[0m[0m "Role"        = "jenkins"
+        }
+      [32m+[0m[0m tags_all               = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+          [32m+[0m[0m "Role"        = "jenkins"
+        }
+      [32m+[0m[0m version                = (known after apply)
+
+      [32m+[0m[0m node_repair_config (known after apply)
+
+      [32m+[0m[0m scaling_config {
+          [32m+[0m[0m desired_size = 1
+          [32m+[0m[0m max_size     = 2
+          [32m+[0m[0m min_size     = 1
+        }
+
+      [32m+[0m[0m taint {
+          [32m+[0m[0m effect = "NO_SCHEDULE"
+          [32m+[0m[0m key    = "role"
+          [32m+[0m[0m value  = "jenkins"
+        }
+
+      [32m+[0m[0m update_config (known after apply)
+    }
+
+[1m  # module.eks.aws_iam_openid_connect_provider.main[0m will be created
+[0m  [32m+[0m[0m resource "aws_iam_openid_connect_provider" "main" {
+      [32m+[0m[0m arn             = (known after apply)
+      [32m+[0m[0m client_id_list  = [
+          [32m+[0m[0m "sts.amazonaws.com",
+        ]
+      [32m+[0m[0m id              = (known after apply)
+      [32m+[0m[0m tags            = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m tags_all        = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m thumbprint_list = (known after apply)
+      [32m+[0m[0m url             = (known after apply)
+    }
+
+[1m  # module.eks.aws_iam_role.cluster[0m will be created
+[0m  [32m+[0m[0m resource "aws_iam_role" "cluster" {
+      [32m+[0m[0m arn                   = (known after apply)
+      [32m+[0m[0m assume_role_policy    = jsonencode(
+            {
+              [32m+[0m[0m Statement = [
+                  [32m+[0m[0m {
+                      [32m+[0m[0m Action    = "sts:AssumeRole"
+                      [32m+[0m[0m Effect    = "Allow"
+                      [32m+[0m[0m Principal = {
+                          [32m+[0m[0m Service = "eks.amazonaws.com"
+                        }
+                    },
+                ]
+              [32m+[0m[0m Version   = "2012-10-17"
+            }
+        )
+      [32m+[0m[0m create_date           = (known after apply)
+      [32m+[0m[0m force_detach_policies = false
+      [32m+[0m[0m id                    = (known after apply)
+      [32m+[0m[0m managed_policy_arns   = (known after apply)
+      [32m+[0m[0m max_session_duration  = 3600
+      [32m+[0m[0m name                  = "vm-order-prod-eks-cluster-role"
+      [32m+[0m[0m name_prefix           = (known after apply)
+      [32m+[0m[0m path                  = "/"
+      [32m+[0m[0m tags                  = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m tags_all              = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m unique_id             = (known after apply)
+
+      [32m+[0m[0m inline_policy (known after apply)
+    }
+
+[1m  # module.eks.aws_iam_role.node[0m will be created
+[0m  [32m+[0m[0m resource "aws_iam_role" "node" {
+      [32m+[0m[0m arn                   = (known after apply)
+      [32m+[0m[0m assume_role_policy    = jsonencode(
+            {
+              [32m+[0m[0m Statement = [
+                  [32m+[0m[0m {
+                      [32m+[0m[0m Action    = "sts:AssumeRole"
+                      [32m+[0m[0m Effect    = "Allow"
+                      [32m+[0m[0m Principal = {
+                          [32m+[0m[0m Service = "ec2.amazonaws.com"
+                        }
+                    },
+                ]
+              [32m+[0m[0m Version   = "2012-10-17"
+            }
+        )
+      [32m+[0m[0m create_date           = (known after apply)
+      [32m+[0m[0m force_detach_policies = false
+      [32m+[0m[0m id                    = (known after apply)
+      [32m+[0m[0m managed_policy_arns   = (known after apply)
+      [32m+[0m[0m max_session_duration  = 3600
+      [32m+[0m[0m name                  = "vm-order-prod-eks-node-role"
+      [32m+[0m[0m name_prefix           = (known after apply)
+      [32m+[0m[0m path                  = "/"
+      [32m+[0m[0m tags                  = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m tags_all              = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m unique_id             = (known after apply)
+
+      [32m+[0m[0m inline_policy (known after apply)
+    }
+
+[1m  # module.eks.aws_iam_role_policy_attachment.cluster_policy[0m will be created
+[0m  [32m+[0m[0m resource "aws_iam_role_policy_attachment" "cluster_policy" {
+      [32m+[0m[0m id         = (known after apply)
+      [32m+[0m[0m policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+      [32m+[0m[0m role       = "vm-order-prod-eks-cluster-role"
+    }
+
+[1m  # module.eks.aws_iam_role_policy_attachment.node_cni[0m will be created
+[0m  [32m+[0m[0m resource "aws_iam_role_policy_attachment" "node_cni" {
+      [32m+[0m[0m id         = (known after apply)
+      [32m+[0m[0m policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+      [32m+[0m[0m role       = "vm-order-prod-eks-node-role"
+    }
+
+[1m  # module.eks.aws_iam_role_policy_attachment.node_ecr[0m will be created
+[0m  [32m+[0m[0m resource "aws_iam_role_policy_attachment" "node_ecr" {
+      [32m+[0m[0m id         = (known after apply)
+      [32m+[0m[0m policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+      [32m+[0m[0m role       = "vm-order-prod-eks-node-role"
+    }
+
+[1m  # module.eks.aws_iam_role_policy_attachment.node_worker[0m will be created
+[0m  [32m+[0m[0m resource "aws_iam_role_policy_attachment" "node_worker" {
+      [32m+[0m[0m id         = (known after apply)
+      [32m+[0m[0m policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
+      [32m+[0m[0m role       = "vm-order-prod-eks-node-role"
+    }
+
+[1m  # module.irsa.data.aws_iam_policy_document.trust_alb_controller[0m will be read during apply
+  # (config refers to values not yet known)
+[0m [36m<=[0m[0m data "aws_iam_policy_document" "trust_alb_controller" {
+      [32m+[0m[0m id            = (known after apply)
+      [32m+[0m[0m json          = (known after apply)
+      [32m+[0m[0m minified_json = (known after apply)
+
+      [32m+[0m[0m statement {
+          [32m+[0m[0m actions = [
+              [32m+[0m[0m "sts:AssumeRoleWithWebIdentity",
+            ]
+          [32m+[0m[0m effect  = "Allow"
+
+          [32m+[0m[0m condition {
+              [32m+[0m[0m test     = "StringEquals"
+              [32m+[0m[0m values   = [
+                  [32m+[0m[0m "sts.amazonaws.com",
+                ]
+              [32m+[0m[0m variable = (known after apply)
+            }
+          [32m+[0m[0m condition {
+              [32m+[0m[0m test     = "StringEquals"
+              [32m+[0m[0m values   = [
+                  [32m+[0m[0m "system:serviceaccount:kube-system:aws-load-balancer-controller",
+                ]
+              [32m+[0m[0m variable = (known after apply)
+            }
+
+          [32m+[0m[0m principals {
+              [32m+[0m[0m identifiers = [
+                  [32m+[0m[0m (known after apply),
+                ]
+              [32m+[0m[0m type        = "Federated"
+            }
+        }
+    }
+
+[1m  # module.irsa.data.aws_iam_policy_document.trust_backend[0m will be read during apply
+  # (config refers to values not yet known)
+[0m [36m<=[0m[0m data "aws_iam_policy_document" "trust_backend" {
+      [32m+[0m[0m id            = (known after apply)
+      [32m+[0m[0m json          = (known after apply)
+      [32m+[0m[0m minified_json = (known after apply)
+
+      [32m+[0m[0m statement {
+          [32m+[0m[0m actions = [
+              [32m+[0m[0m "sts:AssumeRoleWithWebIdentity",
+            ]
+          [32m+[0m[0m effect  = "Allow"
+
+          [32m+[0m[0m condition {
+              [32m+[0m[0m test     = "StringEquals"
+              [32m+[0m[0m values   = [
+                  [32m+[0m[0m "sts.amazonaws.com",
+                ]
+              [32m+[0m[0m variable = (known after apply)
+            }
+          [32m+[0m[0m condition {
+              [32m+[0m[0m test     = "StringEquals"
+              [32m+[0m[0m values   = [
+                  [32m+[0m[0m "system:serviceaccount:devops-app:backend-sa",
+                ]
+              [32m+[0m[0m variable = (known after apply)
+            }
+
+          [32m+[0m[0m principals {
+              [32m+[0m[0m identifiers = [
+                  [32m+[0m[0m (known after apply),
+                ]
+              [32m+[0m[0m type        = "Federated"
+            }
+        }
+    }
+
+[1m  # module.irsa.data.aws_iam_policy_document.trust_ebs_csi[0m will be read during apply
+  # (config refers to values not yet known)
+[0m [36m<=[0m[0m data "aws_iam_policy_document" "trust_ebs_csi" {
+      [32m+[0m[0m id            = (known after apply)
+      [32m+[0m[0m json          = (known after apply)
+      [32m+[0m[0m minified_json = (known after apply)
+
+      [32m+[0m[0m statement {
+          [32m+[0m[0m actions = [
+              [32m+[0m[0m "sts:AssumeRoleWithWebIdentity",
+            ]
+          [32m+[0m[0m effect  = "Allow"
+
+          [32m+[0m[0m condition {
+              [32m+[0m[0m test     = "StringEquals"
+              [32m+[0m[0m values   = [
+                  [32m+[0m[0m "sts.amazonaws.com",
+                ]
+              [32m+[0m[0m variable = (known after apply)
+            }
+          [32m+[0m[0m condition {
+              [32m+[0m[0m test     = "StringEquals"
+              [32m+[0m[0m values   = [
+                  [32m+[0m[0m "system:serviceaccount:kube-system:ebs-csi-controller-sa",
+                ]
+              [32m+[0m[0m variable = (known after apply)
+            }
+
+          [32m+[0m[0m principals {
+              [32m+[0m[0m identifiers = [
+                  [32m+[0m[0m (known after apply),
+                ]
+              [32m+[0m[0m type        = "Federated"
+            }
+        }
+    }
+
+[1m  # module.irsa.data.aws_iam_policy_document.trust_jenkins_cd[0m will be read during apply
+  # (config refers to values not yet known)
+[0m [36m<=[0m[0m data "aws_iam_policy_document" "trust_jenkins_cd" {
+      [32m+[0m[0m id            = (known after apply)
+      [32m+[0m[0m json          = (known after apply)
+      [32m+[0m[0m minified_json = (known after apply)
+
+      [32m+[0m[0m statement {
+          [32m+[0m[0m actions = [
+              [32m+[0m[0m "sts:AssumeRoleWithWebIdentity",
+            ]
+          [32m+[0m[0m effect  = "Allow"
+
+          [32m+[0m[0m condition {
+              [32m+[0m[0m test     = "StringEquals"
+              [32m+[0m[0m values   = [
+                  [32m+[0m[0m "sts.amazonaws.com",
+                ]
+              [32m+[0m[0m variable = (known after apply)
+            }
+          [32m+[0m[0m condition {
+              [32m+[0m[0m test     = "StringEquals"
+              [32m+[0m[0m values   = [
+                  [32m+[0m[0m "system:serviceaccount:jenkins:jenkins-agent-cd",
+                ]
+              [32m+[0m[0m variable = (known after apply)
+            }
+
+          [32m+[0m[0m principals {
+              [32m+[0m[0m identifiers = [
+                  [32m+[0m[0m (known after apply),
+                ]
+              [32m+[0m[0m type        = "Federated"
+            }
+        }
+    }
+
+[1m  # module.irsa.data.aws_iam_policy_document.trust_jenkins_ci[0m will be read during apply
+  # (config refers to values not yet known)
+[0m [36m<=[0m[0m data "aws_iam_policy_document" "trust_jenkins_ci" {
+      [32m+[0m[0m id            = (known after apply)
+      [32m+[0m[0m json          = (known after apply)
+      [32m+[0m[0m minified_json = (known after apply)
+
+      [32m+[0m[0m statement {
+          [32m+[0m[0m actions = [
+              [32m+[0m[0m "sts:AssumeRoleWithWebIdentity",
+            ]
+          [32m+[0m[0m effect  = "Allow"
+
+          [32m+[0m[0m condition {
+              [32m+[0m[0m test     = "StringEquals"
+              [32m+[0m[0m values   = [
+                  [32m+[0m[0m "sts.amazonaws.com",
+                ]
+              [32m+[0m[0m variable = (known after apply)
+            }
+          [32m+[0m[0m condition {
+              [32m+[0m[0m test     = "StringEquals"
+              [32m+[0m[0m values   = [
+                  [32m+[0m[0m "system:serviceaccount:jenkins:jenkins-agent-ci",
+                ]
+              [32m+[0m[0m variable = (known after apply)
+            }
+
+          [32m+[0m[0m principals {
+              [32m+[0m[0m identifiers = [
+                  [32m+[0m[0m (known after apply),
+                ]
+              [32m+[0m[0m type        = "Federated"
+            }
+        }
+    }
+
+[1m  # module.irsa.data.aws_iam_policy_document.trust_worker[0m will be read during apply
+  # (config refers to values not yet known)
+[0m [36m<=[0m[0m data "aws_iam_policy_document" "trust_worker" {
+      [32m+[0m[0m id            = (known after apply)
+      [32m+[0m[0m json          = (known after apply)
+      [32m+[0m[0m minified_json = (known after apply)
+
+      [32m+[0m[0m statement {
+          [32m+[0m[0m actions = [
+              [32m+[0m[0m "sts:AssumeRoleWithWebIdentity",
+            ]
+          [32m+[0m[0m effect  = "Allow"
+
+          [32m+[0m[0m condition {
+              [32m+[0m[0m test     = "StringEquals"
+              [32m+[0m[0m values   = [
+                  [32m+[0m[0m "sts.amazonaws.com",
+                ]
+              [32m+[0m[0m variable = (known after apply)
+            }
+          [32m+[0m[0m condition {
+              [32m+[0m[0m test     = "StringEquals"
+              [32m+[0m[0m values   = [
+                  [32m+[0m[0m "system:serviceaccount:devops-app:worker-sa",
+                ]
+              [32m+[0m[0m variable = (known after apply)
+            }
+
+          [32m+[0m[0m principals {
+              [32m+[0m[0m identifiers = [
+                  [32m+[0m[0m (known after apply),
+                ]
+              [32m+[0m[0m type        = "Federated"
+            }
+        }
+    }
+
+[1m  # module.irsa.aws_iam_role.alb_controller[0m will be created
+[0m  [32m+[0m[0m resource "aws_iam_role" "alb_controller" {
+      [32m+[0m[0m arn                   = (known after apply)
+      [32m+[0m[0m assume_role_policy    = (known after apply)
+      [32m+[0m[0m create_date           = (known after apply)
+      [32m+[0m[0m force_detach_policies = false
+      [32m+[0m[0m id                    = (known after apply)
+      [32m+[0m[0m managed_policy_arns   = (known after apply)
+      [32m+[0m[0m max_session_duration  = 3600
+      [32m+[0m[0m name                  = "vm-order-prod-alb-controller-irsa"
+      [32m+[0m[0m name_prefix           = (known after apply)
+      [32m+[0m[0m path                  = "/"
+      [32m+[0m[0m tags                  = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m tags_all              = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m unique_id             = (known after apply)
+
+      [32m+[0m[0m inline_policy (known after apply)
+    }
+
+[1m  # module.irsa.aws_iam_role.backend[0m will be created
+[0m  [32m+[0m[0m resource "aws_iam_role" "backend" {
+      [32m+[0m[0m arn                   = (known after apply)
+      [32m+[0m[0m assume_role_policy    = (known after apply)
+      [32m+[0m[0m create_date           = (known after apply)
+      [32m+[0m[0m force_detach_policies = false
+      [32m+[0m[0m id                    = (known after apply)
+      [32m+[0m[0m managed_policy_arns   = (known after apply)
+      [32m+[0m[0m max_session_duration  = 3600
+      [32m+[0m[0m name                  = "vm-order-prod-backend-irsa"
+      [32m+[0m[0m name_prefix           = (known after apply)
+      [32m+[0m[0m path                  = "/"
+      [32m+[0m[0m tags                  = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m tags_all              = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m unique_id             = (known after apply)
+
+      [32m+[0m[0m inline_policy (known after apply)
+    }
+
+[1m  # module.irsa.aws_iam_role.ebs_csi[0m will be created
+[0m  [32m+[0m[0m resource "aws_iam_role" "ebs_csi" {
+      [32m+[0m[0m arn                   = (known after apply)
+      [32m+[0m[0m assume_role_policy    = (known after apply)
+      [32m+[0m[0m create_date           = (known after apply)
+      [32m+[0m[0m force_detach_policies = false
+      [32m+[0m[0m id                    = (known after apply)
+      [32m+[0m[0m managed_policy_arns   = (known after apply)
+      [32m+[0m[0m max_session_duration  = 3600
+      [32m+[0m[0m name                  = "vm-order-prod-ebs-csi-irsa"
+      [32m+[0m[0m name_prefix           = (known after apply)
+      [32m+[0m[0m path                  = "/"
+      [32m+[0m[0m tags                  = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m tags_all              = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m unique_id             = (known after apply)
+
+      [32m+[0m[0m inline_policy (known after apply)
+    }
+
+[1m  # module.irsa.aws_iam_role.jenkins_cd[0m will be created
+[0m  [32m+[0m[0m resource "aws_iam_role" "jenkins_cd" {
+      [32m+[0m[0m arn                   = (known after apply)
+      [32m+[0m[0m assume_role_policy    = (known after apply)
+      [32m+[0m[0m create_date           = (known after apply)
+      [32m+[0m[0m force_detach_policies = false
+      [32m+[0m[0m id                    = (known after apply)
+      [32m+[0m[0m managed_policy_arns   = (known after apply)
+      [32m+[0m[0m max_session_duration  = 3600
+      [32m+[0m[0m name                  = "vm-order-prod-jenkins-cd-irsa"
+      [32m+[0m[0m name_prefix           = (known after apply)
+      [32m+[0m[0m path                  = "/"
+      [32m+[0m[0m tags                  = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m tags_all              = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m unique_id             = (known after apply)
+
+      [32m+[0m[0m inline_policy (known after apply)
+    }
+
+[1m  # module.irsa.aws_iam_role.jenkins_ci[0m will be created
+[0m  [32m+[0m[0m resource "aws_iam_role" "jenkins_ci" {
+      [32m+[0m[0m arn                   = (known after apply)
+      [32m+[0m[0m assume_role_policy    = (known after apply)
+      [32m+[0m[0m create_date           = (known after apply)
+      [32m+[0m[0m force_detach_policies = false
+      [32m+[0m[0m id                    = (known after apply)
+      [32m+[0m[0m managed_policy_arns   = (known after apply)
+      [32m+[0m[0m max_session_duration  = 3600
+      [32m+[0m[0m name                  = "vm-order-prod-jenkins-ci-irsa"
+      [32m+[0m[0m name_prefix           = (known after apply)
+      [32m+[0m[0m path                  = "/"
+      [32m+[0m[0m tags                  = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m tags_all              = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m unique_id             = (known after apply)
+
+      [32m+[0m[0m inline_policy (known after apply)
+    }
+
+[1m  # module.irsa.aws_iam_role.worker[0m will be created
+[0m  [32m+[0m[0m resource "aws_iam_role" "worker" {
+      [32m+[0m[0m arn                   = (known after apply)
+      [32m+[0m[0m assume_role_policy    = (known after apply)
+      [32m+[0m[0m create_date           = (known after apply)
+      [32m+[0m[0m force_detach_policies = false
+      [32m+[0m[0m id                    = (known after apply)
+      [32m+[0m[0m managed_policy_arns   = (known after apply)
+      [32m+[0m[0m max_session_duration  = 3600
+      [32m+[0m[0m name                  = "vm-order-prod-worker-irsa"
+      [32m+[0m[0m name_prefix           = (known after apply)
+      [32m+[0m[0m path                  = "/"
+      [32m+[0m[0m tags                  = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m tags_all              = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m unique_id             = (known after apply)
+
+      [32m+[0m[0m inline_policy (known after apply)
+    }
+
+[1m  # module.irsa.aws_iam_role_policy.alb_controller[0m will be created
+[0m  [32m+[0m[0m resource "aws_iam_role_policy" "alb_controller" {
+      [32m+[0m[0m id          = (known after apply)
+      [32m+[0m[0m name        = "alb-controller-official-policy"
+      [32m+[0m[0m name_prefix = (known after apply)
+      [32m+[0m[0m policy      = jsonencode(
+            {
+              [32m+[0m[0m Statement = [
+                  [32m+[0m[0m {
+                      [32m+[0m[0m Action    = [
+                          [32m+[0m[0m "iam:CreateServiceLinkedRole",
+                        ]
+                      [32m+[0m[0m Condition = {
+                          [32m+[0m[0m StringEquals = {
+                              [32m+[0m[0m "iam:AWSServiceName" = "elasticloadbalancing.amazonaws.com"
+                            }
+                        }
+                      [32m+[0m[0m Effect    = "Allow"
+                      [32m+[0m[0m Resource  = "*"
+                    },
+                  [32m+[0m[0m {
+                      [32m+[0m[0m Action   = [
+                          [32m+[0m[0m "ec2:DescribeAccountAttributes",
+                          [32m+[0m[0m "ec2:DescribeAddresses",
+                          [32m+[0m[0m "ec2:DescribeAvailabilityZones",
+                          [32m+[0m[0m "ec2:DescribeInternetGateways",
+                          [32m+[0m[0m "ec2:DescribeVpcs",
+                          [32m+[0m[0m "ec2:DescribeVpcPeeringConnections",
+                          [32m+[0m[0m "ec2:DescribeSubnets",
+                          [32m+[0m[0m "ec2:DescribeSecurityGroups",
+                          [32m+[0m[0m "ec2:DescribeInstances",
+                          [32m+[0m[0m "ec2:DescribeNetworkInterfaces",
+                          [32m+[0m[0m "ec2:DescribeTags",
+                          [32m+[0m[0m "ec2:GetCoipPoolUsage",
+                          [32m+[0m[0m "ec2:DescribeCoipPools",
+                          [32m+[0m[0m "ec2:GetSecurityGroupsForVpc",
+                          [32m+[0m[0m "ec2:DescribeIpamPools",
+                          [32m+[0m[0m "ec2:DescribeRouteTables",
+                          [32m+[0m[0m "elasticloadbalancing:DescribeLoadBalancers",
+                          [32m+[0m[0m "elasticloadbalancing:DescribeLoadBalancerAttributes",
+                          [32m+[0m[0m "elasticloadbalancing:DescribeListeners",
+                          [32m+[0m[0m "elasticloadbalancing:DescribeListenerCertificates",
+                          [32m+[0m[0m "elasticloadbalancing:DescribeSSLPolicies",
+                          [32m+[0m[0m "elasticloadbalancing:DescribeRules",
+                          [32m+[0m[0m "elasticloadbalancing:DescribeTargetGroups",
+                          [32m+[0m[0m "elasticloadbalancing:DescribeTargetGroupAttributes",
+                          [32m+[0m[0m "elasticloadbalancing:DescribeTargetHealth",
+                          [32m+[0m[0m "elasticloadbalancing:DescribeTags",
+                          [32m+[0m[0m "elasticloadbalancing:DescribeTrustStores",
+                          [32m+[0m[0m "elasticloadbalancing:DescribeListenerAttributes",
+                          [32m+[0m[0m "elasticloadbalancing:DescribeCapacityReservation",
+                        ]
+                      [32m+[0m[0m Effect   = "Allow"
+                      [32m+[0m[0m Resource = "*"
+                    },
+                  [32m+[0m[0m {
+                      [32m+[0m[0m Action   = [
+                          [32m+[0m[0m "cognito-idp:DescribeUserPoolClient",
+                          [32m+[0m[0m "acm:ListCertificates",
+                          [32m+[0m[0m "acm:DescribeCertificate",
+                          [32m+[0m[0m "iam:ListServerCertificates",
+                          [32m+[0m[0m "iam:GetServerCertificate",
+                          [32m+[0m[0m "waf-regional:GetWebACL",
+                          [32m+[0m[0m "waf-regional:GetWebACLForResource",
+                          [32m+[0m[0m "waf-regional:AssociateWebACL",
+                          [32m+[0m[0m "waf-regional:DisassociateWebACL",
+                          [32m+[0m[0m "wafv2:GetWebACL",
+                          [32m+[0m[0m "wafv2:GetWebACLForResource",
+                          [32m+[0m[0m "wafv2:AssociateWebACL",
+                          [32m+[0m[0m "wafv2:DisassociateWebACL",
+                          [32m+[0m[0m "shield:GetSubscriptionState",
+                          [32m+[0m[0m "shield:DescribeProtection",
+                          [32m+[0m[0m "shield:CreateProtection",
+                          [32m+[0m[0m "shield:DeleteProtection",
+                        ]
+                      [32m+[0m[0m Effect   = "Allow"
+                      [32m+[0m[0m Resource = "*"
+                    },
+                  [32m+[0m[0m {
+                      [32m+[0m[0m Action   = [
+                          [32m+[0m[0m "ec2:AuthorizeSecurityGroupIngress",
+                          [32m+[0m[0m "ec2:RevokeSecurityGroupIngress",
+                        ]
+                      [32m+[0m[0m Effect   = "Allow"
+                      [32m+[0m[0m Resource = "*"
+                    },
+                  [32m+[0m[0m {
+                      [32m+[0m[0m Action   = [
+                          [32m+[0m[0m "ec2:CreateSecurityGroup",
+                        ]
+                      [32m+[0m[0m Effect   = "Allow"
+                      [32m+[0m[0m Resource = "*"
+                    },
+                  [32m+[0m[0m {
+                      [32m+[0m[0m Action    = [
+                          [32m+[0m[0m "ec2:CreateTags",
+                        ]
+                      [32m+[0m[0m Condition = {
+                          [32m+[0m[0m Null         = {
+                              [32m+[0m[0m "aws:RequestTag/elbv2.k8s.aws/cluster" = "false"
+                            }
+                          [32m+[0m[0m StringEquals = {
+                              [32m+[0m[0m "ec2:CreateAction" = "CreateSecurityGroup"
+                            }
+                        }
+                      [32m+[0m[0m Effect    = "Allow"
+                      [32m+[0m[0m Resource  = "arn:aws:ec2:*:*:security-group/*"
+                    },
+                  [32m+[0m[0m {
+                      [32m+[0m[0m Action    = [
+                          [32m+[0m[0m "ec2:CreateTags",
+                          [32m+[0m[0m "ec2:DeleteTags",
+                        ]
+                      [32m+[0m[0m Condition = {
+                          [32m+[0m[0m Null = {
+                              [32m+[0m[0m "aws:RequestTag/elbv2.k8s.aws/cluster"  = "true"
+                              [32m+[0m[0m "aws:ResourceTag/elbv2.k8s.aws/cluster" = "false"
+                            }
+                        }
+                      [32m+[0m[0m Effect    = "Allow"
+                      [32m+[0m[0m Resource  = "arn:aws:ec2:*:*:security-group/*"
+                    },
+                  [32m+[0m[0m {
+                      [32m+[0m[0m Action    = [
+                          [32m+[0m[0m "ec2:AuthorizeSecurityGroupIngress",
+                          [32m+[0m[0m "ec2:RevokeSecurityGroupIngress",
+                          [32m+[0m[0m "ec2:DeleteSecurityGroup",
+                        ]
+                      [32m+[0m[0m Condition = {
+                          [32m+[0m[0m Null = {
+                              [32m+[0m[0m "aws:ResourceTag/elbv2.k8s.aws/cluster" = "false"
+                            }
+                        }
+                      [32m+[0m[0m Effect    = "Allow"
+                      [32m+[0m[0m Resource  = "*"
+                    },
+                  [32m+[0m[0m {
+                      [32m+[0m[0m Action    = [
+                          [32m+[0m[0m "elasticloadbalancing:CreateLoadBalancer",
+                          [32m+[0m[0m "elasticloadbalancing:CreateTargetGroup",
+                        ]
+                      [32m+[0m[0m Condition = {
+                          [32m+[0m[0m Null = {
+                              [32m+[0m[0m "aws:RequestTag/elbv2.k8s.aws/cluster" = "false"
+                            }
+                        }
+                      [32m+[0m[0m Effect    = "Allow"
+                      [32m+[0m[0m Resource  = "*"
+                    },
+                  [32m+[0m[0m {
+                      [32m+[0m[0m Action   = [
+                          [32m+[0m[0m "elasticloadbalancing:CreateListener",
+                          [32m+[0m[0m "elasticloadbalancing:DeleteListener",
+                          [32m+[0m[0m "elasticloadbalancing:CreateRule",
+                          [32m+[0m[0m "elasticloadbalancing:DeleteRule",
+                        ]
+                      [32m+[0m[0m Effect   = "Allow"
+                      [32m+[0m[0m Resource = "*"
+                    },
+                  [32m+[0m[0m {
+                      [32m+[0m[0m Action    = [
+                          [32m+[0m[0m "elasticloadbalancing:AddTags",
+                          [32m+[0m[0m "elasticloadbalancing:RemoveTags",
+                        ]
+                      [32m+[0m[0m Condition = {
+                          [32m+[0m[0m Null = {
+                              [32m+[0m[0m "aws:RequestTag/elbv2.k8s.aws/cluster"  = "true"
+                              [32m+[0m[0m "aws:ResourceTag/elbv2.k8s.aws/cluster" = "false"
+                            }
+                        }
+                      [32m+[0m[0m Effect    = "Allow"
+                      [32m+[0m[0m Resource  = [
+                          [32m+[0m[0m "arn:aws:elasticloadbalancing:*:*:targetgroup/*/*",
+                          [32m+[0m[0m "arn:aws:elasticloadbalancing:*:*:loadbalancer/net/*/*",
+                          [32m+[0m[0m "arn:aws:elasticloadbalancing:*:*:loadbalancer/app/*/*",
+                        ]
+                    },
+                  [32m+[0m[0m {
+                      [32m+[0m[0m Action   = [
+                          [32m+[0m[0m "elasticloadbalancing:AddTags",
+                          [32m+[0m[0m "elasticloadbalancing:RemoveTags",
+                        ]
+                      [32m+[0m[0m Effect   = "Allow"
+                      [32m+[0m[0m Resource = [
+                          [32m+[0m[0m "arn:aws:elasticloadbalancing:*:*:listener/net/*/*/*",
+                          [32m+[0m[0m "arn:aws:elasticloadbalancing:*:*:listener/app/*/*/*",
+                          [32m+[0m[0m "arn:aws:elasticloadbalancing:*:*:listener-rule/net/*/*/*",
+                          [32m+[0m[0m "arn:aws:elasticloadbalancing:*:*:listener-rule/app/*/*/*",
+                        ]
+                    },
+                  [32m+[0m[0m {
+                      [32m+[0m[0m Action    = [
+                          [32m+[0m[0m "elasticloadbalancing:ModifyLoadBalancerAttributes",
+                          [32m+[0m[0m "elasticloadbalancing:SetIpAddressType",
+                          [32m+[0m[0m "elasticloadbalancing:SetSecurityGroups",
+                          [32m+[0m[0m "elasticloadbalancing:SetSubnets",
+                          [32m+[0m[0m "elasticloadbalancing:DeleteLoadBalancer",
+                          [32m+[0m[0m "elasticloadbalancing:ModifyTargetGroup",
+                          [32m+[0m[0m "elasticloadbalancing:ModifyTargetGroupAttributes",
+                          [32m+[0m[0m "elasticloadbalancing:DeleteTargetGroup",
+                          [32m+[0m[0m "elasticloadbalancing:ModifyListenerAttributes",
+                          [32m+[0m[0m "elasticloadbalancing:ModifyCapacityReservation",
+                          [32m+[0m[0m "elasticloadbalancing:ModifyIpPools",
+                        ]
+                      [32m+[0m[0m Condition = {
+                          [32m+[0m[0m Null = {
+                              [32m+[0m[0m "aws:ResourceTag/elbv2.k8s.aws/cluster" = "false"
+                            }
+                        }
+                      [32m+[0m[0m Effect    = "Allow"
+                      [32m+[0m[0m Resource  = "*"
+                    },
+                  [32m+[0m[0m {
+                      [32m+[0m[0m Action    = [
+                          [32m+[0m[0m "elasticloadbalancing:AddTags",
+                        ]
+                      [32m+[0m[0m Condition = {
+                          [32m+[0m[0m Null         = {
+                              [32m+[0m[0m "aws:RequestTag/elbv2.k8s.aws/cluster" = "false"
+                            }
+                          [32m+[0m[0m StringEquals = {
+                              [32m+[0m[0m "elasticloadbalancing:CreateAction" = [
+                                  [32m+[0m[0m "CreateTargetGroup",
+                                  [32m+[0m[0m "CreateLoadBalancer",
+                                ]
+                            }
+                        }
+                      [32m+[0m[0m Effect    = "Allow"
+                      [32m+[0m[0m Resource  = [
+                          [32m+[0m[0m "arn:aws:elasticloadbalancing:*:*:targetgroup/*/*",
+                          [32m+[0m[0m "arn:aws:elasticloadbalancing:*:*:loadbalancer/net/*/*",
+                          [32m+[0m[0m "arn:aws:elasticloadbalancing:*:*:loadbalancer/app/*/*",
+                        ]
+                    },
+                  [32m+[0m[0m {
+                      [32m+[0m[0m Action   = [
+                          [32m+[0m[0m "elasticloadbalancing:RegisterTargets",
+                          [32m+[0m[0m "elasticloadbalancing:DeregisterTargets",
+                        ]
+                      [32m+[0m[0m Effect   = "Allow"
+                      [32m+[0m[0m Resource = "arn:aws:elasticloadbalancing:*:*:targetgroup/*/*"
+                    },
+                  [32m+[0m[0m {
+                      [32m+[0m[0m Action   = [
+                          [32m+[0m[0m "elasticloadbalancing:SetWebAcl",
+                          [32m+[0m[0m "elasticloadbalancing:ModifyListener",
+                          [32m+[0m[0m "elasticloadbalancing:AddListenerCertificates",
+                          [32m+[0m[0m "elasticloadbalancing:RemoveListenerCertificates",
+                          [32m+[0m[0m "elasticloadbalancing:ModifyRule",
+                          [32m+[0m[0m "elasticloadbalancing:SetRulePriorities",
+                        ]
+                      [32m+[0m[0m Effect   = "Allow"
+                      [32m+[0m[0m Resource = "*"
+                    },
+                ]
+              [32m+[0m[0m Version   = "2012-10-17"
+            }
+        )
+      [32m+[0m[0m role        = (known after apply)
+    }
+
+[1m  # module.irsa.aws_iam_role_policy.backend_s3[0m will be created
+[0m  [32m+[0m[0m resource "aws_iam_role_policy" "backend_s3" {
+      [32m+[0m[0m id          = (known after apply)
+      [32m+[0m[0m name        = "s3-orders-write"
+      [32m+[0m[0m name_prefix = (known after apply)
+      [32m+[0m[0m policy      = (known after apply)
+      [32m+[0m[0m role        = (known after apply)
+    }
+
+[1m  # module.irsa.aws_iam_role_policy.jenkins_cd[0m will be created
+[0m  [32m+[0m[0m resource "aws_iam_role_policy" "jenkins_cd" {
+      [32m+[0m[0m id          = (known after apply)
+      [32m+[0m[0m name        = "cd-registry-read"
+      [32m+[0m[0m name_prefix = (known after apply)
+      [32m+[0m[0m policy      = (known after apply)
+      [32m+[0m[0m role        = (known after apply)
+    }
+
+[1m  # module.irsa.aws_iam_role_policy.jenkins_ci[0m will be created
+[0m  [32m+[0m[0m resource "aws_iam_role_policy" "jenkins_ci" {
+      [32m+[0m[0m id          = (known after apply)
+      [32m+[0m[0m name        = "ci-ecr-push"
+      [32m+[0m[0m name_prefix = (known after apply)
+      [32m+[0m[0m policy      = (known after apply)
+      [32m+[0m[0m role        = (known after apply)
+    }
+
+[1m  # module.irsa.aws_iam_role_policy.worker_notify[0m will be created
+[0m  [32m+[0m[0m resource "aws_iam_role_policy" "worker_notify" {
+      [32m+[0m[0m id          = (known after apply)
+      [32m+[0m[0m name        = "sns-ses-notify"
+      [32m+[0m[0m name_prefix = (known after apply)
+      [32m+[0m[0m policy      = (known after apply)
+      [32m+[0m[0m role        = (known after apply)
+    }
+
+[1m  # module.irsa.aws_iam_role_policy_attachment.ebs_csi[0m will be created
+[0m  [32m+[0m[0m resource "aws_iam_role_policy_attachment" "ebs_csi" {
+      [32m+[0m[0m id         = (known after apply)
+      [32m+[0m[0m policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+      [32m+[0m[0m role       = "vm-order-prod-ebs-csi-irsa"
+    }
+
+[1m  # module.rds.aws_db_instance.main[0m will be created
+[0m  [32m+[0m[0m resource "aws_db_instance" "main" {
+      [32m+[0m[0m address                               = (known after apply)
+      [32m+[0m[0m allocated_storage                     = 20
+      [32m+[0m[0m apply_immediately                     = false
+      [32m+[0m[0m arn                                   = (known after apply)
+      [32m+[0m[0m auto_minor_version_upgrade            = true
+      [32m+[0m[0m availability_zone                     = (known after apply)
+      [32m+[0m[0m backup_retention_period               = 0
+      [32m+[0m[0m backup_target                         = (known after apply)
+      [32m+[0m[0m backup_window                         = (known after apply)
+      [32m+[0m[0m ca_cert_identifier                    = (known after apply)
+      [32m+[0m[0m character_set_name                    = (known after apply)
+      [32m+[0m[0m copy_tags_to_snapshot                 = false
+      [32m+[0m[0m database_insights_mode                = (known after apply)
+      [32m+[0m[0m db_name                               = "vmorders"
+      [32m+[0m[0m db_subnet_group_name                  = "vm-order-prod-subnet-group"
+      [32m+[0m[0m dedicated_log_volume                  = false
+      [32m+[0m[0m delete_automated_backups              = true
+      [32m+[0m[0m domain_fqdn                           = (known after apply)
+      [32m+[0m[0m endpoint                              = (known after apply)
+      [32m+[0m[0m engine                                = "postgres"
+      [32m+[0m[0m engine_lifecycle_support              = (known after apply)
+      [32m+[0m[0m engine_version                        = "16.3"
+      [32m+[0m[0m engine_version_actual                 = (known after apply)
+      [32m+[0m[0m hosted_zone_id                        = (known after apply)
+      [32m+[0m[0m id                                    = (known after apply)
+      [32m+[0m[0m identifier                            = "vm-order-prod-rds"
+      [32m+[0m[0m identifier_prefix                     = (known after apply)
+      [32m+[0m[0m instance_class                        = "db.t3.micro"
+      [32m+[0m[0m iops                                  = (known after apply)
+      [32m+[0m[0m kms_key_id                            = (known after apply)
+      [32m+[0m[0m latest_restorable_time                = (known after apply)
+      [32m+[0m[0m license_model                         = (known after apply)
+      [32m+[0m[0m listener_endpoint                     = (known after apply)
+      [32m+[0m[0m maintenance_window                    = (known after apply)
+      [32m+[0m[0m master_user_secret                    = (known after apply)
+      [32m+[0m[0m master_user_secret_kms_key_id         = (known after apply)
+      [32m+[0m[0m monitoring_interval                   = 0
+      [32m+[0m[0m monitoring_role_arn                   = (known after apply)
+      [32m+[0m[0m multi_az                              = false
+      [32m+[0m[0m nchar_character_set_name              = (known after apply)
+      [32m+[0m[0m network_type                          = (known after apply)
+      [32m+[0m[0m option_group_name                     = (known after apply)
+      [32m+[0m[0m parameter_group_name                  = (known after apply)
+      [32m+[0m[0m password                              = (sensitive value)
+      [32m+[0m[0m password_wo                           = (write-only attribute)
+      [32m+[0m[0m performance_insights_enabled          = false
+      [32m+[0m[0m performance_insights_kms_key_id       = (known after apply)
+      [32m+[0m[0m performance_insights_retention_period = (known after apply)
+      [32m+[0m[0m port                                  = (known after apply)
+      [32m+[0m[0m publicly_accessible                   = false
+      [32m+[0m[0m replica_mode                          = (known after apply)
+      [32m+[0m[0m replicas                              = (known after apply)
+      [32m+[0m[0m resource_id                           = (known after apply)
+      [32m+[0m[0m skip_final_snapshot                   = true
+      [32m+[0m[0m snapshot_identifier                   = (known after apply)
+      [32m+[0m[0m status                                = (known after apply)
+      [32m+[0m[0m storage_throughput                    = (known after apply)
+      [32m+[0m[0m storage_type                          = "gp2"
+      [32m+[0m[0m tags                                  = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Name"        = "vm-order-prod-rds"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m tags_all                              = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Name"        = "vm-order-prod-rds"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m timezone                              = (known after apply)
+      [32m+[0m[0m username                              = "vmadmin"
+      [32m+[0m[0m vpc_security_group_ids                = (known after apply)
+    }
+
+[1m  # module.rds.aws_db_subnet_group.main[0m will be created
+[0m  [32m+[0m[0m resource "aws_db_subnet_group" "main" {
+      [32m+[0m[0m arn                     = (known after apply)
+      [32m+[0m[0m description             = "Managed by Terraform"
+      [32m+[0m[0m id                      = (known after apply)
+      [32m+[0m[0m name                    = "vm-order-prod-subnet-group"
+      [32m+[0m[0m name_prefix             = (known after apply)
+      [32m+[0m[0m subnet_ids              = (known after apply)
+      [32m+[0m[0m supported_network_types = (known after apply)
+      [32m+[0m[0m tags                    = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Name"        = "vm-order-prod-subnet-group"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m tags_all                = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Name"        = "vm-order-prod-subnet-group"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m vpc_id                  = (known after apply)
+    }
+
+[1m  # module.rds.aws_security_group.rds[0m will be created
+[0m  [32m+[0m[0m resource "aws_security_group" "rds" {
+      [32m+[0m[0m arn                    = (known after apply)
+      [32m+[0m[0m description            = "PostgreSQL access from EKS nodes only"
+      [32m+[0m[0m egress                 = [
+          [32m+[0m[0m {
+              [32m+[0m[0m cidr_blocks      = [
+                  [32m+[0m[0m "0.0.0.0/0",
+                ]
+              [32m+[0m[0m from_port        = 0
+              [32m+[0m[0m ipv6_cidr_blocks = []
+              [32m+[0m[0m prefix_list_ids  = []
+              [32m+[0m[0m protocol         = "-1"
+              [32m+[0m[0m security_groups  = []
+              [32m+[0m[0m self             = false
+              [32m+[0m[0m to_port          = 0
+                [90m# (1 unchanged attribute hidden)[0m[0m
+            },
+        ]
+      [32m+[0m[0m id                     = (known after apply)
+      [32m+[0m[0m ingress                = [
+          [32m+[0m[0m {
+              [32m+[0m[0m cidr_blocks      = []
+              [32m+[0m[0m description      = "PostgreSQL from EKS nodes"
+              [32m+[0m[0m from_port        = 5432
+              [32m+[0m[0m ipv6_cidr_blocks = []
+              [32m+[0m[0m prefix_list_ids  = []
+              [32m+[0m[0m protocol         = "tcp"
+              [32m+[0m[0m security_groups  = (known after apply)
+              [32m+[0m[0m self             = false
+              [32m+[0m[0m to_port          = 5432
+            },
+        ]
+      [32m+[0m[0m name                   = "vm-order-prod-sg-rds"
+      [32m+[0m[0m name_prefix            = (known after apply)
+      [32m+[0m[0m owner_id               = (known after apply)
+      [32m+[0m[0m revoke_rules_on_delete = false
+      [32m+[0m[0m tags                   = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Name"        = "vm-order-prod-sg-rds"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m tags_all               = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Name"        = "vm-order-prod-sg-rds"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m vpc_id                 = (known after apply)
+    }
+
+[1m  # module.s3.aws_s3_bucket.orders[0m will be created
+[0m  [32m+[0m[0m resource "aws_s3_bucket" "orders" {
+      [32m+[0m[0m acceleration_status         = (known after apply)
+      [32m+[0m[0m acl                         = (known after apply)
+      [32m+[0m[0m arn                         = (known after apply)
+      [32m+[0m[0m bucket                      = "vm-order-prod-s3-orders-v4-nt"
+      [32m+[0m[0m bucket_domain_name          = (known after apply)
+      [32m+[0m[0m bucket_prefix               = (known after apply)
+      [32m+[0m[0m bucket_regional_domain_name = (known after apply)
+      [32m+[0m[0m force_destroy               = true
+      [32m+[0m[0m hosted_zone_id              = (known after apply)
+      [32m+[0m[0m id                          = (known after apply)
+      [32m+[0m[0m object_lock_enabled         = (known after apply)
+      [32m+[0m[0m policy                      = (known after apply)
+      [32m+[0m[0m region                      = (known after apply)
+      [32m+[0m[0m request_payer               = (known after apply)
+      [32m+[0m[0m tags                        = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Name"        = "vm-order-prod-s3-orders-v4-nt"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m tags_all                    = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Name"        = "vm-order-prod-s3-orders-v4-nt"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m website_domain              = (known after apply)
+      [32m+[0m[0m website_endpoint            = (known after apply)
+
+      [32m+[0m[0m cors_rule (known after apply)
+
+      [32m+[0m[0m grant (known after apply)
+
+      [32m+[0m[0m lifecycle_rule (known after apply)
+
+      [32m+[0m[0m logging (known after apply)
+
+      [32m+[0m[0m object_lock_configuration (known after apply)
+
+      [32m+[0m[0m replication_configuration (known after apply)
+
+      [32m+[0m[0m server_side_encryption_configuration (known after apply)
+
+      [32m+[0m[0m versioning (known after apply)
+
+      [32m+[0m[0m website (known after apply)
+    }
+
+[1m  # module.s3.aws_s3_bucket_public_access_block.orders[0m will be created
+[0m  [32m+[0m[0m resource "aws_s3_bucket_public_access_block" "orders" {
+      [32m+[0m[0m block_public_acls       = true
+      [32m+[0m[0m block_public_policy     = true
+      [32m+[0m[0m bucket                  = (known after apply)
+      [32m+[0m[0m id                      = (known after apply)
+      [32m+[0m[0m ignore_public_acls      = true
+      [32m+[0m[0m restrict_public_buckets = true
+    }
+
+[1m  # module.s3.aws_s3_bucket_server_side_encryption_configuration.orders[0m will be created
+[0m  [32m+[0m[0m resource "aws_s3_bucket_server_side_encryption_configuration" "orders" {
+      [32m+[0m[0m bucket = (known after apply)
+      [32m+[0m[0m id     = (known after apply)
+
+      [32m+[0m[0m rule {
+          [32m+[0m[0m bucket_key_enabled = true
+
+          [32m+[0m[0m apply_server_side_encryption_by_default {
+              [32m+[0m[0m sse_algorithm     = "AES256"
+                [90m# (1 unchanged attribute hidden)[0m[0m
+            }
+        }
+    }
+
+[1m  # module.sns.aws_sns_topic.notifications[0m will be created
+[0m  [32m+[0m[0m resource "aws_sns_topic" "notifications" {
+      [32m+[0m[0m arn                         = (known after apply)
+      [32m+[0m[0m beginning_archive_time      = (known after apply)
+      [32m+[0m[0m content_based_deduplication = false
+      [32m+[0m[0m fifo_throughput_scope       = (known after apply)
+      [32m+[0m[0m fifo_topic                  = false
+      [32m+[0m[0m id                          = (known after apply)
+      [32m+[0m[0m name                        = "vm-order-prod-sns"
+      [32m+[0m[0m name_prefix                 = (known after apply)
+      [32m+[0m[0m owner                       = (known after apply)
+      [32m+[0m[0m policy                      = (known after apply)
+      [32m+[0m[0m signature_version           = (known after apply)
+      [32m+[0m[0m tags                        = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Name"        = "vm-order-prod-sns"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m tags_all                    = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Name"        = "vm-order-prod-sns"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m tracing_config              = (known after apply)
+    }
+
+[1m  # module.sns.aws_sns_topic_subscription.email[0m will be created
+[0m  [32m+[0m[0m resource "aws_sns_topic_subscription" "email" {
+      [32m+[0m[0m arn                             = (known after apply)
+      [32m+[0m[0m confirmation_timeout_in_minutes = 1
+      [32m+[0m[0m confirmation_was_authenticated  = (known after apply)
+      [32m+[0m[0m endpoint                        = "vmorderportal@gmail.com"
+      [32m+[0m[0m endpoint_auto_confirms          = false
+      [32m+[0m[0m filter_policy_scope             = (known after apply)
+      [32m+[0m[0m id                              = (known after apply)
+      [32m+[0m[0m owner_id                        = (known after apply)
+      [32m+[0m[0m pending_confirmation            = (known after apply)
+      [32m+[0m[0m protocol                        = "email"
+      [32m+[0m[0m raw_message_delivery            = false
+      [32m+[0m[0m topic_arn                       = (known after apply)
+    }
+
+[1m  # module.vpc.aws_eip.nat[0m will be created
+[0m  [32m+[0m[0m resource "aws_eip" "nat" {
+      [32m+[0m[0m allocation_id        = (known after apply)
+      [32m+[0m[0m arn                  = (known after apply)
+      [32m+[0m[0m association_id       = (known after apply)
+      [32m+[0m[0m carrier_ip           = (known after apply)
+      [32m+[0m[0m customer_owned_ip    = (known after apply)
+      [32m+[0m[0m domain               = "vpc"
+      [32m+[0m[0m id                   = (known after apply)
+      [32m+[0m[0m instance             = (known after apply)
+      [32m+[0m[0m ipam_pool_id         = (known after apply)
+      [32m+[0m[0m network_border_group = (known after apply)
+      [32m+[0m[0m network_interface    = (known after apply)
+      [32m+[0m[0m private_dns          = (known after apply)
+      [32m+[0m[0m private_ip           = (known after apply)
+      [32m+[0m[0m ptr_record           = (known after apply)
+      [32m+[0m[0m public_dns           = (known after apply)
+      [32m+[0m[0m public_ip            = (known after apply)
+      [32m+[0m[0m public_ipv4_pool     = (known after apply)
+      [32m+[0m[0m tags                 = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Name"        = "vm-order-prod-eip-nat"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m tags_all             = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Name"        = "vm-order-prod-eip-nat"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m vpc                  = (known after apply)
+    }
+
+[1m  # module.vpc.aws_internet_gateway.main[0m will be created
+[0m  [32m+[0m[0m resource "aws_internet_gateway" "main" {
+      [32m+[0m[0m arn      = (known after apply)
+      [32m+[0m[0m id       = (known after apply)
+      [32m+[0m[0m owner_id = (known after apply)
+      [32m+[0m[0m tags     = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Name"        = "vm-order-prod-igw"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m tags_all = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Name"        = "vm-order-prod-igw"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m vpc_id   = (known after apply)
+    }
+
+[1m  # module.vpc.aws_nat_gateway.main[0m will be created
+[0m  [32m+[0m[0m resource "aws_nat_gateway" "main" {
+      [32m+[0m[0m allocation_id                      = (known after apply)
+      [32m+[0m[0m association_id                     = (known after apply)
+      [32m+[0m[0m connectivity_type                  = "public"
+      [32m+[0m[0m id                                 = (known after apply)
+      [32m+[0m[0m network_interface_id               = (known after apply)
+      [32m+[0m[0m private_ip                         = (known after apply)
+      [32m+[0m[0m public_ip                          = (known after apply)
+      [32m+[0m[0m secondary_private_ip_address_count = (known after apply)
+      [32m+[0m[0m secondary_private_ip_addresses     = (known after apply)
+      [32m+[0m[0m subnet_id                          = (known after apply)
+      [32m+[0m[0m tags                               = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Name"        = "vm-order-prod-nat"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m tags_all                           = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Name"        = "vm-order-prod-nat"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+    }
+
+[1m  # module.vpc.aws_route_table.db[0m will be created
+[0m  [32m+[0m[0m resource "aws_route_table" "db" {
+      [32m+[0m[0m arn              = (known after apply)
+      [32m+[0m[0m id               = (known after apply)
+      [32m+[0m[0m owner_id         = (known after apply)
+      [32m+[0m[0m propagating_vgws = (known after apply)
+      [32m+[0m[0m route            = (known after apply)
+      [32m+[0m[0m tags             = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Name"        = "vm-order-prod-rt-db"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m tags_all         = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Name"        = "vm-order-prod-rt-db"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m vpc_id           = (known after apply)
+    }
+
+[1m  # module.vpc.aws_route_table.private[0m will be created
+[0m  [32m+[0m[0m resource "aws_route_table" "private" {
+      [32m+[0m[0m arn              = (known after apply)
+      [32m+[0m[0m id               = (known after apply)
+      [32m+[0m[0m owner_id         = (known after apply)
+      [32m+[0m[0m propagating_vgws = (known after apply)
+      [32m+[0m[0m route            = [
+          [32m+[0m[0m {
+              [32m+[0m[0m cidr_block                 = "0.0.0.0/0"
+              [32m+[0m[0m nat_gateway_id             = (known after apply)
+                [90m# (11 unchanged attributes hidden)[0m[0m
+            },
+        ]
+      [32m+[0m[0m tags             = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Name"        = "vm-order-prod-rt-private"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m tags_all         = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Name"        = "vm-order-prod-rt-private"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m vpc_id           = (known after apply)
+    }
+
+[1m  # module.vpc.aws_route_table.public[0m will be created
+[0m  [32m+[0m[0m resource "aws_route_table" "public" {
+      [32m+[0m[0m arn              = (known after apply)
+      [32m+[0m[0m id               = (known after apply)
+      [32m+[0m[0m owner_id         = (known after apply)
+      [32m+[0m[0m propagating_vgws = (known after apply)
+      [32m+[0m[0m route            = [
+          [32m+[0m[0m {
+              [32m+[0m[0m cidr_block                 = "0.0.0.0/0"
+              [32m+[0m[0m gateway_id                 = (known after apply)
+                [90m# (11 unchanged attributes hidden)[0m[0m
+            },
+        ]
+      [32m+[0m[0m tags             = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Name"        = "vm-order-prod-rt-public"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m tags_all         = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Name"        = "vm-order-prod-rt-public"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m vpc_id           = (known after apply)
+    }
+
+[1m  # module.vpc.aws_route_table_association.db[0][0m will be created
+[0m  [32m+[0m[0m resource "aws_route_table_association" "db" {
+      [32m+[0m[0m id             = (known after apply)
+      [32m+[0m[0m route_table_id = (known after apply)
+      [32m+[0m[0m subnet_id      = (known after apply)
+    }
+
+[1m  # module.vpc.aws_route_table_association.db[1][0m will be created
+[0m  [32m+[0m[0m resource "aws_route_table_association" "db" {
+      [32m+[0m[0m id             = (known after apply)
+      [32m+[0m[0m route_table_id = (known after apply)
+      [32m+[0m[0m subnet_id      = (known after apply)
+    }
+
+[1m  # module.vpc.aws_route_table_association.private[0][0m will be created
+[0m  [32m+[0m[0m resource "aws_route_table_association" "private" {
+      [32m+[0m[0m id             = (known after apply)
+      [32m+[0m[0m route_table_id = (known after apply)
+      [32m+[0m[0m subnet_id      = (known after apply)
+    }
+
+[1m  # module.vpc.aws_route_table_association.private[1][0m will be created
+[0m  [32m+[0m[0m resource "aws_route_table_association" "private" {
+      [32m+[0m[0m id             = (known after apply)
+      [32m+[0m[0m route_table_id = (known after apply)
+      [32m+[0m[0m subnet_id      = (known after apply)
+    }
+
+[1m  # module.vpc.aws_route_table_association.public[0][0m will be created
+[0m  [32m+[0m[0m resource "aws_route_table_association" "public" {
+      [32m+[0m[0m id             = (known after apply)
+      [32m+[0m[0m route_table_id = (known after apply)
+      [32m+[0m[0m subnet_id      = (known after apply)
+    }
+
+[1m  # module.vpc.aws_route_table_association.public[1][0m will be created
+[0m  [32m+[0m[0m resource "aws_route_table_association" "public" {
+      [32m+[0m[0m id             = (known after apply)
+      [32m+[0m[0m route_table_id = (known after apply)
+      [32m+[0m[0m subnet_id      = (known after apply)
+    }
+
+[1m  # module.vpc.aws_subnet.db[0][0m will be created
+[0m  [32m+[0m[0m resource "aws_subnet" "db" {
+      [32m+[0m[0m arn                                            = (known after apply)
+      [32m+[0m[0m assign_ipv6_address_on_creation                = false
+      [32m+[0m[0m availability_zone                              = "us-east-1a"
+      [32m+[0m[0m availability_zone_id                           = (known after apply)
+      [32m+[0m[0m cidr_block                                     = "10.23.2.0/24"
+      [32m+[0m[0m enable_dns64                                   = false
+      [32m+[0m[0m enable_resource_name_dns_a_record_on_launch    = false
+      [32m+[0m[0m enable_resource_name_dns_aaaa_record_on_launch = false
+      [32m+[0m[0m id                                             = (known after apply)
+      [32m+[0m[0m ipv6_cidr_block_association_id                 = (known after apply)
+      [32m+[0m[0m ipv6_native                                    = false
+      [32m+[0m[0m map_public_ip_on_launch                        = false
+      [32m+[0m[0m owner_id                                       = (known after apply)
+      [32m+[0m[0m private_dns_hostname_type_on_launch            = (known after apply)
+      [32m+[0m[0m tags                                           = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Name"        = "vm-order-prod-db-us-east-1a"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m tags_all                                       = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Name"        = "vm-order-prod-db-us-east-1a"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m vpc_id                                         = (known after apply)
+    }
+
+[1m  # module.vpc.aws_subnet.db[1][0m will be created
+[0m  [32m+[0m[0m resource "aws_subnet" "db" {
+      [32m+[0m[0m arn                                            = (known after apply)
+      [32m+[0m[0m assign_ipv6_address_on_creation                = false
+      [32m+[0m[0m availability_zone                              = "us-east-1b"
+      [32m+[0m[0m availability_zone_id                           = (known after apply)
+      [32m+[0m[0m cidr_block                                     = "10.23.3.0/24"
+      [32m+[0m[0m enable_dns64                                   = false
+      [32m+[0m[0m enable_resource_name_dns_a_record_on_launch    = false
+      [32m+[0m[0m enable_resource_name_dns_aaaa_record_on_launch = false
+      [32m+[0m[0m id                                             = (known after apply)
+      [32m+[0m[0m ipv6_cidr_block_association_id                 = (known after apply)
+      [32m+[0m[0m ipv6_native                                    = false
+      [32m+[0m[0m map_public_ip_on_launch                        = false
+      [32m+[0m[0m owner_id                                       = (known after apply)
+      [32m+[0m[0m private_dns_hostname_type_on_launch            = (known after apply)
+      [32m+[0m[0m tags                                           = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Name"        = "vm-order-prod-db-us-east-1b"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m tags_all                                       = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Name"        = "vm-order-prod-db-us-east-1b"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m vpc_id                                         = (known after apply)
+    }
+
+[1m  # module.vpc.aws_subnet.private[0][0m will be created
+[0m  [32m+[0m[0m resource "aws_subnet" "private" {
+      [32m+[0m[0m arn                                            = (known after apply)
+      [32m+[0m[0m assign_ipv6_address_on_creation                = false
+      [32m+[0m[0m availability_zone                              = "us-east-1a"
+      [32m+[0m[0m availability_zone_id                           = (known after apply)
+      [32m+[0m[0m cidr_block                                     = "10.23.4.0/24"
+      [32m+[0m[0m enable_dns64                                   = false
+      [32m+[0m[0m enable_resource_name_dns_a_record_on_launch    = false
+      [32m+[0m[0m enable_resource_name_dns_aaaa_record_on_launch = false
+      [32m+[0m[0m id                                             = (known after apply)
+      [32m+[0m[0m ipv6_cidr_block_association_id                 = (known after apply)
+      [32m+[0m[0m ipv6_native                                    = false
+      [32m+[0m[0m map_public_ip_on_launch                        = false
+      [32m+[0m[0m owner_id                                       = (known after apply)
+      [32m+[0m[0m private_dns_hostname_type_on_launch            = (known after apply)
+      [32m+[0m[0m tags                                           = {
+          [32m+[0m[0m "Environment"                             = "prod"
+          [32m+[0m[0m "Name"                                    = "vm-order-prod-private-us-east-1a"
+          [32m+[0m[0m "Project"                                 = "vm-order"
+          [32m+[0m[0m "kubernetes.io/cluster/vm-order-prod-eks" = "shared"
+          [32m+[0m[0m "kubernetes.io/role/internal-elb"         = "1"
+        }
+      [32m+[0m[0m tags_all                                       = {
+          [32m+[0m[0m "Environment"                             = "prod"
+          [32m+[0m[0m "Name"                                    = "vm-order-prod-private-us-east-1a"
+          [32m+[0m[0m "Project"                                 = "vm-order"
+          [32m+[0m[0m "kubernetes.io/cluster/vm-order-prod-eks" = "shared"
+          [32m+[0m[0m "kubernetes.io/role/internal-elb"         = "1"
+        }
+      [32m+[0m[0m vpc_id                                         = (known after apply)
+    }
+
+[1m  # module.vpc.aws_subnet.private[1][0m will be created
+[0m  [32m+[0m[0m resource "aws_subnet" "private" {
+      [32m+[0m[0m arn                                            = (known after apply)
+      [32m+[0m[0m assign_ipv6_address_on_creation                = false
+      [32m+[0m[0m availability_zone                              = "us-east-1b"
+      [32m+[0m[0m availability_zone_id                           = (known after apply)
+      [32m+[0m[0m cidr_block                                     = "10.23.6.0/24"
+      [32m+[0m[0m enable_dns64                                   = false
+      [32m+[0m[0m enable_resource_name_dns_a_record_on_launch    = false
+      [32m+[0m[0m enable_resource_name_dns_aaaa_record_on_launch = false
+      [32m+[0m[0m id                                             = (known after apply)
+      [32m+[0m[0m ipv6_cidr_block_association_id                 = (known after apply)
+      [32m+[0m[0m ipv6_native                                    = false
+      [32m+[0m[0m map_public_ip_on_launch                        = false
+      [32m+[0m[0m owner_id                                       = (known after apply)
+      [32m+[0m[0m private_dns_hostname_type_on_launch            = (known after apply)
+      [32m+[0m[0m tags                                           = {
+          [32m+[0m[0m "Environment"                             = "prod"
+          [32m+[0m[0m "Name"                                    = "vm-order-prod-private-us-east-1b"
+          [32m+[0m[0m "Project"                                 = "vm-order"
+          [32m+[0m[0m "kubernetes.io/cluster/vm-order-prod-eks" = "shared"
+          [32m+[0m[0m "kubernetes.io/role/internal-elb"         = "1"
+        }
+      [32m+[0m[0m tags_all                                       = {
+          [32m+[0m[0m "Environment"                             = "prod"
+          [32m+[0m[0m "Name"                                    = "vm-order-prod-private-us-east-1b"
+          [32m+[0m[0m "Project"                                 = "vm-order"
+          [32m+[0m[0m "kubernetes.io/cluster/vm-order-prod-eks" = "shared"
+          [32m+[0m[0m "kubernetes.io/role/internal-elb"         = "1"
+        }
+      [32m+[0m[0m vpc_id                                         = (known after apply)
+    }
+
+[1m  # module.vpc.aws_subnet.public[0][0m will be created
+[0m  [32m+[0m[0m resource "aws_subnet" "public" {
+      [32m+[0m[0m arn                                            = (known after apply)
+      [32m+[0m[0m assign_ipv6_address_on_creation                = false
+      [32m+[0m[0m availability_zone                              = "us-east-1a"
+      [32m+[0m[0m availability_zone_id                           = (known after apply)
+      [32m+[0m[0m cidr_block                                     = "10.23.1.0/24"
+      [32m+[0m[0m enable_dns64                                   = false
+      [32m+[0m[0m enable_resource_name_dns_a_record_on_launch    = false
+      [32m+[0m[0m enable_resource_name_dns_aaaa_record_on_launch = false
+      [32m+[0m[0m id                                             = (known after apply)
+      [32m+[0m[0m ipv6_cidr_block_association_id                 = (known after apply)
+      [32m+[0m[0m ipv6_native                                    = false
+      [32m+[0m[0m map_public_ip_on_launch                        = true
+      [32m+[0m[0m owner_id                                       = (known after apply)
+      [32m+[0m[0m private_dns_hostname_type_on_launch            = (known after apply)
+      [32m+[0m[0m tags                                           = {
+          [32m+[0m[0m "Environment"                             = "prod"
+          [32m+[0m[0m "Name"                                    = "vm-order-prod-public-us-east-1a"
+          [32m+[0m[0m "Project"                                 = "vm-order"
+          [32m+[0m[0m "kubernetes.io/cluster/vm-order-prod-eks" = "shared"
+          [32m+[0m[0m "kubernetes.io/role/elb"                  = "1"
+        }
+      [32m+[0m[0m tags_all                                       = {
+          [32m+[0m[0m "Environment"                             = "prod"
+          [32m+[0m[0m "Name"                                    = "vm-order-prod-public-us-east-1a"
+          [32m+[0m[0m "Project"                                 = "vm-order"
+          [32m+[0m[0m "kubernetes.io/cluster/vm-order-prod-eks" = "shared"
+          [32m+[0m[0m "kubernetes.io/role/elb"                  = "1"
+        }
+      [32m+[0m[0m vpc_id                                         = (known after apply)
+    }
+
+[1m  # module.vpc.aws_subnet.public[1][0m will be created
+[0m  [32m+[0m[0m resource "aws_subnet" "public" {
+      [32m+[0m[0m arn                                            = (known after apply)
+      [32m+[0m[0m assign_ipv6_address_on_creation                = false
+      [32m+[0m[0m availability_zone                              = "us-east-1b"
+      [32m+[0m[0m availability_zone_id                           = (known after apply)
+      [32m+[0m[0m cidr_block                                     = "10.23.5.0/24"
+      [32m+[0m[0m enable_dns64                                   = false
+      [32m+[0m[0m enable_resource_name_dns_a_record_on_launch    = false
+      [32m+[0m[0m enable_resource_name_dns_aaaa_record_on_launch = false
+      [32m+[0m[0m id                                             = (known after apply)
+      [32m+[0m[0m ipv6_cidr_block_association_id                 = (known after apply)
+      [32m+[0m[0m ipv6_native                                    = false
+      [32m+[0m[0m map_public_ip_on_launch                        = true
+      [32m+[0m[0m owner_id                                       = (known after apply)
+      [32m+[0m[0m private_dns_hostname_type_on_launch            = (known after apply)
+      [32m+[0m[0m tags                                           = {
+          [32m+[0m[0m "Environment"                             = "prod"
+          [32m+[0m[0m "Name"                                    = "vm-order-prod-public-us-east-1b"
+          [32m+[0m[0m "Project"                                 = "vm-order"
+          [32m+[0m[0m "kubernetes.io/cluster/vm-order-prod-eks" = "shared"
+          [32m+[0m[0m "kubernetes.io/role/elb"                  = "1"
+        }
+      [32m+[0m[0m tags_all                                       = {
+          [32m+[0m[0m "Environment"                             = "prod"
+          [32m+[0m[0m "Name"                                    = "vm-order-prod-public-us-east-1b"
+          [32m+[0m[0m "Project"                                 = "vm-order"
+          [32m+[0m[0m "kubernetes.io/cluster/vm-order-prod-eks" = "shared"
+          [32m+[0m[0m "kubernetes.io/role/elb"                  = "1"
+        }
+      [32m+[0m[0m vpc_id                                         = (known after apply)
+    }
+
+[1m  # module.vpc.aws_vpc.main[0m will be created
+[0m  [32m+[0m[0m resource "aws_vpc" "main" {
+      [32m+[0m[0m arn                                  = (known after apply)
+      [32m+[0m[0m cidr_block                           = "10.23.0.0/16"
+      [32m+[0m[0m default_network_acl_id               = (known after apply)
+      [32m+[0m[0m default_route_table_id               = (known after apply)
+      [32m+[0m[0m default_security_group_id            = (known after apply)
+      [32m+[0m[0m dhcp_options_id                      = (known after apply)
+      [32m+[0m[0m enable_dns_hostnames                 = true
+      [32m+[0m[0m enable_dns_support                   = true
+      [32m+[0m[0m enable_network_address_usage_metrics = (known after apply)
+      [32m+[0m[0m id                                   = (known after apply)
+      [32m+[0m[0m instance_tenancy                     = "default"
+      [32m+[0m[0m ipv6_association_id                  = (known after apply)
+      [32m+[0m[0m ipv6_cidr_block                      = (known after apply)
+      [32m+[0m[0m ipv6_cidr_block_network_border_group = (known after apply)
+      [32m+[0m[0m main_route_table_id                  = (known after apply)
+      [32m+[0m[0m owner_id                             = (known after apply)
+      [32m+[0m[0m tags                                 = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Name"        = "vm-order-prod-vpc"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m tags_all                             = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Name"        = "vm-order-prod-vpc"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+    }
+
+[1m  # module.vpc.aws_vpc_endpoint.s3[0m will be created
+[0m  [32m+[0m[0m resource "aws_vpc_endpoint" "s3" {
+      [32m+[0m[0m arn                   = (known after apply)
+      [32m+[0m[0m cidr_blocks           = (known after apply)
+      [32m+[0m[0m dns_entry             = (known after apply)
+      [32m+[0m[0m id                    = (known after apply)
+      [32m+[0m[0m ip_address_type       = (known after apply)
+      [32m+[0m[0m network_interface_ids = (known after apply)
+      [32m+[0m[0m owner_id              = (known after apply)
+      [32m+[0m[0m policy                = (known after apply)
+      [32m+[0m[0m prefix_list_id        = (known after apply)
+      [32m+[0m[0m private_dns_enabled   = (known after apply)
+      [32m+[0m[0m requester_managed     = (known after apply)
+      [32m+[0m[0m route_table_ids       = (known after apply)
+      [32m+[0m[0m security_group_ids    = (known after apply)
+      [32m+[0m[0m service_name          = "com.amazonaws.us-east-1.s3"
+      [32m+[0m[0m service_region        = (known after apply)
+      [32m+[0m[0m state                 = (known after apply)
+      [32m+[0m[0m subnet_ids            = (known after apply)
+      [32m+[0m[0m tags                  = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Name"        = "vm-order-prod-vpce-s3"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m tags_all              = {
+          [32m+[0m[0m "Environment" = "prod"
+          [32m+[0m[0m "Name"        = "vm-order-prod-vpce-s3"
+          [32m+[0m[0m "Project"     = "vm-order"
+        }
+      [32m+[0m[0m vpc_endpoint_type     = "Gateway"
+      [32m+[0m[0m vpc_id                = (known after apply)
+
+      [32m+[0m[0m dns_options (known after apply)
+
+      [32m+[0m[0m subnet_configuration (known after apply)
+    }
+
+[1mPlan:[0m [0m56 to add, 0 to change, 0 to destroy.
+
+Changes to Outputs:
+  [32m+[0m[0m alb_controller_role_arn = (known after apply)
+  [32m+[0m[0m aws_region              = "us-east-1"
+  [32m+[0m[0m backend_irsa_role_arn   = (known after apply)
+  [32m+[0m[0m cluster_name            = "vm-order-prod-eks"
+  [32m+[0m[0m db_password             = (sensitive value)
+  [32m+[0m[0m db_subnet_cidrs         = [
+      [32m+[0m[0m "10.23.2.0/24",
+      [32m+[0m[0m "10.23.3.0/24",
+    ]
+  [32m+[0m[0m ecr_registry            = (known after apply)
+  [32m+[0m[0m github_repo_url         = "https://github.com/nikgitnikgit/VMOrderPortal_Phase4_AWS_EKS_With_Jenkins-CI-CD.git"
+  [32m+[0m[0m jenkins_cd_role_arn     = (known after apply)
+  [32m+[0m[0m jenkins_ci_role_arn     = (known after apply)
+  [32m+[0m[0m k8s_namespace           = "devops-app"
+  [32m+[0m[0m notification_email      = "vmorderportal@gmail.com"
+  [32m+[0m[0m project_name            = "vm-order"
+  [32m+[0m[0m rds_address             = (known after apply)
+  [32m+[0m[0m s3_bucket_name          = "vm-order-prod-s3-orders-v4-nt"
+  [32m+[0m[0m ses_sender              = "vmorderportal@gmail.com"
+  [32m+[0m[0m sns_topic_arn           = (known after apply)
+  [32m+[0m[0m vpc_cidr                = "10.23.0.0/16"
+  [32m+[0m[0m vpc_id                  = (known after apply)
+  [32m+[0m[0m worker_irsa_role_arn    = (known after apply)
+[0m[1mmodule.eks.aws_iam_role.node: Creating...[0m[0m
+[0m[1mmodule.vpc.aws_eip.nat: Creating...[0m[0m
+[0m[1mmodule.ecr.aws_ecr_repository.repos["worker"]: Creating...[0m[0m
+[0m[1mmodule.ecr.aws_ecr_repository.repos["jenkins-agent"]: Creating...[0m[0m
+[0m[1mmodule.ecr.aws_ecr_repository.repos["frontend"]: Creating...[0m[0m
+[0m[1mmodule.eks.aws_iam_role.cluster: Creating...[0m[0m
+[0m[1mmodule.ecr.aws_ecr_repository.repos["backend"]: Creating...[0m[0m
+[0m[1mmodule.vpc.aws_vpc.main: Creating...[0m[0m
+[0m[1mmodule.sns.aws_sns_topic.notifications: Creating...[0m[0m
+[0m[1mmodule.s3.aws_s3_bucket.orders: Creating...[0m[0m
+[0m[1mmodule.ecr.aws_ecr_repository.repos["backend"]: Creation complete after 1s [id=vm-order-backend][0m
+[0m[1mmodule.ecr.aws_ecr_repository.repos["frontend"]: Creation complete after 1s [id=vm-order-frontend][0m
+[0m[1mmodule.ecr.aws_ecr_repository.repos["worker"]: Creation complete after 1s [id=vm-order-worker][0m
+[0m[1mmodule.ecr.aws_ecr_repository.repos["jenkins-agent"]: Creation complete after 1s [id=vm-order-jenkins-agent][0m
+[0m[1mmodule.eks.aws_iam_role.cluster: Creation complete after 2s [id=vm-order-prod-eks-cluster-role][0m
+[0m[1mmodule.eks.aws_iam_role.node: Creation complete after 2s [id=vm-order-prod-eks-node-role][0m
+[0m[1mmodule.eks.aws_iam_role_policy_attachment.cluster_policy: Creating...[0m[0m
+[0m[1mmodule.eks.aws_iam_role_policy_attachment.node_cni: Creating...[0m[0m
+[0m[1mmodule.eks.aws_iam_role_policy_attachment.node_ecr: Creating...[0m[0m
+[0m[1mmodule.eks.aws_iam_role_policy_attachment.node_worker: Creating...[0m[0m
+[0m[1mmodule.eks.aws_iam_role_policy_attachment.node_cni: Creation complete after 0s [id=vm-order-prod-eks-node-role-20260820191629819800000002][0m
+[0m[1mmodule.eks.aws_iam_role_policy_attachment.cluster_policy: Creation complete after 0s [id=vm-order-prod-eks-cluster-role-20260820191629819700000001][0m
+[0m[1mmodule.sns.aws_sns_topic.notifications: Creation complete after 2s [id=arn:aws:sns:us-east-1:194013835959:vm-order-prod-sns][0m
+[0m[1mmodule.sns.aws_sns_topic_subscription.email: Creating...[0m[0m
+[0m[1mmodule.eks.aws_iam_role_policy_attachment.node_worker: Creation complete after 0s [id=vm-order-prod-eks-node-role-20260820191630037200000003][0m
+[0m[1mmodule.eks.aws_iam_role_policy_attachment.node_ecr: Creation complete after 0s [id=vm-order-prod-eks-node-role-20260820191630037300000004][0m
+[0m[1mmodule.sns.aws_sns_topic_subscription.email: Creation complete after 1s [id=arn:aws:sns:us-east-1:194013835959:vm-order-prod-sns:b858bee1-0396-4438-bace-ff434d3b48f9][0m
+[0m[1mmodule.vpc.aws_eip.nat: Creation complete after 3s [id=eipalloc-0087295c681e397f0][0m
+[0m[1mmodule.s3.aws_s3_bucket.orders: Creation complete after 4s [id=vm-order-prod-s3-orders-v4-nt][0m
+[0m[1mmodule.s3.aws_s3_bucket_server_side_encryption_configuration.orders: Creating...[0m[0m
+[0m[1mmodule.s3.aws_s3_bucket_public_access_block.orders: Creating...[0m[0m
+[0m[1mmodule.s3.aws_s3_bucket_public_access_block.orders: Creation complete after 1s [id=vm-order-prod-s3-orders-v4-nt][0m
+[0m[1mmodule.s3.aws_s3_bucket_server_side_encryption_configuration.orders: Creation complete after 1s [id=vm-order-prod-s3-orders-v4-nt][0m
+[0m[1mmodule.vpc.aws_vpc.main: Still creating... [00m10s elapsed][0m[0m
+[0m[1mmodule.vpc.aws_vpc.main: Creation complete after 14s [id=vpc-0461a43f4ea9d1071][0m
+[0m[1mmodule.vpc.aws_subnet.public[1]: Creating...[0m[0m
+[0m[1mmodule.vpc.aws_subnet.private[0]: Creating...[0m[0m
+[0m[1mmodule.vpc.aws_route_table.db: Creating...[0m[0m
+[0m[1mmodule.vpc.aws_subnet.public[0]: Creating...[0m[0m
+[0m[1mmodule.vpc.aws_internet_gateway.main: Creating...[0m[0m
+[0m[1mmodule.vpc.aws_subnet.db[1]: Creating...[0m[0m
+[0m[1mmodule.vpc.aws_subnet.private[1]: Creating...[0m[0m
+[0m[1mmodule.vpc.aws_subnet.db[0]: Creating...[0m[0m
+[0m[1mmodule.vpc.aws_subnet.db[1]: Creation complete after 2s [id=subnet-0c1d89dae82b86b45][0m
+[0m[1mmodule.vpc.aws_route_table.db: Creation complete after 2s [id=rtb-0e41462493c3cc971][0m
+[0m[1mmodule.vpc.aws_internet_gateway.main: Creation complete after 2s [id=igw-0d933b265b0cb27df][0m
+[0m[1mmodule.vpc.aws_subnet.private[1]: Creation complete after 2s [id=subnet-09e8f51d906f2cdd4][0m
+[0m[1mmodule.vpc.aws_route_table.public: Creating...[0m[0m
+[0m[1mmodule.vpc.aws_subnet.private[0]: Creation complete after 2s [id=subnet-09b5347210117ffde][0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Creating...[0m[0m
+[0m[1mmodule.vpc.aws_route_table.public: Creation complete after 2s [id=rtb-0ceee39769fa870e4][0m
+[0m[1mmodule.vpc.aws_subnet.db[0]: Creation complete after 5s [id=subnet-04bc51379bd6da118][0m
+[0m[1mmodule.rds.aws_db_subnet_group.main: Creating...[0m[0m
+[0m[1mmodule.vpc.aws_route_table_association.db[0]: Creating...[0m[0m
+[0m[1mmodule.vpc.aws_route_table_association.db[1]: Creating...[0m[0m
+[0m[1mmodule.vpc.aws_route_table_association.db[0]: Creation complete after 1s [id=rtbassoc-04e0e9e741e92a50c][0m
+[0m[1mmodule.vpc.aws_route_table_association.db[1]: Creation complete after 1s [id=rtbassoc-06bcc7ac8c3bc8ec9][0m
+[0m[1mmodule.rds.aws_db_subnet_group.main: Creation complete after 2s [id=vm-order-prod-subnet-group][0m
+[0m[1mmodule.vpc.aws_subnet.public[0]: Still creating... [00m10s elapsed][0m[0m
+[0m[1mmodule.vpc.aws_subnet.public[1]: Still creating... [00m10s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [00m10s elapsed][0m[0m
+[0m[1mmodule.vpc.aws_subnet.public[0]: Creation complete after 13s [id=subnet-0452eb988a9b677d2][0m
+[0m[1mmodule.vpc.aws_nat_gateway.main: Creating...[0m[0m
+[0m[1mmodule.vpc.aws_subnet.public[1]: Creation complete after 19s [id=subnet-08a185f8fb40aae84][0m
+[0m[1mmodule.vpc.aws_route_table_association.public[1]: Creating...[0m[0m
+[0m[1mmodule.vpc.aws_route_table_association.public[0]: Creating...[0m[0m
+[0m[1mmodule.vpc.aws_route_table_association.public[0]: Creation complete after 1s [id=rtbassoc-0755507848b3aa31a][0m
+[0m[1mmodule.vpc.aws_route_table_association.public[1]: Creation complete after 1s [id=rtbassoc-09b3e6fac49dfb538][0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [00m20s elapsed][0m[0m
+[0m[1mmodule.vpc.aws_nat_gateway.main: Still creating... [00m10s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [00m30s elapsed][0m[0m
+[0m[1mmodule.vpc.aws_nat_gateway.main: Still creating... [00m20s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [00m40s elapsed][0m[0m
+[0m[1mmodule.vpc.aws_nat_gateway.main: Still creating... [00m30s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [00m50s elapsed][0m[0m
+[0m[1mmodule.vpc.aws_nat_gateway.main: Still creating... [00m40s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [01m00s elapsed][0m[0m
+[0m[1mmodule.vpc.aws_nat_gateway.main: Still creating... [00m50s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [01m10s elapsed][0m[0m
+[0m[1mmodule.vpc.aws_nat_gateway.main: Still creating... [01m00s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [01m20s elapsed][0m[0m
+[0m[1mmodule.vpc.aws_nat_gateway.main: Still creating... [01m10s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [01m30s elapsed][0m[0m
+[0m[1mmodule.vpc.aws_nat_gateway.main: Still creating... [01m20s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [01m40s elapsed][0m[0m
+[0m[1mmodule.vpc.aws_nat_gateway.main: Still creating... [01m30s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [01m50s elapsed][0m[0m
+[0m[1mmodule.vpc.aws_nat_gateway.main: Still creating... [01m40s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [02m00s elapsed][0m[0m
+[0m[1mmodule.vpc.aws_nat_gateway.main: Still creating... [01m50s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [02m10s elapsed][0m[0m
+[0m[1mmodule.vpc.aws_nat_gateway.main: Still creating... [02m00s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [02m20s elapsed][0m[0m
+[0m[1mmodule.vpc.aws_nat_gateway.main: Still creating... [02m10s elapsed][0m[0m
+[0m[1mmodule.vpc.aws_nat_gateway.main: Creation complete after 2m18s [id=nat-0071c59fe5d67e499][0m
+[0m[1mmodule.vpc.aws_route_table.private: Creating...[0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [02m30s elapsed][0m[0m
+[0m[1mmodule.vpc.aws_route_table.private: Creation complete after 2s [id=rtb-0ac23dc939e32438c][0m
+[0m[1mmodule.vpc.aws_route_table_association.private[0]: Creating...[0m[0m
+[0m[1mmodule.vpc.aws_route_table_association.private[1]: Creating...[0m[0m
+[0m[1mmodule.vpc.aws_vpc_endpoint.s3: Creating...[0m[0m
+[0m[1mmodule.vpc.aws_route_table_association.private[0]: Creation complete after 1s [id=rtbassoc-09db198dada6e01bf][0m
+[0m[1mmodule.vpc.aws_route_table_association.private[1]: Creation complete after 1s [id=rtbassoc-0fa5742995419c14c][0m
+[0m[1mmodule.vpc.aws_vpc_endpoint.s3: Creation complete after 8s [id=vpce-02fa8d736523fb80f][0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [02m40s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [02m50s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [03m00s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [03m10s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [03m20s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [03m30s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [03m40s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [03m50s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [04m00s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [04m10s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [04m20s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [04m30s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [04m40s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [04m50s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [05m00s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [05m10s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [05m20s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [05m30s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [05m40s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [05m50s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [06m00s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [06m10s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [06m20s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [06m30s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [06m40s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [06m50s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [07m00s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [07m10s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [07m20s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [07m30s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [07m40s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [07m50s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [08m00s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [08m10s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [08m20s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [08m30s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [08m40s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [08m50s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [09m00s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [09m10s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [09m20s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [09m30s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [09m40s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [09m50s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Creation complete after 10m0s [id=vm-order-prod-eks][0m
+[0m[1mmodule.eks.data.tls_certificate.oidc: Reading...[0m[0m
+[0m[1mmodule.rds.aws_security_group.rds: Creating...[0m[0m
+[0m[1mmodule.eks.aws_eks_node_group.jenkins: Creating...[0m[0m
+[0m[1mmodule.eks.aws_eks_node_group.app: Creating...[0m[0m
+[0m[1mmodule.eks.data.tls_certificate.oidc: Read complete after 1s [id=b1b539daa206035ae3c3e28288b0681fa1b462f3][0m
+[0m[1mmodule.eks.aws_iam_openid_connect_provider.main: Creating...[0m[0m
+[0m[1mmodule.eks.aws_iam_openid_connect_provider.main: Creation complete after 1s [id=arn:aws:iam::194013835959:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/5E47103DDC90D96E69061E1745642C94][0m
+[0m[1mmodule.irsa.data.aws_iam_policy_document.trust_jenkins_cd: Reading...[0m[0m
+[0m[1mmodule.irsa.data.aws_iam_policy_document.trust_ebs_csi: Reading...[0m[0m
+[0m[1mmodule.irsa.data.aws_iam_policy_document.trust_worker: Reading...[0m[0m
+[0m[1mmodule.irsa.data.aws_iam_policy_document.trust_alb_controller: Reading...[0m[0m
+[0m[1mmodule.irsa.data.aws_iam_policy_document.trust_backend: Reading...[0m[0m
+[0m[1mmodule.irsa.data.aws_iam_policy_document.trust_jenkins_ci: Reading...[0m[0m
+[0m[1mmodule.irsa.data.aws_iam_policy_document.trust_alb_controller: Read complete after 0s [id=336432861][0m
+[0m[1mmodule.irsa.data.aws_iam_policy_document.trust_ebs_csi: Read complete after 0s [id=894144896][0m
+[0m[1mmodule.irsa.data.aws_iam_policy_document.trust_worker: Read complete after 0s [id=1486845484][0m
+[0m[1mmodule.irsa.data.aws_iam_policy_document.trust_jenkins_cd: Read complete after 0s [id=1215247420][0m
+[0m[1mmodule.irsa.data.aws_iam_policy_document.trust_jenkins_ci: Read complete after 0s [id=724246504][0m
+[0m[1mmodule.irsa.data.aws_iam_policy_document.trust_backend: Read complete after 0s [id=3621790496][0m
+[0m[1mmodule.irsa.aws_iam_role.alb_controller: Creating...[0m[0m
+[0m[1mmodule.irsa.aws_iam_role.ebs_csi: Creating...[0m[0m
+[0m[1mmodule.irsa.aws_iam_role.jenkins_ci: Creating...[0m[0m
+[0m[1mmodule.irsa.aws_iam_role.worker: Creating...[0m[0m
+[0m[1mmodule.irsa.aws_iam_role.jenkins_cd: Creating...[0m[0m
+[0m[1mmodule.irsa.aws_iam_role.backend: Creating...[0m[0m
+[0m[1mmodule.irsa.aws_iam_role.alb_controller: Creation complete after 1s [id=vm-order-prod-alb-controller-irsa][0m
+[0m[1mmodule.irsa.aws_iam_role_policy.alb_controller: Creating...[0m[0m
+[0m[1mmodule.irsa.aws_iam_role.ebs_csi: Creation complete after 1s [id=vm-order-prod-ebs-csi-irsa][0m
+[0m[1mmodule.irsa.aws_iam_role_policy_attachment.ebs_csi: Creating...[0m[0m
+[0m[1maws_eks_addon.ebs_csi: Creating...[0m[0m
+[0m[1mmodule.irsa.aws_iam_role.worker: Creation complete after 1s [id=vm-order-prod-worker-irsa][0m
+[0m[1mmodule.irsa.aws_iam_role.backend: Creation complete after 1s [id=vm-order-prod-backend-irsa][0m
+[0m[1mmodule.irsa.aws_iam_role_policy.worker_notify: Creating...[0m[0m
+[0m[1mmodule.irsa.aws_iam_role.jenkins_cd: Creation complete after 1s [id=vm-order-prod-jenkins-cd-irsa][0m
+[0m[1mmodule.irsa.aws_iam_role_policy.backend_s3: Creating...[0m[0m
+[0m[1mmodule.irsa.aws_iam_role.jenkins_ci: Creation complete after 1s [id=vm-order-prod-jenkins-ci-irsa][0m
+[0m[1mmodule.irsa.aws_iam_role_policy.jenkins_cd: Creating...[0m[0m
+[0m[1mmodule.irsa.aws_iam_role_policy.jenkins_ci: Creating...[0m[0m
+[0m[1mmodule.irsa.aws_iam_role_policy_attachment.ebs_csi: Creation complete after 0s [id=vm-order-prod-ebs-csi-irsa-2026082019264710500000000d][0m
+[0m[1mmodule.irsa.aws_iam_role_policy.alb_controller: Creation complete after 0s [id=vm-order-prod-alb-controller-irsa:alb-controller-official-policy][0m
+[0m[1mmodule.irsa.aws_iam_role_policy.worker_notify: Creation complete after 1s [id=vm-order-prod-worker-irsa:sns-ses-notify][0m
+[0m[1mmodule.irsa.aws_iam_role_policy.jenkins_cd: Creation complete after 1s [id=vm-order-prod-jenkins-cd-irsa:cd-registry-read][0m
+[0m[1mmodule.irsa.aws_iam_role_policy.jenkins_ci: Creation complete after 1s [id=vm-order-prod-jenkins-ci-irsa:ci-ecr-push][0m
+[0m[1mmodule.irsa.aws_iam_role_policy.backend_s3: Creation complete after 1s [id=vm-order-prod-backend-irsa:s3-orders-write][0m
+[0m[1mmodule.rds.aws_security_group.rds: Creation complete after 5s [id=sg-0b80d47c5d15e841b][0m
+[0m[1mmodule.rds.aws_db_instance.main: Creating...[0m[0m
+[0m[1mmodule.eks.aws_eks_node_group.jenkins: Still creating... [00m10s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_node_group.app: Still creating... [00m10s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [00m10s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [00m10s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_node_group.jenkins: Still creating... [00m20s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_node_group.app: Still creating... [00m20s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [00m20s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [00m20s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_node_group.jenkins: Still creating... [00m30s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_node_group.app: Still creating... [00m30s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [00m30s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [00m30s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_node_group.jenkins: Still creating... [00m40s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_node_group.app: Still creating... [00m40s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [00m40s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [00m40s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_node_group.app: Still creating... [00m50s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_node_group.jenkins: Still creating... [00m50s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [00m50s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [00m50s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_node_group.jenkins: Still creating... [01m00s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_node_group.app: Still creating... [01m00s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [01m00s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [01m00s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_node_group.app: Still creating... [01m10s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_node_group.jenkins: Still creating... [01m10s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [01m10s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [01m10s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_node_group.jenkins: Still creating... [01m20s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_node_group.app: Still creating... [01m20s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [01m20s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [01m20s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_node_group.app: Still creating... [01m30s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_node_group.jenkins: Still creating... [01m30s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [01m30s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [01m30s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_node_group.app: Creation complete after 1m39s [id=vm-order-prod-eks:vm-order-prod-eks-app-nodes][0m
+[0m[1mmodule.eks.aws_eks_addon.vpc_cni: Creating...[0m[0m
+[0m[1mmodule.eks.aws_eks_node_group.jenkins: Creation complete after 1m40s [id=vm-order-prod-eks:vm-order-prod-eks-jenkins-nodes][0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [01m40s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [01m40s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_addon.vpc_cni: Still creating... [00m10s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [01m50s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [01m50s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_addon.vpc_cni: Still creating... [00m20s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [02m00s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [02m00s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_addon.vpc_cni: Still creating... [00m30s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [02m10s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [02m10s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_addon.vpc_cni: Still creating... [00m40s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [02m20s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [02m20s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_addon.vpc_cni: Creation complete after 48s [id=vm-order-prod-eks:vpc-cni][0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [02m30s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [02m30s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [02m40s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [02m40s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [02m50s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [02m50s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [03m00s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [03m00s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [03m10s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [03m10s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [03m20s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [03m20s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [03m30s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [03m30s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [03m40s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [03m40s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [03m50s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [03m50s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [04m00s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [04m00s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [04m10s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [04m10s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [04m20s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [04m20s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [04m30s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [04m30s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [04m40s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [04m40s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [04m50s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [04m50s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [05m00s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [05m00s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [05m10s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [05m10s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Creation complete after 5m11s [id=db-R2KHT6PSYRHY446Y4E4MJI2454][0m
+[0m[1maws_eks_addon.ebs_csi: Creation complete after 5m16s [id=vm-order-prod-eks:aws-ebs-csi-driver][0m
+[0m[1m[32m
+Apply complete! Resources: 56 added, 0 changed, 0 destroyed.[0m
+[0m[1m[32m
+Outputs:
+
+[0malb_controller_role_arn = "arn:aws:iam::194013835959:role/vm-order-prod-alb-controller-irsa"
+aws_region = "us-east-1"
+backend_irsa_role_arn = "arn:aws:iam::194013835959:role/vm-order-prod-backend-irsa"
+cluster_name = "vm-order-prod-eks"
+db_password = <sensitive>
+db_subnet_cidrs = tolist([
+  "10.23.2.0/24",
+  "10.23.3.0/24",
+])
+ecr_registry = "194013835959.dkr.ecr.us-east-1.amazonaws.com"
+github_repo_url = "https://github.com/nikgitnikgit/VMOrderPortal_Phase4_AWS_EKS_With_Jenkins-CI-CD.git"
+jenkins_cd_role_arn = "arn:aws:iam::194013835959:role/vm-order-prod-jenkins-cd-irsa"
+jenkins_ci_role_arn = "arn:aws:iam::194013835959:role/vm-order-prod-jenkins-ci-irsa"
+k8s_namespace = "devops-app"
+notification_email = "vmorderportal@gmail.com"
+project_name = "vm-order"
+rds_address = "vm-order-prod-rds.colk2024a6xc.us-east-1.rds.amazonaws.com"
+s3_bucket_name = "vm-order-prod-s3-orders-v4-nt"
+ses_sender = "vmorderportal@gmail.com"
+sns_topic_arn = "arn:aws:sns:us-east-1:194013835959:vm-order-prod-sns"
+vpc_cidr = "10.23.0.0/16"
+vpc_id = "vpc-0461a43f4ea9d1071"
+worker_irsa_role_arn = "arn:aws:iam::194013835959:role/vm-order-prod-worker-irsa"
+
+STEP 2/5: installing Jenkins
+==================================================
+  Installing Jenkins on vm-order-prod-eks
+  chart version: 5.9.45
+==================================================
+
+[1/8] Connecting kubectl...
+Updated context arn:aws:eks:us-east-1:194013835959:cluster/vm-order-prod-eks in /home/vboxuser/.kube/config
+NAME                          STATUS   ROLES    AGE     VERSION
+ip-10-23-4-123.ec2.internal   Ready    <none>   4m28s   v1.35.6-eks-b3f9404
+ip-10-23-4-196.ec2.internal   Ready    <none>   4m38s   v1.35.6-eks-b3f9404
+ip-10-23-4-80.ec2.internal    Ready    <none>   4m34s   v1.35.6-eks-b3f9404
+ip-10-23-6-52.ec2.internal    Ready    <none>   4m49s   v1.35.6-eks-b3f9404
+
+[2/8] Application namespace and Secret...
+namespace/devops-app created
+namespace/jenkins created
+secret/backend-secrets created
+secret/worker-secrets created
+
+[3/8] Cluster add-ons...
+"metrics-server" already exists with the same configuration, skipping
+"eks" already exists with the same configuration, skipping
+"jenkins" already exists with the same configuration, skipping
+Hang tight while we grab the latest from your chart repositories...
+...Successfully got an update from the "metrics-server" chart repository
+...Successfully got an update from the "eks" chart repository
+...Successfully got an update from the "jenkins" chart repository
+Update Complete. ⎈Happy Helming!⎈
+Release "metrics-server" does not exist. Installing it now.
+NAME: metrics-server
+LAST DEPLOYED: Thu Aug 20 19:32:29 2026
+NAMESPACE: kube-system
+STATUS: deployed
+REVISION: 1
+DESCRIPTION: Install complete
+TEST SUITE: None
+NOTES:
+***********************************************************************
+* Metrics Server                                                      *
+***********************************************************************
+  Chart version: 3.14.0
+  App version:   0.9.0
+  Image tag:     registry.k8s.io/metrics-server/metrics-server:v0.9.0
+***********************************************************************
+Release "aws-load-balancer-controller" does not exist. Installing it now.
+NAME: aws-load-balancer-controller
+LAST DEPLOYED: Thu Aug 20 19:32:37 2026
+NAMESPACE: kube-system
+STATUS: deployed
+REVISION: 1
+DESCRIPTION: Install complete
+TEST SUITE: None
+NOTES:
+AWS Load Balancer controller installed!
+deployment.apps/aws-load-balancer-controller restarted
+Waiting for deployment "aws-load-balancer-controller" rollout to finish: 1 out of 2 new replicas have been updated...
+Waiting for deployment "aws-load-balancer-controller" rollout to finish: 1 out of 2 new replicas have been updated...
+Waiting for deployment "aws-load-balancer-controller" rollout to finish: 1 out of 2 new replicas have been updated...
+Waiting for deployment "aws-load-balancer-controller" rollout to finish: 1 out of 2 new replicas have been updated...
+Waiting for deployment "aws-load-balancer-controller" rollout to finish: 1 out of 2 new replicas have been updated...
+Waiting for deployment "aws-load-balancer-controller" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "aws-load-balancer-controller" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "aws-load-balancer-controller" rollout to finish: 1 old replicas are pending termination...
+deployment "aws-load-balancer-controller" successfully rolled out
+  enabling NetworkPolicy enforcement in the VPC CNI...
+Waiting for daemon set "aws-node" rollout to finish: 1 out of 4 new pods have been updated...
+Waiting for daemon set "aws-node" rollout to finish: 1 out of 4 new pods have been updated...
+Waiting for daemon set "aws-node" rollout to finish: 2 out of 4 new pods have been updated...
+Waiting for daemon set "aws-node" rollout to finish: 2 out of 4 new pods have been updated...
+Waiting for daemon set "aws-node" rollout to finish: 3 out of 4 new pods have been updated...
+Waiting for daemon set "aws-node" rollout to finish: 3 out of 4 new pods have been updated...
+Waiting for daemon set "aws-node" rollout to finish: 3 of 4 updated pods are available...
+daemon set "aws-node" successfully rolled out
+
+[4/8] Jenkins namespace, RBAC and ServiceAccounts...
+serviceaccount/jenkins created
+role.rbac.authorization.k8s.io/jenkins-agent-manager created
+rolebinding.rbac.authorization.k8s.io/jenkins-agent-manager created
+serviceaccount/jenkins-agent-ci created
+serviceaccount/jenkins-agent-cd created
+role.rbac.authorization.k8s.io/jenkins-deployer created
+rolebinding.rbac.authorization.k8s.io/jenkins-deployer created
+serviceaccount/jenkins-agent-ci annotated
+serviceaccount/jenkins-agent-cd annotated
+networkpolicy.networking.k8s.io/default-deny-all created
+networkpolicy.networking.k8s.io/jenkins-controller created
+networkpolicy.networking.k8s.io/jenkins-agents created
+
+[5/8] TLS certificates...
+  jenkins: arn:aws:acm:us-east-1:194013835959:certificate/6f18c8a8-adfd-49e9-83eb-5ecaee84c77b
+  app    : arn:aws:acm:us-east-1:194013835959:certificate/f155f86e-1e03-4203-a326-52e5aad0689f
+
+[6/8] Agent tools image...
+
+WARNING! Your credentials are stored unencrypted in '/home/vboxuser/.docker/config.json'.
+Configure a credential helper to remove this warning. See
+https://docs.docker.com/go/credential-store/
+
+Login Succeeded
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 4.49kB 0.0s done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/debian:12.9-slim@sha256:12c396bd585df7ec21d5679bb6a83d4878bc4415ce926c9e5ea6426d23c60bdc
+#2 DONE 0.1s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 2B done
+#3 DONE 0.0s
+
+#4 [ 1/10] FROM docker.io/library/debian:12.9-slim@sha256:12c396bd585df7ec21d5679bb6a83d4878bc4415ce926c9e5ea6426d23c60bdc
+#4 resolve docker.io/library/debian:12.9-slim@sha256:12c396bd585df7ec21d5679bb6a83d4878bc4415ce926c9e5ea6426d23c60bdc 0.1s done
+#4 DONE 0.1s
+
+#5 [ 6/10] RUN HELM_VERSION=$(curl -fsSL https://api.github.com/repos/helm/helm/releases/latest       | jq -r .tag_name)     && curl -fsSL "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz"     | tar xz -C /tmp     && mv /tmp/linux-amd64/helm /usr/local/bin/helm     && rm -rf /tmp/linux-amd64     && helm version
+#5 CACHED
+
+#6 [ 3/10] RUN pip3 install --no-cache-dir --break-system-packages         pytest==8.3.4         pytest-cov==6.0.0         flake8==7.1.1         flask==3.1.0         psycopg2-binary==2.9.9         boto3==1.37.0         requests==2.32.3
+#6 CACHED
+
+#7 [ 4/10] RUN curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscli.zip     && unzip -q /tmp/awscli.zip -d /tmp     && /tmp/aws/install     && rm -rf /tmp/aws /tmp/awscli.zip
+#7 CACHED
+
+#8 [ 8/10] RUN curl -fsSLo /usr/local/bin/hadolint       "https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64"     && chmod +x /usr/local/bin/hadolint
+#8 CACHED
+
+#9 [ 9/10] RUN groupadd -g 1000 jenkins && useradd -u 1000 -g 1000 -m jenkins
+#9 CACHED
+
+#10 [ 2/10] RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends         curl         ca-certificates         unzip         xz-utils         git         jq         python3         python3-pip         python3-venv     && rm -rf /var/lib/apt/lists/*
+#10 CACHED
+
+#11 [ 5/10] RUN KUBECTL_VERSION=$(curl -fsSL "https://dl.k8s.io/release/stable-1.35.txt")     && curl -fsSLo /usr/local/bin/kubectl       "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"     && chmod +x /usr/local/bin/kubectl     && kubectl version --client
+#11 CACHED
+
+#12 [ 7/10] RUN curl -fsSL "https://github.com/koalaman/shellcheck/releases/download/v0.10.0/shellcheck-v0.10.0.linux.x86_64.tar.xz"     | tar xJ -C /tmp     && mv "/tmp/shellcheck-v0.10.0/shellcheck" /usr/local/bin/shellcheck     && rm -rf /tmp/shellcheck-*
+#12 CACHED
+
+#13 [10/10] WORKDIR /home/jenkins
+#13 CACHED
+
+#14 exporting to image
+#14 exporting layers 0.0s done
+#14 exporting manifest sha256:e94a6b206913c28f538b28d6156e18acf4e91059192979779b0c6925f15e8640 done
+#14 exporting config sha256:677214f434c6a409dac428b8988a0e1d753066eb3cc0aa35fcf2bff460dc3e18 done
+#14 exporting attestation manifest sha256:45c432a575b0e2632b3b7a183568961b69e212fbd9cf807fdc6f017a0bacab53 0.1s done
+#14 exporting manifest list sha256:05dc15da71264f73133aca86236f55fc6c98b6c2dacd8f0817079ef653806e54
+#14 exporting manifest list sha256:05dc15da71264f73133aca86236f55fc6c98b6c2dacd8f0817079ef653806e54 0.0s done
+#14 naming to 194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-jenkins-agent:tools-1.1 done
+#14 unpacking to 194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-jenkins-agent:tools-1.1 0.0s done
+#14 DONE 0.3s
+  scanning agent image...
+2026-08-20T19:34:12Z	INFO	[vuln] Vulnerability scanning is enabled
+2026-08-20T19:34:12Z	INFO	[secret] Secret scanning is enabled
+2026-08-20T19:34:12Z	INFO	[secret] If your scanning is slow, please try '--scanners vuln' to disable secret scanning
+2026-08-20T19:34:12Z	INFO	[secret] Please see https://trivy.dev/docs/v0.72/guide/scanner/secret#recommendation for faster secret detection
+2026-08-20T19:34:12Z	INFO	Detected OS	family="debian" version="12.15"
+2026-08-20T19:34:12Z	INFO	[debian] Detecting vulnerabilities...	os_version="12" pkg_num=146
+2026-08-20T19:34:12Z	INFO	Number of language-specific files	num=3
+2026-08-20T19:34:12Z	INFO	[gobinary] Detecting vulnerabilities...
+2026-08-20T19:34:12Z	INFO	[python-pkg] Detecting vulnerabilities...
+2026-08-20T19:34:12Z	WARN	Using severities from other vendors for some vulnerabilities. Read https://trivy.dev/docs/v0.72/guide/scanner/vulnerability#severity-selection for details.
+
+Report Summary
+
+┌──────────────────────────────────────────────────────────────────────────────────┬────────────┬─────────────────┬─────────┐
+│                                      Target                                      │    Type    │ Vulnerabilities │ Secrets │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ 194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-jenkins-agent:tools-1.1    │   debian   │        0        │    -    │
+│ (debian 12.15)                                                                   │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/aws-cli/v2/2.36.24/dist/prompt_toolkit-3.0.51.dist-info/METADATA       │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.11/dist-packages/blinker-1.9.0.dist-info/METADATA          │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.11/dist-packages/boto3-1.37.0.dist-info/METADATA           │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.11/dist-packages/botocore-1.37.38.dist-info/METADATA       │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.11/dist-packages/certifi-2026.7.22.dist-info/METADATA      │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.11/dist-packages/charset_normalizer-3.5.1.dist-info/METAD- │ python-pkg │        0        │    -    │
+│ ATA                                                                              │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.11/dist-packages/click-8.4.2.dist-info/METADATA            │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.11/dist-packages/coverage-7.15.4.dist-info/METADATA        │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.11/dist-packages/flake8-7.1.1.dist-info/METADATA           │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.11/dist-packages/flask-3.1.0.dist-info/METADATA            │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.11/dist-packages/idna-3.18.dist-info/METADATA              │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.11/dist-packages/iniconfig-2.3.0.dist-info/METADATA        │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.11/dist-packages/itsdangerous-2.2.0.dist-info/METADATA     │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.11/dist-packages/jinja2-3.1.6.dist-info/METADATA           │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.11/dist-packages/jmespath-1.1.0.dist-info/METADATA         │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.11/dist-packages/markupsafe-3.0.3.dist-info/METADATA       │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.11/dist-packages/mccabe-0.7.0.dist-info/METADATA           │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.11/dist-packages/packaging-26.3.dist-info/METADATA         │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.11/dist-packages/pluggy-1.6.0.dist-info/METADATA           │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.11/dist-packages/psycopg2_binary-2.9.9.dist-info/METADATA  │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.11/dist-packages/pycodestyle-2.12.1.dist-info/METADATA     │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.11/dist-packages/pyflakes-3.2.0.dist-info/METADATA         │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.11/dist-packages/pytest-8.3.4.dist-info/METADATA           │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.11/dist-packages/pytest_cov-6.0.0.dist-info/METADATA       │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.11/dist-packages/python_dateutil-2.9.0.post0.dist-info/ME- │ python-pkg │        0        │    -    │
+│ TADATA                                                                           │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.11/dist-packages/requests-2.32.3.dist-info/METADATA        │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.11/dist-packages/s3transfer-0.11.5.dist-info/METADATA      │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.11/dist-packages/six-1.17.0.dist-info/METADATA             │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.11/dist-packages/urllib3-2.7.0.dist-info/METADATA          │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.11/dist-packages/werkzeug-3.1.8.dist-info/METADATA         │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/bin/helm                                                               │  gobinary  │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/bin/kubectl                                                            │  gobinary  │        0        │    -    │
+└──────────────────────────────────────────────────────────────────────────────────┴────────────┴─────────────────┴─────────┘
+Legend:
+- '-': Not scanned
+- '0': Clean (no security findings detected)
+
+
+📣 [34mNotices:[0m
+  - Version 0.74.0 of Trivy is now available, current version is 0.72.0
+
+To suppress version checks, run Trivy scans with the --skip-version-check flag
+
+The push refers to repository [194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-jenkins-agent]
+0b0eb94ad256: Waiting
+4f4fb700ef54: Waiting
+7cf63256a31a: Waiting
+c28418afe4cc: Waiting
+553af8aea0ef: Waiting
+7e83118b0013: Waiting
+c76a72ca166d: Waiting
+3bf439d12297: Waiting
+eed7babd342b: Waiting
+a595a83100bb: Waiting
+49b6d50c12c6: Waiting
+a595a83100bb: Waiting
+49b6d50c12c6: Waiting
+0b0eb94ad256: Waiting
+4f4fb700ef54: Waiting
+7cf63256a31a: Waiting
+c28418afe4cc: Waiting
+553af8aea0ef: Waiting
+7e83118b0013: Waiting
+c76a72ca166d: Waiting
+3bf439d12297: Waiting
+eed7babd342b: Waiting
+0b0eb94ad256: Waiting
+4f4fb700ef54: Waiting
+7cf63256a31a: Waiting
+c28418afe4cc: Waiting
+553af8aea0ef: Waiting
+7e83118b0013: Waiting
+c76a72ca166d: Waiting
+3bf439d12297: Waiting
+eed7babd342b: Waiting
+a595a83100bb: Waiting
+49b6d50c12c6: Waiting
+0b0eb94ad256: Waiting
+4f4fb700ef54: Waiting
+7cf63256a31a: Waiting
+c28418afe4cc: Waiting
+553af8aea0ef: Waiting
+7e83118b0013: Waiting
+c76a72ca166d: Waiting
+3bf439d12297: Waiting
+eed7babd342b: Waiting
+a595a83100bb: Waiting
+49b6d50c12c6: Waiting
+0b0eb94ad256: Waiting
+4f4fb700ef54: Waiting
+7cf63256a31a: Waiting
+c28418afe4cc: Waiting
+553af8aea0ef: Waiting
+7e83118b0013: Waiting
+c76a72ca166d: Waiting
+3bf439d12297: Waiting
+eed7babd342b: Waiting
+a595a83100bb: Waiting
+49b6d50c12c6: Waiting
+a595a83100bb: Waiting
+49b6d50c12c6: Waiting
+0b0eb94ad256: Waiting
+4f4fb700ef54: Waiting
+7cf63256a31a: Waiting
+c28418afe4cc: Waiting
+553af8aea0ef: Waiting
+7e83118b0013: Waiting
+c76a72ca166d: Waiting
+3bf439d12297: Waiting
+eed7babd342b: Waiting
+0b0eb94ad256: Waiting
+4f4fb700ef54: Waiting
+7cf63256a31a: Waiting
+c28418afe4cc: Waiting
+553af8aea0ef: Waiting
+7e83118b0013: Waiting
+c76a72ca166d: Waiting
+3bf439d12297: Waiting
+eed7babd342b: Waiting
+a595a83100bb: Waiting
+49b6d50c12c6: Waiting
+eed7babd342b: Waiting
+a595a83100bb: Waiting
+49b6d50c12c6: Waiting
+0b0eb94ad256: Waiting
+4f4fb700ef54: Waiting
+7cf63256a31a: Waiting
+c28418afe4cc: Waiting
+553af8aea0ef: Waiting
+7e83118b0013: Waiting
+c76a72ca166d: Waiting
+3bf439d12297: Waiting
+553af8aea0ef: Waiting
+7e83118b0013: Waiting
+c76a72ca166d: Waiting
+3bf439d12297: Waiting
+eed7babd342b: Waiting
+a595a83100bb: Waiting
+49b6d50c12c6: Waiting
+0b0eb94ad256: Waiting
+4f4fb700ef54: Waiting
+7cf63256a31a: Waiting
+c28418afe4cc: Waiting
+7cf63256a31a: Waiting
+c28418afe4cc: Waiting
+553af8aea0ef: Waiting
+7e83118b0013: Waiting
+c76a72ca166d: Waiting
+3bf439d12297: Waiting
+eed7babd342b: Waiting
+a595a83100bb: Waiting
+49b6d50c12c6: Waiting
+0b0eb94ad256: Waiting
+4f4fb700ef54: Waiting
+c28418afe4cc: Waiting
+a595a83100bb: Waiting
+4f4fb700ef54: Waiting
+7cf63256a31a: Waiting
+a595a83100bb: Waiting
+4f4fb700ef54: Waiting
+7cf63256a31a: Waiting
+c28418afe4cc: Waiting
+0b0eb94ad256: Pushed
+49b6d50c12c6: Pushed
+4f4fb700ef54: Pushed
+c76a72ca166d: Pushed
+3bf439d12297: Pushed
+7e83118b0013: Pushed
+553af8aea0ef: Pushed
+7cf63256a31a: Pushed
+a595a83100bb: Pushed
+c28418afe4cc: Pushed
+eed7babd342b: Pushed
+tools-1.1: digest: sha256:05dc15da71264f73133aca86236f55fc6c98b6c2dacd8f0817079ef653806e54 size: 856
+  pushed and scanned
+
+[7/8] Installing Jenkins...
+Release "jenkins" does not exist. Installing it now.
+NAME: jenkins
+LAST DEPLOYED: Thu Aug 20 19:34:55 2026
+NAMESPACE: jenkins
+STATUS: deployed
+REVISION: 1
+DESCRIPTION: Install complete
+NOTES:
+1. Get your 'admin' user password by running:
+  kubectl exec --namespace jenkins -it svc/jenkins -c jenkins -- /bin/cat /run/secrets/additional/chart-admin-password && echo
+2. Get the Jenkins URL to visit by running these commands in the same shell:
+  echo http://127.0.0.1:8080
+  kubectl --namespace jenkins port-forward svc/jenkins 8080:8080
+
+3. Login with the password from step 1 and the username: admin
+4. Configure security realm and authorization strategy
+5. Use Jenkins Configuration as Code by specifying configScripts in your values.yaml file, see documentation: http://127.0.0.1:8080/configuration-as-code and examples: https://github.com/jenkinsci/configuration-as-code-plugin/tree/master/demos
+
+For more information on running Jenkins on Kubernetes, visit:
+https://cloud.google.com/solutions/jenkins-on-container-engine
+
+For more information about Jenkins Configuration as Code, visit:
+https://jenkins.io/projects/jcasc/
+
+
+NOTE: Consider using a custom image with pre-installed plugins
+  waiting for Jenkins (first boot installs plugins — 3-6 min)...
+Waiting for 1 pods to be ready...
+partitioned roll out complete: 1 new pods have been updated...
+
+[8/8] Waiting for the Jenkins ALB...
+
+==================================================
+Jenkins installed.
+
+  URL:      https://k8s-jenkins-jenkins-af144c33a9-1998056517.us-east-1.elb.amazonaws.com
+  User:     admin
+  Password: <REDACTED - retrieve with: kubectl get secret jenkins -n jenkins -o jsonpath="{.data.jenkins-admin-password}" | base64 -d>
+
+  The certificate is self-signed, so the browser will warn once.
+  Access is restricted to your current public IP.
+
+Next:  ./scripts/create-jobs.sh     # create the two jobs
+       ./scripts/verify-jenkins.sh  # assert the install is correct
+==================================================
+
+STEP 3/5: creating jobs from code
+==================================================
+  Creating Jenkins jobs from code
+==================================================
+
+[1/3] Applying JCasC configuration (includes jenkins/jobs/seed.groovy)...
+Applying configuration to the running Jenkins...
+  cluster    : vm-order-prod-eks
+  node group : vm-order-prod-eks-jenkins-nodes
+  your IP    : 5.29.60.20/32
+  certificate: arn:aws:acm:us-east-1:194013835959:certificate/6f18c8a8-adfd-49e9-83eb-5ecaee84c77b
+  notify     : vmorderportal@gmail.com
+Release "jenkins" has been upgraded. Happy Helming!
+NAME: jenkins
+LAST DEPLOYED: Thu Aug 20 19:36:23 2026
+NAMESPACE: jenkins
+STATUS: deployed
+REVISION: 2
+DESCRIPTION: Upgrade complete
+NOTES:
+1. Get your 'admin' user password by running:
+  kubectl exec --namespace jenkins -it svc/jenkins -c jenkins -- /bin/cat /run/secrets/additional/chart-admin-password && echo
+2. Get the Jenkins URL to visit by running these commands in the same shell:
+  echo http://127.0.0.1:8080
+  kubectl --namespace jenkins port-forward svc/jenkins 8080:8080
+
+3. Login with the password from step 1 and the username: admin
+4. Configure security realm and authorization strategy
+5. Use Jenkins Configuration as Code by specifying configScripts in your values.yaml file, see documentation: http://127.0.0.1:8080/configuration-as-code and examples: https://github.com/jenkinsci/configuration-as-code-plugin/tree/master/demos
+
+For more information on running Jenkins on Kubernetes, visit:
+https://cloud.google.com/solutions/jenkins-on-container-engine
+
+For more information about Jenkins Configuration as Code, visit:
+https://jenkins.io/projects/jcasc/
+
+
+NOTE: Consider using a custom image with pre-installed plugins
+Waiting for the config-reload sidecar to pick up the change...
+Done. JCasC configuration applied.
+
+[2/3] Reloading configuration...
+  (explicit reload unavailable; the sidecar will pick it up within ~1 min)
+
+[3/3] Verifying...
+  OK      application-ci
+  OK      application-cd
+
+Both jobs created from jenkins/jobs/seed.groovy.
+Next: ./scripts/register-webhook.sh   # trigger CI on push
+
+STEP 4/5: registering the GitHub webhook
+==================================================
+  Registering GitHub webhook
+  repository : nikgitnikgit/VMOrderPortal_Phase4_AWS_EKS_With_Jenkins-CI-CD
+  target     : https://k8s-jenkins-jenkins-af144c33a9-1998056517.us-east-1.elb.amazonaws.com/github-webhook/
+==================================================
+
+[1/3] Removing stale hooks from previous cluster builds...
+  deleted hook 663978933
+
+[2/3] Creating the webhook...
+  created hook 668367257
+
+[3/3] Sending a test delivery...
+  last response: connection_error
+
+Webhook registered. A push to main will now trigger application-ci.
+Evidence: GitHub > Settings > Webhooks > Recent Deliveries
+
+STEP 5/5: verifying
+==================================================
+  Jenkins installation verification
+  2026-08-20T19:37:22Z
+==================================================
+
+Namespaces
+  [32mPASS[0m  jenkins namespace exists
+  [32mPASS[0m  devops-app namespace exists
+  [32mPASS[0m  nothing deployed to default namespace
+
+Controller
+  [32mPASS[0m  StatefulSet jenkins exists
+  [32mPASS[0m  controller pod is Ready
+  [32mPASS[0m  controller runs ZERO executors (no builds on the controller)
+  [32mPASS[0m  PVC is bound
+  [32mPASS[0m  controller image is pinned (not :latest)
+
+Exposure
+  [32mPASS[0m  Service exists
+  [32mPASS[0m  Ingress exists
+  [32mPASS[0m  Ingress uses HTTPS
+  [32mPASS[0m  Ingress is IP-restricted (not open to the world)
+  [32mPASS[0m  pathType is Prefix (ALB treats / as exact otherwise)
+
+ServiceAccounts and IRSA
+  [32mPASS[0m  SA jenkins exists
+  [32mPASS[0m  SA jenkins-agent-ci exists
+  [32mPASS[0m  SA jenkins-agent-cd exists
+  [32mPASS[0m  CI agent has an IRSA role
+  [32mPASS[0m  CD agent has an IRSA role
+  [32mPASS[0m  CI and CD use DIFFERENT IAM roles
+
+RBAC — positive checks
+  [32mPASS[0m  controller can create agent pods
+  [32mPASS[0m  CD agent can create deployments in devops-app
+  [32mPASS[0m  CD agent can read pods (rollout status)
+
+RBAC — negative checks (the security argument)
+  [32mPASS[0m  CI agent CANNOT create deployments
+  [32mPASS[0m  CI agent CANNOT create pods
+  [32mPASS[0m  CD agent CANNOT read Secrets (the DB password)
+  [32mPASS[0m  CD agent CANNOT list Secrets
+  [32mPASS[0m  controller CANNOT deploy to devops-app
+  [32mPASS[0m  no ClusterRoleBinding grants Jenkins cluster-admin
+
+Network
+  [32mPASS[0m  NetworkPolicies exist in jenkins namespace
+  [32mPASS[0m  NetworkPolicy enforcement enabled in the VPC CNI
+
+Jobs
+  [32mPASS[0m  job application-ci exists
+  [32mPASS[0m  job application-cd exists
+
+Pipeline separation
+  [32mPASS[0m  Jenkinsfile-ci exists
+  [32mPASS[0m  Jenkinsfile-cd exists
+  [32mPASS[0m  CI pipeline contains NO helm upgrade (no deploy)
+  [32mPASS[0m  CI pipeline contains NO kubectl apply/create
+  [32mPASS[0m  CD pipeline contains NO buildctl (no build)
+  [32mPASS[0m  CD pipeline has NO buildkit container
+  [32mPASS[0m  CD rejects the tag 'latest'
+
+==================================================
+  RESULT: 39 passed, 0 failed
+==================================================
+
+==================================================
+Infrastructure and Jenkins are ready.
+Open Jenkins, run application-ci, and it will hand off to application-cd.
+==================================================

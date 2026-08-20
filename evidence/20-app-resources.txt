@@ -1,20 +1,20 @@
 NAME                       READY   UP-TO-DATE   AVAILABLE   AGE
-deployment.apps/backend    2/2     2            2           144m
-deployment.apps/frontend   2/2     2            2           143m
-deployment.apps/worker     2/2     2            2           144m
+deployment.apps/backend    2/2     2            2           16m
+deployment.apps/frontend   2/2     2            2           16m
+deployment.apps/worker     2/2     2            2           16m
 
 NAME                            READY   STATUS    RESTARTS   AGE
-pod/backend-68dcb48c7f-crrpl    1/1     Running   0          40m
-pod/backend-68dcb48c7f-vn7lj    1/1     Running   0          40m
-pod/frontend-5d5fb5b6c6-mp75w   1/1     Running   0          39m
-pod/frontend-5d5fb5b6c6-zqtxb   1/1     Running   0          39m
-pod/worker-c8c79b7-wjtr4        1/1     Running   0          40m
-pod/worker-c8c79b7-xtqhz        1/1     Running   0          39m
+pod/backend-f946f9688-88fwf     1/1     Running   0          16m
+pod/backend-f946f9688-kvhnc     1/1     Running   0          16m
+pod/frontend-7857d446d7-262ct   1/1     Running   0          16m
+pod/frontend-7857d446d7-n99vt   1/1     Running   0          16m
+pod/worker-c79d7c44-7pkxj       1/1     Running   0          16m
+pod/worker-c79d7c44-vdmzt       1/1     Running   0          16m
 
 NAME               TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AGE
-service/backend    ClusterIP   172.20.30.252    <none>        5000/TCP   144m
-service/frontend   ClusterIP   172.20.185.114   <none>        8080/TCP   143m
-service/worker     ClusterIP   172.20.19.252    <none>        5001/TCP   144m
+service/backend    ClusterIP   172.20.230.95    <none>        5000/TCP   16m
+service/frontend   ClusterIP   172.20.144.148   <none>        8080/TCP   16m
+service/worker     ClusterIP   172.20.9.204     <none>        5001/TCP   16m
 
-NAME                                 CLASS   HOSTS   ADDRESS                                                                   PORTS   AGE
-ingress.networking.k8s.io/frontend   alb     *       k8s-devopsap-frontend-2ab58a2c34-1959234067.us-east-1.elb.amazonaws.com   80      143m
+NAME                                 CLASS   HOSTS   ADDRESS                                                                  PORTS   AGE
+ingress.networking.k8s.io/frontend   alb     *       k8s-devopsap-frontend-2ab58a2c34-462779954.us-east-1.elb.amazonaws.com   80      16m

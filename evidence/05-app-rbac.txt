@@ -1,0 +1,5 @@
+NAME                                              CREATED AT
+role.rbac.authorization.k8s.io/jenkins-deployer   2026-08-20T19:33:48Z
+
+NAME                                                     ROLE                    AGE
+rolebinding.rbac.authorization.k8s.io/jenkins-deployer   Role/jenkins-deployer   29m
