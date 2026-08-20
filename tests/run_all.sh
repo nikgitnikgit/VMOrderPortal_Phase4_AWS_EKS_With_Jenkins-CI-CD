@@ -858,6 +858,24 @@ if 's3 ls' in cd:
     assert 's3:prefix' in stmt, \
         's3:ListBucket granted without an s3:prefix condition — that lists the whole orders bucket'
     assert 'deployments/' in stmt, 's3:prefix condition does not name the deployments prefix'"
+
+# image-manifest.json is the CI->CD contract, so its VALUES have to be right,
+# not merely parseable. It was assembled by closing and reopening a
+# double-quoted echo around each variable, and those quote characters landed
+# inside the JSON strings: "ci_build": "'4'" instead of "4", and the same for
+# the commit, tag and registry. Valid JSON, every scalar wrong -- which is
+# exactly why nobody noticed. jq --arg quotes and escapes on its own.
+# The branch came from `git rev-parse --abbrev-ref HEAD`, but multibranch
+# checks out a DETACHED HEAD, so it recorded the literal string "HEAD".
+t T14.62 "image-manifest values are clean, and the branch is the real branch" python3 -c "
+ci=open('Jenkinsfile-ci').read()
+needle=chr(39)+chr(34)+chr(36)+chr(123)   # the quote-breaking idiom
+assert 'jq -n' in ci, 'manifest must be built with jq -n, not hand-assembled echo lines'
+assert needle not in ci, \
+    'quote-breaking idiom is back: it puts literal single quotes inside JSON values'
+assert 'env.BRANCH_NAME' in ci, \
+    'GIT_BRANCH_NAME must prefer env.BRANCH_NAME; multibranch checks out a detached HEAD'"
+
 t T14.24 "S3 upload failures are not masked with || true" python3 -c "
 import re
 body=open('Jenkinsfile-cd').read()

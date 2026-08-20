@@ -193,7 +193,15 @@ spec:
                     // and would then collide with an existing IMMUTABLE ECR tag.
                     env.GIT_SHA   = sh(script: 'git rev-parse --short=12 HEAD', returnStdout: true).trim()
                     env.GIT_FULL  = sh(script: 'git rev-parse HEAD', returnStdout: true).trim()
-                    env.GIT_BRANCH_NAME = sh(
+                    // BRANCH_NAME first: the Kubernetes plugin checks out a
+                    // multibranch job at a DETACHED HEAD, so
+                    // `git rev-parse --abbrev-ref HEAD` answers the literal
+                    // string "HEAD" and the manifest recorded
+                    // "git_branch": "HEAD" on every build. The multibranch
+                    // plugin already knows the real branch and exports it as
+                    // BRANCH_NAME; the git call stays as the fallback for a
+                    // plain (non-multibranch) run, where BRANCH_NAME is unset.
+                    env.GIT_BRANCH_NAME = env.BRANCH_NAME ?: sh(
                         script: 'git rev-parse --abbrev-ref HEAD 2>/dev/null || echo detached',
                         returnStdout: true).trim()
                     env.IMAGE_TAG = env.GIT_SHA
@@ -410,28 +418,45 @@ EOF
                 container('tools') {
                     script {
                         // Metadata artifact: the contract between CI and CD.
+                        // Built with jq, not hand-assembled echo lines. The
+                        // previous form opened a double-quoted section, closed
+                        // it, and reopened it around each variable; the quote
+                        // characters used to do that ended up INSIDE the JSON
+                        // string, so every scalar came out wrapped in literal
+                        // single quotes -- "ci_build": "'4'" rather than "4",
+                        // and likewise for the commit, tag and registry. It
+                        // parsed as valid JSON, which is why it went unnoticed,
+                        // but every metadata value in the CI->CD contract was
+                        // wrong. The digests escaped it only because they were
+                        // written with printf instead.
+                        //
+                        // jq --arg does its own quoting and escaping, so the
+                        // whole class of bug is gone. See T14.62.
                         sh '''
                             set -e
-                            {
-                              echo "{"
-                              echo "  \\"ci_build\\": \\"'"${BUILD_NUMBER}"'\\","
-                              echo "  \\"ci_build_url\\": \\"'"${BUILD_URL}"'\\","
-                              echo "  \\"git_commit\\": \\"'"${GIT_FULL}"'\\","
-                              echo "  \\"git_branch\\": \\"'"${GIT_BRANCH_NAME}"'\\","
-                              echo "  \\"image_tag\\": \\"'"${IMAGE_TAG}"'\\","
-                              echo "  \\"registry\\": \\"'"${ECR_REGISTRY}"'\\","
-                              echo "  \\"images\\": {"
-                              first=1
-                              for svc in frontend backend worker; do
-                                  d=$(jq -r '."containerimage.digest"' "meta-${svc}.json")
-                                  [ $first -eq 0 ] && echo ","
-                                  first=0
-                                  printf "    \\"%s\\": { \\"digest\\": \\"%s\\" }" "$svc" "$d"
-                              done
-                              echo ""
-                              echo "  }"
-                              echo "}"
-                            } > image-manifest.json
+                            jq -n \\
+                              --arg ci_build     "${BUILD_NUMBER}" \\
+                              --arg ci_build_url "${BUILD_URL}" \\
+                              --arg git_commit   "${GIT_FULL}" \\
+                              --arg git_branch   "${GIT_BRANCH_NAME}" \\
+                              --arg image_tag    "${IMAGE_TAG}" \\
+                              --arg registry     "${ECR_REGISTRY}" \\
+                              --arg frontend "$(jq -r '."containerimage.digest"' meta-frontend.json)" \\
+                              --arg backend  "$(jq -r '."containerimage.digest"' meta-backend.json)" \\
+                              --arg worker   "$(jq -r '."containerimage.digest"' meta-worker.json)" \\
+                              '{
+                                 ci_build:     $ci_build,
+                                 ci_build_url: $ci_build_url,
+                                 git_commit:   $git_commit,
+                                 git_branch:   $git_branch,
+                                 image_tag:    $image_tag,
+                                 registry:     $registry,
+                                 images: {
+                                   frontend: { digest: $frontend },
+                                   backend:  { digest: $backend },
+                                   worker:   { digest: $worker }
+                                 }
+                               }' > image-manifest.json
                             cat image-manifest.json
                         '''
                         def manifest = readJSON file: 'image-manifest.json'
