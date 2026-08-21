@@ -1059,6 +1059,18 @@ t T15.18 "the Jenkins allowlist admits GitHub's webhook senders" bash -c '
 # Creating a hook in GitHub proves nothing about whether it can be DELIVERED.
 # The script used to print "last response: connection_error" and then announce
 # "Webhook registered" on the next line. A non-2xx test delivery must fail.
+# A brand-new ALB is not ready the instant it exists -- it must reach active,
+# register a healthy target and propagate DNS. register-webhook.sh tested once,
+# immediately, so a cold ALB produced connection_error on a webhook that worked
+# a minute later. Because deploy.sh is `set -e`, that transient failure aborted
+# the deploy before verify-jenkins.sh ran. The test must retry, and deploy.sh
+# must survive a webhook failure and still verify.
+t T15.21 "webhook registration waits for a cold ALB and never aborts the deploy" bash -c '
+  grep -q "ATTEMPTS=" scripts/register-webhook.sh &&
+  grep -q "seq 1 " scripts/register-webhook.sh &&
+  grep -q "WEBHOOK_STATUS" scripts/deploy.sh &&
+  grep -q "register-webhook.sh || WEBHOOK_STATUS" scripts/deploy.sh'
+
 t T15.19 "register-webhook fails when the test delivery does not arrive" bash -c '
   grep -q "connection_error" scripts/register-webhook.sh &&
   grep -qE "exit 1" scripts/register-webhook.sh &&

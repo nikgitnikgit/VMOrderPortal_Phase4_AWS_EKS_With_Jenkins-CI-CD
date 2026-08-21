@@ -115,11 +115,31 @@ echo "  created hook ${HOOK_ID}"
 # which was false: GitHub could not reach the ALB at all, the hook never
 # delivered, and CI quietly ran off the 5-minute poll instead. Creating a hook
 # in GitHub proves nothing about whether it can be delivered.
+#
+# RETRIED, not tested once. deploy.sh creates the ALB in step 2 and calls this
+# in step 4, minutes later -- but a brand-new ALB is not ready to accept traffic
+# the moment it exists: it has to reach "active", register the controller as a
+# healthy target, and have its DNS name propagate. Testing immediately reported
+# connection_error on a webhook that was perfectly fine thirty seconds later.
+#
+# This is the same cold-ALB behaviour the CD smoke test already waits out. One
+# shot here turned a transient condition into a hard failure, and because
+# deploy.sh runs under `set -e`, that failure aborted the whole deploy before
+# verify-jenkins.sh ever ran.
 echo ""
-echo "[3/3] Sending a test delivery..."
-curl -sS -X POST "${AUTH[@]}" "${API}/${HOOK_ID}/tests" >/dev/null
-sleep 3
-LAST=$(curl -sS "${AUTH[@]}" "${API}/${HOOK_ID}" | jq -r '.last_response.status // "unknown"')
+echo "[3/3] Sending a test delivery (a new ALB can take a few minutes)..."
+ATTEMPTS=20
+LAST="unknown"
+for i in $(seq 1 "$ATTEMPTS"); do
+    curl -sS -X POST "${AUTH[@]}" "${API}/${HOOK_ID}/tests" >/dev/null 2>&1 || true
+    sleep 5
+    LAST=$(curl -sS "${AUTH[@]}" "${API}/${HOOK_ID}" | jq -r '.last_response.status // "unknown"')
+    case "$LAST" in
+        2*|active) break ;;
+    esac
+    echo "  attempt ${i}/${ATTEMPTS}: ${LAST} — waiting for the ALB to accept traffic"
+    sleep 10
+done
 echo "  last response: ${LAST}"
 
 case "$LAST" in

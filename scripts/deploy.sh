@@ -36,9 +36,18 @@ echo "STEP 3/5: creating jobs from code"
 
 echo ""
 echo "STEP 4/5: registering the GitHub webhook"
+# The result is captured rather than allowed to abort the run. deploy.sh is
+# `set -e`, and register-webhook.sh exits non-zero when GitHub cannot reach the
+# ALB -- which it should, since a silent webhook failure is what sent CI onto
+# the 5-minute poll unnoticed. But the cluster and Jenkins are already up and
+# correct at this point, and aborting here skipped step 5 entirely, so the
+# operator lost verify-jenkins.sh over a notification path. Report it at the
+# end instead, loudly, and still verify.
+WEBHOOK_STATUS="ok"
 if [ -n "${GITHUB_TOKEN:-}" ] || [ -f "$HOME/.github_token" ]; then
-    ./scripts/register-webhook.sh
+    ./scripts/register-webhook.sh || WEBHOOK_STATUS="failed"
 else
+    WEBHOOK_STATUS="skipped"
     echo "  SKIPPED — no GitHub token found."
     echo "  CI will still run on a 5-minute SCM poll."
     echo "  For push-triggered builds:"
@@ -57,6 +66,19 @@ else
 fi
 
 echo ""
+if [ "$WEBHOOK_STATUS" != "ok" ]; then
+    echo "=================================================="
+    echo "  WEBHOOK NOT CONFIRMED (${WEBHOOK_STATUS})"
+    echo ""
+    echo "  Everything else deployed. CI will still build, but only via the"
+    echo "  5-minute poll, and no build will be attributable to a push."
+    echo ""
+    echo "  Re-run once the ALB is serving:"
+    echo "    export GITHUB_TOKEN=ghp_xxx && ./scripts/register-webhook.sh"
+    echo "=================================================="
+    echo ""
+fi
+
 echo "=================================================="
 echo "Infrastructure and Jenkins are ready."
 echo "Open Jenkins, run application-ci, and it will hand off to application-cd."
