@@ -8,8 +8,15 @@ terraform/backend.tf
 **/__pycache__/
 **/venv/
 .DS_Store
-# Trivy scan reports (generated during builds, evidence pushed to S3)
-trivy-*.txt
+# Trivy scan reports left in the working tree by a local scan.
+#
+# Anchored with a leading slash. Unanchored, this pattern matched at ANY depth,
+# including evidence/trivy-*.txt -- which evidence/README.md explicitly requires
+# as a deliverable. collect-ci-evidence.sh fetched those files, `git add -A`
+# skipped them silently, and the checklist item looked satisfied while the
+# reports were never committed. The negation below is belt and braces.
+/trivy-*.txt
+!evidence/trivy-*.txt
 
 # Local credential files — never commit
 *.token

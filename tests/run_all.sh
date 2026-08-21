@@ -1119,6 +1119,22 @@ assert scan.group(1).startswith('/'), \
 assert dest.group(1) == scan.group(1) == clean.group(1), \
     f'paths disagree: build={dest.group(1)!r} scan={scan.group(1)!r} cleanup={clean.group(1)!r}'"
 
+# A .gitignore rule silently swallowed a required deliverable. "trivy-*.txt"
+# was unanchored, so it matched at any depth including evidence/, where
+# evidence/README.md explicitly requires those reports. collect-ci-evidence.sh
+# fetched them, git add -A skipped them without a word, and the checklist item
+# appeared satisfied while nothing was committed. Nothing the evidence
+# checklist names may be ignored.
+t T15.20 "no required evidence artifact is silently gitignored" bash -c '
+  for f in evidence/trivy-frontend.txt evidence/trivy-backend.txt \
+           evidence/trivy-worker.txt evidence/sbom-frontend.cdx.json \
+           evidence/image-manifest.json; do
+    if git check-ignore -q "$f" 2>/dev/null; then
+      echo "$f is gitignored but evidence/README.md requires it" >&2
+      exit 1
+    fi
+  done'
+
 t T15.16 "documentation references no deleted or missing file" python3 tests/check_doc_links.py
 
 echo "=== T16: The tests test the tests ==="
