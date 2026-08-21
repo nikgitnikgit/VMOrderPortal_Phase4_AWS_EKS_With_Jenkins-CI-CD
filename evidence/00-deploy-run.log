@@ -10,8 +10,8 @@ STEP 1/5: terraform apply (EKS takes 15-20 minutes — this is normal)
 [0m[1mInitializing provider plugins...[0m
 - Reusing previous version of hashicorp/aws from the dependency lock file
 - Reusing previous version of hashicorp/tls from the dependency lock file
-- Using previously-installed hashicorp/tls v4.3.0
 - Using previously-installed hashicorp/aws v5.100.0
+- Using previously-installed hashicorp/tls v4.3.0
 
 
 [0m[1m[32mTerraform has been successfully initialized![0m[32m[0m
@@ -1844,74 +1844,74 @@ Changes to Outputs:
   [32m+[0m[0m vpc_cidr                = "10.23.0.0/16"
   [32m+[0m[0m vpc_id                  = (known after apply)
   [32m+[0m[0m worker_irsa_role_arn    = (known after apply)
-[0m[1mmodule.eks.aws_iam_role.node: Creating...[0m[0m
-[0m[1mmodule.vpc.aws_eip.nat: Creating...[0m[0m
-[0m[1mmodule.ecr.aws_ecr_repository.repos["worker"]: Creating...[0m[0m
-[0m[1mmodule.ecr.aws_ecr_repository.repos["jenkins-agent"]: Creating...[0m[0m
 [0m[1mmodule.ecr.aws_ecr_repository.repos["frontend"]: Creating...[0m[0m
-[0m[1mmodule.eks.aws_iam_role.cluster: Creating...[0m[0m
-[0m[1mmodule.ecr.aws_ecr_repository.repos["backend"]: Creating...[0m[0m
+[0m[1mmodule.vpc.aws_eip.nat: Creating...[0m[0m
 [0m[1mmodule.vpc.aws_vpc.main: Creating...[0m[0m
-[0m[1mmodule.sns.aws_sns_topic.notifications: Creating...[0m[0m
+[0m[1mmodule.ecr.aws_ecr_repository.repos["jenkins-agent"]: Creating...[0m[0m
+[0m[1mmodule.eks.aws_iam_role.cluster: Creating...[0m[0m
+[0m[1mmodule.eks.aws_iam_role.node: Creating...[0m[0m
+[0m[1mmodule.ecr.aws_ecr_repository.repos["worker"]: Creating...[0m[0m
+[0m[1mmodule.ecr.aws_ecr_repository.repos["backend"]: Creating...[0m[0m
 [0m[1mmodule.s3.aws_s3_bucket.orders: Creating...[0m[0m
-[0m[1mmodule.ecr.aws_ecr_repository.repos["backend"]: Creation complete after 1s [id=vm-order-backend][0m
-[0m[1mmodule.ecr.aws_ecr_repository.repos["frontend"]: Creation complete after 1s [id=vm-order-frontend][0m
+[0m[1mmodule.sns.aws_sns_topic.notifications: Creating...[0m[0m
 [0m[1mmodule.ecr.aws_ecr_repository.repos["worker"]: Creation complete after 1s [id=vm-order-worker][0m
 [0m[1mmodule.ecr.aws_ecr_repository.repos["jenkins-agent"]: Creation complete after 1s [id=vm-order-jenkins-agent][0m
-[0m[1mmodule.eks.aws_iam_role.cluster: Creation complete after 2s [id=vm-order-prod-eks-cluster-role][0m
-[0m[1mmodule.eks.aws_iam_role.node: Creation complete after 2s [id=vm-order-prod-eks-node-role][0m
+[0m[1mmodule.ecr.aws_ecr_repository.repos["frontend"]: Creation complete after 1s [id=vm-order-frontend][0m
+[0m[1mmodule.ecr.aws_ecr_repository.repos["backend"]: Creation complete after 1s [id=vm-order-backend][0m
+[0m[1mmodule.eks.aws_iam_role.cluster: Creation complete after 1s [id=vm-order-prod-eks-cluster-role][0m
 [0m[1mmodule.eks.aws_iam_role_policy_attachment.cluster_policy: Creating...[0m[0m
-[0m[1mmodule.eks.aws_iam_role_policy_attachment.node_cni: Creating...[0m[0m
+[0m[1mmodule.eks.aws_iam_role.node: Creation complete after 1s [id=vm-order-prod-eks-node-role][0m
 [0m[1mmodule.eks.aws_iam_role_policy_attachment.node_ecr: Creating...[0m[0m
+[0m[1mmodule.eks.aws_iam_role_policy_attachment.node_cni: Creating...[0m[0m
 [0m[1mmodule.eks.aws_iam_role_policy_attachment.node_worker: Creating...[0m[0m
-[0m[1mmodule.eks.aws_iam_role_policy_attachment.node_cni: Creation complete after 0s [id=vm-order-prod-eks-node-role-20260820191629819800000002][0m
-[0m[1mmodule.eks.aws_iam_role_policy_attachment.cluster_policy: Creation complete after 0s [id=vm-order-prod-eks-cluster-role-20260820191629819700000001][0m
+[0m[1mmodule.eks.aws_iam_role_policy_attachment.cluster_policy: Creation complete after 1s [id=vm-order-prod-eks-cluster-role-20260821144658439300000001][0m
 [0m[1mmodule.sns.aws_sns_topic.notifications: Creation complete after 2s [id=arn:aws:sns:us-east-1:194013835959:vm-order-prod-sns][0m
 [0m[1mmodule.sns.aws_sns_topic_subscription.email: Creating...[0m[0m
-[0m[1mmodule.eks.aws_iam_role_policy_attachment.node_worker: Creation complete after 0s [id=vm-order-prod-eks-node-role-20260820191630037200000003][0m
-[0m[1mmodule.eks.aws_iam_role_policy_attachment.node_ecr: Creation complete after 0s [id=vm-order-prod-eks-node-role-20260820191630037300000004][0m
-[0m[1mmodule.sns.aws_sns_topic_subscription.email: Creation complete after 1s [id=arn:aws:sns:us-east-1:194013835959:vm-order-prod-sns:b858bee1-0396-4438-bace-ff434d3b48f9][0m
-[0m[1mmodule.vpc.aws_eip.nat: Creation complete after 3s [id=eipalloc-0087295c681e397f0][0m
+[0m[1mmodule.eks.aws_iam_role_policy_attachment.node_cni: Creation complete after 1s [id=vm-order-prod-eks-node-role-20260821144658664600000003][0m
+[0m[1mmodule.eks.aws_iam_role_policy_attachment.node_ecr: Creation complete after 1s [id=vm-order-prod-eks-node-role-20260821144658508600000002][0m
+[0m[1mmodule.eks.aws_iam_role_policy_attachment.node_worker: Creation complete after 1s [id=vm-order-prod-eks-node-role-20260821144658765500000004][0m
+[0m[1mmodule.sns.aws_sns_topic_subscription.email: Creation complete after 0s [id=arn:aws:sns:us-east-1:194013835959:vm-order-prod-sns:9b7dd14f-45a6-4727-9855-61865eddc5e8][0m
+[0m[1mmodule.vpc.aws_eip.nat: Creation complete after 3s [id=eipalloc-0180cb92f2bb1dda1][0m
 [0m[1mmodule.s3.aws_s3_bucket.orders: Creation complete after 4s [id=vm-order-prod-s3-orders-v4-nt][0m
-[0m[1mmodule.s3.aws_s3_bucket_server_side_encryption_configuration.orders: Creating...[0m[0m
 [0m[1mmodule.s3.aws_s3_bucket_public_access_block.orders: Creating...[0m[0m
+[0m[1mmodule.s3.aws_s3_bucket_server_side_encryption_configuration.orders: Creating...[0m[0m
+[0m[1mmodule.s3.aws_s3_bucket_server_side_encryption_configuration.orders: Creation complete after 0s [id=vm-order-prod-s3-orders-v4-nt][0m
 [0m[1mmodule.s3.aws_s3_bucket_public_access_block.orders: Creation complete after 1s [id=vm-order-prod-s3-orders-v4-nt][0m
-[0m[1mmodule.s3.aws_s3_bucket_server_side_encryption_configuration.orders: Creation complete after 1s [id=vm-order-prod-s3-orders-v4-nt][0m
 [0m[1mmodule.vpc.aws_vpc.main: Still creating... [00m10s elapsed][0m[0m
-[0m[1mmodule.vpc.aws_vpc.main: Creation complete after 14s [id=vpc-0461a43f4ea9d1071][0m
-[0m[1mmodule.vpc.aws_subnet.public[1]: Creating...[0m[0m
-[0m[1mmodule.vpc.aws_subnet.private[0]: Creating...[0m[0m
-[0m[1mmodule.vpc.aws_route_table.db: Creating...[0m[0m
-[0m[1mmodule.vpc.aws_subnet.public[0]: Creating...[0m[0m
+[0m[1mmodule.vpc.aws_vpc.main: Creation complete after 14s [id=vpc-080e8fafb58a5fc4c][0m
 [0m[1mmodule.vpc.aws_internet_gateway.main: Creating...[0m[0m
+[0m[1mmodule.vpc.aws_route_table.db: Creating...[0m[0m
 [0m[1mmodule.vpc.aws_subnet.db[1]: Creating...[0m[0m
+[0m[1mmodule.vpc.aws_subnet.public[1]: Creating...[0m[0m
 [0m[1mmodule.vpc.aws_subnet.private[1]: Creating...[0m[0m
+[0m[1mmodule.vpc.aws_subnet.public[0]: Creating...[0m[0m
 [0m[1mmodule.vpc.aws_subnet.db[0]: Creating...[0m[0m
-[0m[1mmodule.vpc.aws_subnet.db[1]: Creation complete after 2s [id=subnet-0c1d89dae82b86b45][0m
-[0m[1mmodule.vpc.aws_route_table.db: Creation complete after 2s [id=rtb-0e41462493c3cc971][0m
-[0m[1mmodule.vpc.aws_internet_gateway.main: Creation complete after 2s [id=igw-0d933b265b0cb27df][0m
-[0m[1mmodule.vpc.aws_subnet.private[1]: Creation complete after 2s [id=subnet-09e8f51d906f2cdd4][0m
+[0m[1mmodule.vpc.aws_subnet.private[0]: Creating...[0m[0m
+[0m[1mmodule.vpc.aws_subnet.private[1]: Creation complete after 1s [id=subnet-01dd7055e6c16bd2e][0m
+[0m[1mmodule.vpc.aws_subnet.db[1]: Creation complete after 1s [id=subnet-01679f6f8c90b3c4f][0m
+[0m[1mmodule.vpc.aws_subnet.private[0]: Creation complete after 1s [id=subnet-0038ba4681287bd37][0m
+[0m[1mmodule.vpc.aws_internet_gateway.main: Creation complete after 1s [id=igw-0da4168528c846802][0m
 [0m[1mmodule.vpc.aws_route_table.public: Creating...[0m[0m
-[0m[1mmodule.vpc.aws_subnet.private[0]: Creation complete after 2s [id=subnet-09b5347210117ffde][0m
+[0m[1mmodule.vpc.aws_route_table.db: Creation complete after 1s [id=rtb-0d4a7513b4d970bb0][0m
 [0m[1mmodule.eks.aws_eks_cluster.main: Creating...[0m[0m
-[0m[1mmodule.vpc.aws_route_table.public: Creation complete after 2s [id=rtb-0ceee39769fa870e4][0m
-[0m[1mmodule.vpc.aws_subnet.db[0]: Creation complete after 5s [id=subnet-04bc51379bd6da118][0m
-[0m[1mmodule.rds.aws_db_subnet_group.main: Creating...[0m[0m
+[0m[1mmodule.vpc.aws_subnet.db[0]: Creation complete after 1s [id=subnet-04e74455b68cf5f11][0m
 [0m[1mmodule.vpc.aws_route_table_association.db[0]: Creating...[0m[0m
 [0m[1mmodule.vpc.aws_route_table_association.db[1]: Creating...[0m[0m
-[0m[1mmodule.vpc.aws_route_table_association.db[0]: Creation complete after 1s [id=rtbassoc-04e0e9e741e92a50c][0m
-[0m[1mmodule.vpc.aws_route_table_association.db[1]: Creation complete after 1s [id=rtbassoc-06bcc7ac8c3bc8ec9][0m
+[0m[1mmodule.rds.aws_db_subnet_group.main: Creating...[0m[0m
+[0m[1mmodule.vpc.aws_route_table_association.db[0]: Creation complete after 1s [id=rtbassoc-00f0dc3f230210cf2][0m
+[0m[1mmodule.vpc.aws_route_table_association.db[1]: Creation complete after 1s [id=rtbassoc-0f24031fd65dcef49][0m
+[0m[1mmodule.vpc.aws_route_table.public: Creation complete after 2s [id=rtb-0bdd3d49716edacbf][0m
 [0m[1mmodule.rds.aws_db_subnet_group.main: Creation complete after 2s [id=vm-order-prod-subnet-group][0m
-[0m[1mmodule.vpc.aws_subnet.public[0]: Still creating... [00m10s elapsed][0m[0m
 [0m[1mmodule.vpc.aws_subnet.public[1]: Still creating... [00m10s elapsed][0m[0m
+[0m[1mmodule.vpc.aws_subnet.public[0]: Still creating... [00m10s elapsed][0m[0m
 [0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [00m10s elapsed][0m[0m
-[0m[1mmodule.vpc.aws_subnet.public[0]: Creation complete after 13s [id=subnet-0452eb988a9b677d2][0m
+[0m[1mmodule.vpc.aws_subnet.public[0]: Creation complete after 12s [id=subnet-056e3fbc678eb1b3f][0m
 [0m[1mmodule.vpc.aws_nat_gateway.main: Creating...[0m[0m
-[0m[1mmodule.vpc.aws_subnet.public[1]: Creation complete after 19s [id=subnet-08a185f8fb40aae84][0m
+[0m[1mmodule.vpc.aws_subnet.public[1]: Creation complete after 12s [id=subnet-0f83cb77f7375ff88][0m
 [0m[1mmodule.vpc.aws_route_table_association.public[1]: Creating...[0m[0m
 [0m[1mmodule.vpc.aws_route_table_association.public[0]: Creating...[0m[0m
-[0m[1mmodule.vpc.aws_route_table_association.public[0]: Creation complete after 1s [id=rtbassoc-0755507848b3aa31a][0m
-[0m[1mmodule.vpc.aws_route_table_association.public[1]: Creation complete after 1s [id=rtbassoc-09b3e6fac49dfb538][0m
+[0m[1mmodule.vpc.aws_route_table_association.public[0]: Creation complete after 1s [id=rtbassoc-00c1e8028e51bee5a][0m
+[0m[1mmodule.vpc.aws_route_table_association.public[1]: Creation complete after 1s [id=rtbassoc-0bcc85a7275592ced][0m
 [0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [00m20s elapsed][0m[0m
 [0m[1mmodule.vpc.aws_nat_gateway.main: Still creating... [00m10s elapsed][0m[0m
 [0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [00m30s elapsed][0m[0m
@@ -1930,114 +1930,104 @@ Changes to Outputs:
 [0m[1mmodule.vpc.aws_nat_gateway.main: Still creating... [01m20s elapsed][0m[0m
 [0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [01m40s elapsed][0m[0m
 [0m[1mmodule.vpc.aws_nat_gateway.main: Still creating... [01m30s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [01m50s elapsed][0m[0m
-[0m[1mmodule.vpc.aws_nat_gateway.main: Still creating... [01m40s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [02m00s elapsed][0m[0m
-[0m[1mmodule.vpc.aws_nat_gateway.main: Still creating... [01m50s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [02m10s elapsed][0m[0m
-[0m[1mmodule.vpc.aws_nat_gateway.main: Still creating... [02m00s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [02m20s elapsed][0m[0m
-[0m[1mmodule.vpc.aws_nat_gateway.main: Still creating... [02m10s elapsed][0m[0m
-[0m[1mmodule.vpc.aws_nat_gateway.main: Creation complete after 2m18s [id=nat-0071c59fe5d67e499][0m
+[0m[1mmodule.vpc.aws_nat_gateway.main: Creation complete after 1m37s [id=nat-037e7ba8bbfda524c][0m
 [0m[1mmodule.vpc.aws_route_table.private: Creating...[0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [02m30s elapsed][0m[0m
-[0m[1mmodule.vpc.aws_route_table.private: Creation complete after 2s [id=rtb-0ac23dc939e32438c][0m
-[0m[1mmodule.vpc.aws_route_table_association.private[0]: Creating...[0m[0m
+[0m[1mmodule.vpc.aws_route_table.private: Creation complete after 2s [id=rtb-0f2e944cec8b8dec7][0m
 [0m[1mmodule.vpc.aws_route_table_association.private[1]: Creating...[0m[0m
+[0m[1mmodule.vpc.aws_route_table_association.private[0]: Creating...[0m[0m
 [0m[1mmodule.vpc.aws_vpc_endpoint.s3: Creating...[0m[0m
-[0m[1mmodule.vpc.aws_route_table_association.private[0]: Creation complete after 1s [id=rtbassoc-09db198dada6e01bf][0m
-[0m[1mmodule.vpc.aws_route_table_association.private[1]: Creation complete after 1s [id=rtbassoc-0fa5742995419c14c][0m
-[0m[1mmodule.vpc.aws_vpc_endpoint.s3: Creation complete after 8s [id=vpce-02fa8d736523fb80f][0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [02m40s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [02m50s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [03m00s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [03m10s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [03m20s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [03m30s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [03m40s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [03m50s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [04m00s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [04m10s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [04m20s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [04m30s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [04m40s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [04m50s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [05m00s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [05m10s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [05m20s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [05m30s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [05m40s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [05m50s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [06m00s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [06m10s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [06m20s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [06m30s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [06m40s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [06m50s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [07m00s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [07m10s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [07m20s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [07m30s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [07m40s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [07m50s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [08m00s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [08m10s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [08m20s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [08m30s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [08m40s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [08m50s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [09m00s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [09m10s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [09m20s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [09m30s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [09m40s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [09m50s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_cluster.main: Creation complete after 10m0s [id=vm-order-prod-eks][0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [01m51s elapsed][0m[0m
+[0m[1mmodule.vpc.aws_route_table_association.private[1]: Creation complete after 1s [id=rtbassoc-09df9c1b276725a37][0m
+[0m[1mmodule.vpc.aws_route_table_association.private[0]: Creation complete after 1s [id=rtbassoc-0c1a1604ab9ce6c91][0m
+[0m[1mmodule.vpc.aws_vpc_endpoint.s3: Creation complete after 7s [id=vpce-0113baf2cb566c635][0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [02m01s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [02m11s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [02m21s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [02m31s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [02m41s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [02m51s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [03m01s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [03m11s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [03m21s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [03m31s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [03m41s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [03m51s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [04m01s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [04m11s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [04m21s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [04m31s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [04m41s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [04m51s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [05m01s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [05m11s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [05m21s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [05m31s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [05m41s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [05m51s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [06m01s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [06m11s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [06m21s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [06m31s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [06m41s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [06m51s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [07m01s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [07m11s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [07m21s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [07m31s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [07m41s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [07m51s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [08m01s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [08m11s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [08m21s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [08m31s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [08m41s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Still creating... [08m51s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_cluster.main: Creation complete after 8m56s [id=vm-order-prod-eks][0m
 [0m[1mmodule.eks.data.tls_certificate.oidc: Reading...[0m[0m
-[0m[1mmodule.rds.aws_security_group.rds: Creating...[0m[0m
-[0m[1mmodule.eks.aws_eks_node_group.jenkins: Creating...[0m[0m
 [0m[1mmodule.eks.aws_eks_node_group.app: Creating...[0m[0m
-[0m[1mmodule.eks.data.tls_certificate.oidc: Read complete after 1s [id=b1b539daa206035ae3c3e28288b0681fa1b462f3][0m
+[0m[1mmodule.eks.aws_eks_node_group.jenkins: Creating...[0m[0m
+[0m[1mmodule.rds.aws_security_group.rds: Creating...[0m[0m
+[0m[1mmodule.eks.data.tls_certificate.oidc: Read complete after 0s [id=b1b539daa206035ae3c3e28288b0681fa1b462f3][0m
 [0m[1mmodule.eks.aws_iam_openid_connect_provider.main: Creating...[0m[0m
-[0m[1mmodule.eks.aws_iam_openid_connect_provider.main: Creation complete after 1s [id=arn:aws:iam::194013835959:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/5E47103DDC90D96E69061E1745642C94][0m
-[0m[1mmodule.irsa.data.aws_iam_policy_document.trust_jenkins_cd: Reading...[0m[0m
+[0m[1mmodule.eks.aws_iam_openid_connect_provider.main: Creation complete after 1s [id=arn:aws:iam::194013835959:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/81CE647BF08327DC4325094FBDB9B40F][0m
 [0m[1mmodule.irsa.data.aws_iam_policy_document.trust_ebs_csi: Reading...[0m[0m
-[0m[1mmodule.irsa.data.aws_iam_policy_document.trust_worker: Reading...[0m[0m
 [0m[1mmodule.irsa.data.aws_iam_policy_document.trust_alb_controller: Reading...[0m[0m
 [0m[1mmodule.irsa.data.aws_iam_policy_document.trust_backend: Reading...[0m[0m
+[0m[1mmodule.irsa.data.aws_iam_policy_document.trust_jenkins_cd: Reading...[0m[0m
 [0m[1mmodule.irsa.data.aws_iam_policy_document.trust_jenkins_ci: Reading...[0m[0m
-[0m[1mmodule.irsa.data.aws_iam_policy_document.trust_alb_controller: Read complete after 0s [id=336432861][0m
-[0m[1mmodule.irsa.data.aws_iam_policy_document.trust_ebs_csi: Read complete after 0s [id=894144896][0m
-[0m[1mmodule.irsa.data.aws_iam_policy_document.trust_worker: Read complete after 0s [id=1486845484][0m
-[0m[1mmodule.irsa.data.aws_iam_policy_document.trust_jenkins_cd: Read complete after 0s [id=1215247420][0m
-[0m[1mmodule.irsa.data.aws_iam_policy_document.trust_jenkins_ci: Read complete after 0s [id=724246504][0m
-[0m[1mmodule.irsa.data.aws_iam_policy_document.trust_backend: Read complete after 0s [id=3621790496][0m
+[0m[1mmodule.irsa.data.aws_iam_policy_document.trust_worker: Reading...[0m[0m
+[0m[1mmodule.irsa.data.aws_iam_policy_document.trust_ebs_csi: Read complete after 0s [id=1172319043][0m
+[0m[1mmodule.irsa.data.aws_iam_policy_document.trust_alb_controller: Read complete after 0s [id=1046558147][0m
+[0m[1mmodule.irsa.data.aws_iam_policy_document.trust_jenkins_ci: Read complete after 0s [id=1815103924][0m
+[0m[1mmodule.irsa.data.aws_iam_policy_document.trust_backend: Read complete after 0s [id=898592658][0m
+[0m[1mmodule.irsa.data.aws_iam_policy_document.trust_jenkins_cd: Read complete after 0s [id=259285600][0m
+[0m[1mmodule.irsa.data.aws_iam_policy_document.trust_worker: Read complete after 0s [id=2410270949][0m
+[0m[1mmodule.irsa.aws_iam_role.worker: Creating...[0m[0m
 [0m[1mmodule.irsa.aws_iam_role.alb_controller: Creating...[0m[0m
 [0m[1mmodule.irsa.aws_iam_role.ebs_csi: Creating...[0m[0m
-[0m[1mmodule.irsa.aws_iam_role.jenkins_ci: Creating...[0m[0m
-[0m[1mmodule.irsa.aws_iam_role.worker: Creating...[0m[0m
 [0m[1mmodule.irsa.aws_iam_role.jenkins_cd: Creating...[0m[0m
 [0m[1mmodule.irsa.aws_iam_role.backend: Creating...[0m[0m
+[0m[1mmodule.irsa.aws_iam_role.jenkins_ci: Creating...[0m[0m
 [0m[1mmodule.irsa.aws_iam_role.alb_controller: Creation complete after 1s [id=vm-order-prod-alb-controller-irsa][0m
+[0m[1mmodule.irsa.aws_iam_role.worker: Creation complete after 1s [id=vm-order-prod-worker-irsa][0m
 [0m[1mmodule.irsa.aws_iam_role_policy.alb_controller: Creating...[0m[0m
+[0m[1mmodule.irsa.aws_iam_role_policy.worker_notify: Creating...[0m[0m
 [0m[1mmodule.irsa.aws_iam_role.ebs_csi: Creation complete after 1s [id=vm-order-prod-ebs-csi-irsa][0m
 [0m[1mmodule.irsa.aws_iam_role_policy_attachment.ebs_csi: Creating...[0m[0m
 [0m[1maws_eks_addon.ebs_csi: Creating...[0m[0m
-[0m[1mmodule.irsa.aws_iam_role.worker: Creation complete after 1s [id=vm-order-prod-worker-irsa][0m
-[0m[1mmodule.irsa.aws_iam_role.backend: Creation complete after 1s [id=vm-order-prod-backend-irsa][0m
-[0m[1mmodule.irsa.aws_iam_role_policy.worker_notify: Creating...[0m[0m
-[0m[1mmodule.irsa.aws_iam_role.jenkins_cd: Creation complete after 1s [id=vm-order-prod-jenkins-cd-irsa][0m
-[0m[1mmodule.irsa.aws_iam_role_policy.backend_s3: Creating...[0m[0m
 [0m[1mmodule.irsa.aws_iam_role.jenkins_ci: Creation complete after 1s [id=vm-order-prod-jenkins-ci-irsa][0m
+[0m[1mmodule.irsa.aws_iam_role.jenkins_cd: Creation complete after 1s [id=vm-order-prod-jenkins-cd-irsa][0m
+[0m[1mmodule.irsa.aws_iam_role.backend: Creation complete after 1s [id=vm-order-prod-backend-irsa][0m
 [0m[1mmodule.irsa.aws_iam_role_policy.jenkins_cd: Creating...[0m[0m
 [0m[1mmodule.irsa.aws_iam_role_policy.jenkins_ci: Creating...[0m[0m
-[0m[1mmodule.irsa.aws_iam_role_policy_attachment.ebs_csi: Creation complete after 0s [id=vm-order-prod-ebs-csi-irsa-2026082019264710500000000d][0m
-[0m[1mmodule.irsa.aws_iam_role_policy.alb_controller: Creation complete after 0s [id=vm-order-prod-alb-controller-irsa:alb-controller-official-policy][0m
+[0m[1mmodule.irsa.aws_iam_role_policy.backend_s3: Creating...[0m[0m
+[0m[1mmodule.irsa.aws_iam_role_policy_attachment.ebs_csi: Creation complete after 1s [id=vm-order-prod-ebs-csi-irsa-2026082114561062110000000d][0m
 [0m[1mmodule.irsa.aws_iam_role_policy.worker_notify: Creation complete after 1s [id=vm-order-prod-worker-irsa:sns-ses-notify][0m
+[0m[1mmodule.irsa.aws_iam_role_policy.alb_controller: Creation complete after 1s [id=vm-order-prod-alb-controller-irsa:alb-controller-official-policy][0m
+[0m[1mmodule.irsa.aws_iam_role_policy.backend_s3: Creation complete after 1s [id=vm-order-prod-backend-irsa:s3-orders-write][0m
 [0m[1mmodule.irsa.aws_iam_role_policy.jenkins_cd: Creation complete after 1s [id=vm-order-prod-jenkins-cd-irsa:cd-registry-read][0m
 [0m[1mmodule.irsa.aws_iam_role_policy.jenkins_ci: Creation complete after 1s [id=vm-order-prod-jenkins-ci-irsa:ci-ecr-push][0m
-[0m[1mmodule.irsa.aws_iam_role_policy.backend_s3: Creation complete after 1s [id=vm-order-prod-backend-irsa:s3-orders-write][0m
-[0m[1mmodule.rds.aws_security_group.rds: Creation complete after 5s [id=sg-0b80d47c5d15e841b][0m
+[0m[1mmodule.rds.aws_security_group.rds: Creation complete after 4s [id=sg-0c3d80a9a2491d79b][0m
 [0m[1mmodule.rds.aws_db_instance.main: Creating...[0m[0m
 [0m[1mmodule.eks.aws_eks_node_group.jenkins: Still creating... [00m10s elapsed][0m[0m
 [0m[1mmodule.eks.aws_eks_node_group.app: Still creating... [00m10s elapsed][0m[0m
@@ -2059,76 +2049,82 @@ Changes to Outputs:
 [0m[1mmodule.eks.aws_eks_node_group.jenkins: Still creating... [00m50s elapsed][0m[0m
 [0m[1maws_eks_addon.ebs_csi: Still creating... [00m50s elapsed][0m[0m
 [0m[1mmodule.rds.aws_db_instance.main: Still creating... [00m50s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_node_group.jenkins: Still creating... [01m00s elapsed][0m[0m
 [0m[1mmodule.eks.aws_eks_node_group.app: Still creating... [01m00s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_node_group.jenkins: Still creating... [01m00s elapsed][0m[0m
 [0m[1maws_eks_addon.ebs_csi: Still creating... [01m00s elapsed][0m[0m
 [0m[1mmodule.rds.aws_db_instance.main: Still creating... [01m00s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_node_group.app: Still creating... [01m10s elapsed][0m[0m
 [0m[1mmodule.eks.aws_eks_node_group.jenkins: Still creating... [01m10s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_node_group.app: Still creating... [01m10s elapsed][0m[0m
 [0m[1maws_eks_addon.ebs_csi: Still creating... [01m10s elapsed][0m[0m
 [0m[1mmodule.rds.aws_db_instance.main: Still creating... [01m10s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_node_group.jenkins: Still creating... [01m20s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_node_group.jenkins: Creation complete after 1m18s [id=vm-order-prod-eks:vm-order-prod-eks-jenkins-nodes][0m
 [0m[1mmodule.eks.aws_eks_node_group.app: Still creating... [01m20s elapsed][0m[0m
 [0m[1maws_eks_addon.ebs_csi: Still creating... [01m20s elapsed][0m[0m
 [0m[1mmodule.rds.aws_db_instance.main: Still creating... [01m20s elapsed][0m[0m
 [0m[1mmodule.eks.aws_eks_node_group.app: Still creating... [01m30s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_node_group.jenkins: Still creating... [01m30s elapsed][0m[0m
 [0m[1maws_eks_addon.ebs_csi: Still creating... [01m30s elapsed][0m[0m
 [0m[1mmodule.rds.aws_db_instance.main: Still creating... [01m30s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_node_group.app: Creation complete after 1m39s [id=vm-order-prod-eks:vm-order-prod-eks-app-nodes][0m
-[0m[1mmodule.eks.aws_eks_addon.vpc_cni: Creating...[0m[0m
-[0m[1mmodule.eks.aws_eks_node_group.jenkins: Creation complete after 1m40s [id=vm-order-prod-eks:vm-order-prod-eks-jenkins-nodes][0m
+[0m[1mmodule.eks.aws_eks_node_group.app: Still creating... [01m40s elapsed][0m[0m
 [0m[1maws_eks_addon.ebs_csi: Still creating... [01m40s elapsed][0m[0m
 [0m[1mmodule.rds.aws_db_instance.main: Still creating... [01m40s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_addon.vpc_cni: Still creating... [00m10s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_node_group.app: Creation complete after 1m49s [id=vm-order-prod-eks:vm-order-prod-eks-app-nodes][0m
+[0m[1mmodule.eks.aws_eks_addon.vpc_cni: Creating...[0m[0m
 [0m[1maws_eks_addon.ebs_csi: Still creating... [01m50s elapsed][0m[0m
 [0m[1mmodule.rds.aws_db_instance.main: Still creating... [01m50s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_addon.vpc_cni: Still creating... [00m20s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_addon.vpc_cni: Still creating... [00m10s elapsed][0m[0m
 [0m[1maws_eks_addon.ebs_csi: Still creating... [02m00s elapsed][0m[0m
 [0m[1mmodule.rds.aws_db_instance.main: Still creating... [02m00s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_addon.vpc_cni: Still creating... [00m30s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_addon.vpc_cni: Still creating... [00m20s elapsed][0m[0m
 [0m[1maws_eks_addon.ebs_csi: Still creating... [02m10s elapsed][0m[0m
-[0m[1mmodule.rds.aws_db_instance.main: Still creating... [02m10s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_addon.vpc_cni: Still creating... [00m40s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [02m11s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_addon.vpc_cni: Still creating... [00m30s elapsed][0m[0m
 [0m[1maws_eks_addon.ebs_csi: Still creating... [02m20s elapsed][0m[0m
-[0m[1mmodule.rds.aws_db_instance.main: Still creating... [02m20s elapsed][0m[0m
-[0m[1mmodule.eks.aws_eks_addon.vpc_cni: Creation complete after 48s [id=vm-order-prod-eks:vpc-cni][0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [02m21s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_addon.vpc_cni: Still creating... [00m40s elapsed][0m[0m
 [0m[1maws_eks_addon.ebs_csi: Still creating... [02m30s elapsed][0m[0m
-[0m[1mmodule.rds.aws_db_instance.main: Still creating... [02m30s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [02m31s elapsed][0m[0m
+[0m[1mmodule.eks.aws_eks_addon.vpc_cni: Creation complete after 47s [id=vm-order-prod-eks:vpc-cni][0m
 [0m[1maws_eks_addon.ebs_csi: Still creating... [02m40s elapsed][0m[0m
-[0m[1mmodule.rds.aws_db_instance.main: Still creating... [02m40s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [02m41s elapsed][0m[0m
 [0m[1maws_eks_addon.ebs_csi: Still creating... [02m50s elapsed][0m[0m
-[0m[1mmodule.rds.aws_db_instance.main: Still creating... [02m50s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [02m51s elapsed][0m[0m
 [0m[1maws_eks_addon.ebs_csi: Still creating... [03m00s elapsed][0m[0m
-[0m[1mmodule.rds.aws_db_instance.main: Still creating... [03m00s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [03m01s elapsed][0m[0m
 [0m[1maws_eks_addon.ebs_csi: Still creating... [03m10s elapsed][0m[0m
-[0m[1mmodule.rds.aws_db_instance.main: Still creating... [03m10s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [03m11s elapsed][0m[0m
 [0m[1maws_eks_addon.ebs_csi: Still creating... [03m20s elapsed][0m[0m
-[0m[1mmodule.rds.aws_db_instance.main: Still creating... [03m20s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [03m21s elapsed][0m[0m
 [0m[1maws_eks_addon.ebs_csi: Still creating... [03m30s elapsed][0m[0m
-[0m[1mmodule.rds.aws_db_instance.main: Still creating... [03m30s elapsed][0m[0m
-[0m[1maws_eks_addon.ebs_csi: Still creating... [03m40s elapsed][0m[0m
-[0m[1mmodule.rds.aws_db_instance.main: Still creating... [03m40s elapsed][0m[0m
-[0m[1maws_eks_addon.ebs_csi: Still creating... [03m50s elapsed][0m[0m
-[0m[1mmodule.rds.aws_db_instance.main: Still creating... [03m50s elapsed][0m[0m
-[0m[1maws_eks_addon.ebs_csi: Still creating... [04m00s elapsed][0m[0m
-[0m[1mmodule.rds.aws_db_instance.main: Still creating... [04m00s elapsed][0m[0m
-[0m[1maws_eks_addon.ebs_csi: Still creating... [04m10s elapsed][0m[0m
-[0m[1mmodule.rds.aws_db_instance.main: Still creating... [04m10s elapsed][0m[0m
-[0m[1maws_eks_addon.ebs_csi: Still creating... [04m20s elapsed][0m[0m
-[0m[1mmodule.rds.aws_db_instance.main: Still creating... [04m20s elapsed][0m[0m
-[0m[1maws_eks_addon.ebs_csi: Still creating... [04m30s elapsed][0m[0m
-[0m[1mmodule.rds.aws_db_instance.main: Still creating... [04m30s elapsed][0m[0m
-[0m[1maws_eks_addon.ebs_csi: Still creating... [04m40s elapsed][0m[0m
-[0m[1mmodule.rds.aws_db_instance.main: Still creating... [04m40s elapsed][0m[0m
-[0m[1maws_eks_addon.ebs_csi: Still creating... [04m50s elapsed][0m[0m
-[0m[1mmodule.rds.aws_db_instance.main: Still creating... [04m50s elapsed][0m[0m
-[0m[1maws_eks_addon.ebs_csi: Still creating... [05m00s elapsed][0m[0m
-[0m[1mmodule.rds.aws_db_instance.main: Still creating... [05m00s elapsed][0m[0m
-[0m[1maws_eks_addon.ebs_csi: Still creating... [05m10s elapsed][0m[0m
-[0m[1mmodule.rds.aws_db_instance.main: Still creating... [05m10s elapsed][0m[0m
-[0m[1mmodule.rds.aws_db_instance.main: Creation complete after 5m11s [id=db-R2KHT6PSYRHY446Y4E4MJI2454][0m
-[0m[1maws_eks_addon.ebs_csi: Creation complete after 5m16s [id=vm-order-prod-eks:aws-ebs-csi-driver][0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [03m31s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [03m41s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [03m41s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [03m51s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [03m51s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [04m01s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [04m01s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [04m11s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [04m11s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [04m21s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [04m21s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [04m31s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [04m31s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [04m41s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [04m41s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [04m51s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [04m51s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [05m01s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [05m01s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [05m11s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Still creating... [05m11s elapsed][0m[0m
+[0m[1mmodule.rds.aws_db_instance.main: Creation complete after 5m11s [id=db-YQFYN54GBEHPLLPKKKK4GVQQQE][0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [05m21s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [05m31s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [05m41s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [05m51s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [06m01s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [06m11s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Still creating... [06m21s elapsed][0m[0m
+[0m[1maws_eks_addon.ebs_csi: Creation complete after 6m28s [id=vm-order-prod-eks:aws-ebs-csi-driver][0m
 [0m[1m[32m
 Apply complete! Resources: 56 added, 0 changed, 0 destroyed.[0m
 [0m[1m[32m
@@ -2155,7 +2151,7 @@ s3_bucket_name = "vm-order-prod-s3-orders-v4-nt"
 ses_sender = "vmorderportal@gmail.com"
 sns_topic_arn = "arn:aws:sns:us-east-1:194013835959:vm-order-prod-sns"
 vpc_cidr = "10.23.0.0/16"
-vpc_id = "vpc-0461a43f4ea9d1071"
+vpc_id = "vpc-080e8fafb58a5fc4c"
 worker_irsa_role_arn = "arn:aws:iam::194013835959:role/vm-order-prod-worker-irsa"
 
 STEP 2/5: installing Jenkins
@@ -2167,10 +2163,10 @@ STEP 2/5: installing Jenkins
 [1/8] Connecting kubectl...
 Updated context arn:aws:eks:us-east-1:194013835959:cluster/vm-order-prod-eks in /home/vboxuser/.kube/config
 NAME                          STATUS   ROLES    AGE     VERSION
-ip-10-23-4-123.ec2.internal   Ready    <none>   4m28s   v1.35.6-eks-b3f9404
-ip-10-23-4-196.ec2.internal   Ready    <none>   4m38s   v1.35.6-eks-b3f9404
-ip-10-23-4-80.ec2.internal    Ready    <none>   4m34s   v1.35.6-eks-b3f9404
-ip-10-23-6-52.ec2.internal    Ready    <none>   4m49s   v1.35.6-eks-b3f9404
+ip-10-23-4-68.ec2.internal    Ready    <none>   5m21s   v1.35.6-eks-b3f9404
+ip-10-23-4-99.ec2.internal    Ready    <none>   5m23s   v1.35.6-eks-b3f9404
+ip-10-23-6-147.ec2.internal   Ready    <none>   5m36s   v1.35.6-eks-b3f9404
+ip-10-23-6-244.ec2.internal   Ready    <none>   5m41s   v1.35.6-eks-b3f9404
 
 [2/8] Application namespace and Secret...
 namespace/devops-app created
@@ -2189,7 +2185,7 @@ Hang tight while we grab the latest from your chart repositories...
 Update Complete. ⎈Happy Helming!⎈
 Release "metrics-server" does not exist. Installing it now.
 NAME: metrics-server
-LAST DEPLOYED: Thu Aug 20 19:32:29 2026
+LAST DEPLOYED: Fri Aug 21 15:03:06 2026
 NAMESPACE: kube-system
 STATUS: deployed
 REVISION: 1
@@ -2205,7 +2201,7 @@ NOTES:
 ***********************************************************************
 Release "aws-load-balancer-controller" does not exist. Installing it now.
 NAME: aws-load-balancer-controller
-LAST DEPLOYED: Thu Aug 20 19:32:37 2026
+LAST DEPLOYED: Fri Aug 21 15:03:15 2026
 NAMESPACE: kube-system
 STATUS: deployed
 REVISION: 1
@@ -2224,6 +2220,7 @@ Waiting for deployment "aws-load-balancer-controller" rollout to finish: 1 old r
 Waiting for deployment "aws-load-balancer-controller" rollout to finish: 1 old replicas are pending termination...
 deployment "aws-load-balancer-controller" successfully rolled out
   enabling NetworkPolicy enforcement in the VPC CNI...
+Waiting for daemon set "aws-node" rollout to finish: 1 out of 4 new pods have been updated...
 Waiting for daemon set "aws-node" rollout to finish: 1 out of 4 new pods have been updated...
 Waiting for daemon set "aws-node" rollout to finish: 1 out of 4 new pods have been updated...
 Waiting for daemon set "aws-node" rollout to finish: 2 out of 4 new pods have been updated...
@@ -2261,7 +2258,7 @@ Login Succeeded
 #0 building with "default" instance using docker driver
 
 #1 [internal] load build definition from Dockerfile
-#1 transferring dockerfile: 4.49kB 0.0s done
+#1 transferring dockerfile: 4.49kB done
 #1 DONE 0.0s
 
 #2 [internal] load metadata for docker.io/library/debian:12.9-slim@sha256:12c396bd585df7ec21d5679bb6a83d4878bc4415ce926c9e5ea6426d23c60bdc
@@ -2275,54 +2272,58 @@ Login Succeeded
 #4 resolve docker.io/library/debian:12.9-slim@sha256:12c396bd585df7ec21d5679bb6a83d4878bc4415ce926c9e5ea6426d23c60bdc 0.1s done
 #4 DONE 0.1s
 
-#5 [ 6/10] RUN HELM_VERSION=$(curl -fsSL https://api.github.com/repos/helm/helm/releases/latest       | jq -r .tag_name)     && curl -fsSL "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz"     | tar xz -C /tmp     && mv /tmp/linux-amd64/helm /usr/local/bin/helm     && rm -rf /tmp/linux-amd64     && helm version
+#5 [ 7/10] RUN curl -fsSL "https://github.com/koalaman/shellcheck/releases/download/v0.10.0/shellcheck-v0.10.0.linux.x86_64.tar.xz"     | tar xJ -C /tmp     && mv "/tmp/shellcheck-v0.10.0/shellcheck" /usr/local/bin/shellcheck     && rm -rf /tmp/shellcheck-*
 #5 CACHED
 
-#6 [ 3/10] RUN pip3 install --no-cache-dir --break-system-packages         pytest==8.3.4         pytest-cov==6.0.0         flake8==7.1.1         flask==3.1.0         psycopg2-binary==2.9.9         boto3==1.37.0         requests==2.32.3
+#6 [ 8/10] RUN curl -fsSLo /usr/local/bin/hadolint       "https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64"     && chmod +x /usr/local/bin/hadolint
 #6 CACHED
 
-#7 [ 4/10] RUN curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscli.zip     && unzip -q /tmp/awscli.zip -d /tmp     && /tmp/aws/install     && rm -rf /tmp/aws /tmp/awscli.zip
+#7 [ 9/10] RUN groupadd -g 1000 jenkins && useradd -u 1000 -g 1000 -m jenkins
 #7 CACHED
 
-#8 [ 8/10] RUN curl -fsSLo /usr/local/bin/hadolint       "https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64"     && chmod +x /usr/local/bin/hadolint
+#8 [ 2/10] RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends         curl         ca-certificates         unzip         xz-utils         git         jq         python3         python3-pip         python3-venv     && rm -rf /var/lib/apt/lists/*
 #8 CACHED
 
-#9 [ 9/10] RUN groupadd -g 1000 jenkins && useradd -u 1000 -g 1000 -m jenkins
+#9 [ 3/10] RUN pip3 install --no-cache-dir --break-system-packages         pytest==8.3.4         pytest-cov==6.0.0         flake8==7.1.1         flask==3.1.0         psycopg2-binary==2.9.9         boto3==1.37.0         requests==2.32.3
 #9 CACHED
 
-#10 [ 2/10] RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends         curl         ca-certificates         unzip         xz-utils         git         jq         python3         python3-pip         python3-venv     && rm -rf /var/lib/apt/lists/*
+#10 [ 4/10] RUN curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscli.zip     && unzip -q /tmp/awscli.zip -d /tmp     && /tmp/aws/install     && rm -rf /tmp/aws /tmp/awscli.zip
 #10 CACHED
 
-#11 [ 5/10] RUN KUBECTL_VERSION=$(curl -fsSL "https://dl.k8s.io/release/stable-1.35.txt")     && curl -fsSLo /usr/local/bin/kubectl       "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"     && chmod +x /usr/local/bin/kubectl     && kubectl version --client
+#11 [ 6/10] RUN HELM_VERSION=$(curl -fsSL https://api.github.com/repos/helm/helm/releases/latest       | jq -r .tag_name)     && curl -fsSL "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz"     | tar xz -C /tmp     && mv /tmp/linux-amd64/helm /usr/local/bin/helm     && rm -rf /tmp/linux-amd64     && helm version
 #11 CACHED
 
-#12 [ 7/10] RUN curl -fsSL "https://github.com/koalaman/shellcheck/releases/download/v0.10.0/shellcheck-v0.10.0.linux.x86_64.tar.xz"     | tar xJ -C /tmp     && mv "/tmp/shellcheck-v0.10.0/shellcheck" /usr/local/bin/shellcheck     && rm -rf /tmp/shellcheck-*
+#12 [ 5/10] RUN KUBECTL_VERSION=$(curl -fsSL "https://dl.k8s.io/release/stable-1.35.txt")     && curl -fsSLo /usr/local/bin/kubectl       "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"     && chmod +x /usr/local/bin/kubectl     && kubectl version --client
 #12 CACHED
 
 #13 [10/10] WORKDIR /home/jenkins
 #13 CACHED
 
 #14 exporting to image
-#14 exporting layers 0.0s done
+#14 exporting layers done
 #14 exporting manifest sha256:e94a6b206913c28f538b28d6156e18acf4e91059192979779b0c6925f15e8640 done
 #14 exporting config sha256:677214f434c6a409dac428b8988a0e1d753066eb3cc0aa35fcf2bff460dc3e18 done
-#14 exporting attestation manifest sha256:45c432a575b0e2632b3b7a183568961b69e212fbd9cf807fdc6f017a0bacab53 0.1s done
-#14 exporting manifest list sha256:05dc15da71264f73133aca86236f55fc6c98b6c2dacd8f0817079ef653806e54
-#14 exporting manifest list sha256:05dc15da71264f73133aca86236f55fc6c98b6c2dacd8f0817079ef653806e54 0.0s done
+#14 exporting attestation manifest sha256:374189d55103e081a708f46581132bd1f4abc2730457c58a6cf816a4a4368108 0.1s done
+#14 exporting manifest list sha256:f6b8eddd48f1d32540ec2086cbbcf72ab211ff89bdfb9a6ad7ec713f39d1d429
+#14 exporting manifest list sha256:f6b8eddd48f1d32540ec2086cbbcf72ab211ff89bdfb9a6ad7ec713f39d1d429 0.0s done
 #14 naming to 194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-jenkins-agent:tools-1.1 done
 #14 unpacking to 194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-jenkins-agent:tools-1.1 0.0s done
-#14 DONE 0.3s
+#14 DONE 0.2s
   scanning agent image...
-2026-08-20T19:34:12Z	INFO	[vuln] Vulnerability scanning is enabled
-2026-08-20T19:34:12Z	INFO	[secret] Secret scanning is enabled
-2026-08-20T19:34:12Z	INFO	[secret] If your scanning is slow, please try '--scanners vuln' to disable secret scanning
-2026-08-20T19:34:12Z	INFO	[secret] Please see https://trivy.dev/docs/v0.72/guide/scanner/secret#recommendation for faster secret detection
-2026-08-20T19:34:12Z	INFO	Detected OS	family="debian" version="12.15"
-2026-08-20T19:34:12Z	INFO	[debian] Detecting vulnerabilities...	os_version="12" pkg_num=146
-2026-08-20T19:34:12Z	INFO	Number of language-specific files	num=3
-2026-08-20T19:34:12Z	INFO	[gobinary] Detecting vulnerabilities...
-2026-08-20T19:34:12Z	INFO	[python-pkg] Detecting vulnerabilities...
-2026-08-20T19:34:12Z	WARN	Using severities from other vendors for some vulnerabilities. Read https://trivy.dev/docs/v0.72/guide/scanner/vulnerability#severity-selection for details.
+2026-08-21T15:04:49Z	INFO	[vulndb] Need to update DB
+2026-08-21T15:04:49Z	INFO	[vulndb] Downloading vulnerability DB...
+2026-08-21T15:04:49Z	INFO	[vulndb] Downloading artifact...	repo="mirror.gcr.io/aquasec/trivy-db:2"
+2026-08-21T15:04:58Z	INFO	[vulndb] Artifact successfully downloaded	repo="mirror.gcr.io/aquasec/trivy-db:2"
+2026-08-21T15:04:58Z	INFO	[vuln] Vulnerability scanning is enabled
+2026-08-21T15:04:58Z	INFO	[secret] Secret scanning is enabled
+2026-08-21T15:04:58Z	INFO	[secret] If your scanning is slow, please try '--scanners vuln' to disable secret scanning
+2026-08-21T15:04:58Z	INFO	[secret] Please see https://trivy.dev/docs/v0.72/guide/scanner/secret#recommendation for faster secret detection
+2026-08-21T15:04:59Z	INFO	Detected OS	family="debian" version="12.15"
+2026-08-21T15:04:59Z	INFO	[debian] Detecting vulnerabilities...	os_version="12" pkg_num=146
+2026-08-21T15:04:59Z	INFO	Number of language-specific files	num=3
+2026-08-21T15:04:59Z	INFO	[gobinary] Detecting vulnerabilities...
+2026-08-21T15:04:59Z	INFO	[python-pkg] Detecting vulnerabilities...
+2026-08-21T15:04:59Z	WARN	Using severities from other vendors for some vulnerabilities. Read https://trivy.dev/docs/v0.72/guide/scanner/vulnerability#severity-selection for details.
 
 Report Summary
 
@@ -2409,142 +2410,158 @@ Legend:
 To suppress version checks, run Trivy scans with the --skip-version-check flag
 
 The push refers to repository [194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-jenkins-agent]
-0b0eb94ad256: Waiting
+d38ef705ae99: Waiting
 4f4fb700ef54: Waiting
-7cf63256a31a: Waiting
-c28418afe4cc: Waiting
-553af8aea0ef: Waiting
-7e83118b0013: Waiting
-c76a72ca166d: Waiting
-3bf439d12297: Waiting
 eed7babd342b: Waiting
 a595a83100bb: Waiting
-49b6d50c12c6: Waiting
-a595a83100bb: Waiting
-49b6d50c12c6: Waiting
-0b0eb94ad256: Waiting
-4f4fb700ef54: Waiting
-7cf63256a31a: Waiting
-c28418afe4cc: Waiting
-553af8aea0ef: Waiting
-7e83118b0013: Waiting
-c76a72ca166d: Waiting
 3bf439d12297: Waiting
-eed7babd342b: Waiting
-0b0eb94ad256: Waiting
-4f4fb700ef54: Waiting
-7cf63256a31a: Waiting
 c28418afe4cc: Waiting
-553af8aea0ef: Waiting
-7e83118b0013: Waiting
 c76a72ca166d: Waiting
-3bf439d12297: Waiting
+7e83118b0013: Waiting
+7cf63256a31a: Waiting
+553af8aea0ef: Waiting
+49b6d50c12c6: Waiting
+d38ef705ae99: Waiting
+4f4fb700ef54: Waiting
 eed7babd342b: Waiting
 a595a83100bb: Waiting
-49b6d50c12c6: Waiting
-0b0eb94ad256: Waiting
-4f4fb700ef54: Waiting
-7cf63256a31a: Waiting
-c28418afe4cc: Waiting
-553af8aea0ef: Waiting
-7e83118b0013: Waiting
-c76a72ca166d: Waiting
 3bf439d12297: Waiting
+c28418afe4cc: Waiting
+c76a72ca166d: Waiting
+7e83118b0013: Waiting
+7cf63256a31a: Waiting
+553af8aea0ef: Waiting
+49b6d50c12c6: Waiting
+7cf63256a31a: Waiting
+553af8aea0ef: Waiting
+49b6d50c12c6: Waiting
+d38ef705ae99: Waiting
+4f4fb700ef54: Waiting
 eed7babd342b: Waiting
 a595a83100bb: Waiting
-49b6d50c12c6: Waiting
-0b0eb94ad256: Waiting
-4f4fb700ef54: Waiting
-7cf63256a31a: Waiting
-c28418afe4cc: Waiting
-553af8aea0ef: Waiting
-7e83118b0013: Waiting
-c76a72ca166d: Waiting
 3bf439d12297: Waiting
+c28418afe4cc: Waiting
+c76a72ca166d: Waiting
+7e83118b0013: Waiting
+7cf63256a31a: Waiting
+553af8aea0ef: Waiting
+49b6d50c12c6: Waiting
+d38ef705ae99: Waiting
+4f4fb700ef54: Waiting
 eed7babd342b: Waiting
 a595a83100bb: Waiting
-49b6d50c12c6: Waiting
-a595a83100bb: Waiting
-49b6d50c12c6: Waiting
-0b0eb94ad256: Waiting
-4f4fb700ef54: Waiting
-7cf63256a31a: Waiting
-c28418afe4cc: Waiting
-553af8aea0ef: Waiting
-7e83118b0013: Waiting
-c76a72ca166d: Waiting
 3bf439d12297: Waiting
-eed7babd342b: Waiting
-0b0eb94ad256: Waiting
-4f4fb700ef54: Waiting
-7cf63256a31a: Waiting
 c28418afe4cc: Waiting
-553af8aea0ef: Waiting
-7e83118b0013: Waiting
 c76a72ca166d: Waiting
-3bf439d12297: Waiting
+7e83118b0013: Waiting
+4f4fb700ef54: Waiting
 eed7babd342b: Waiting
 a595a83100bb: Waiting
+3bf439d12297: Waiting
+c28418afe4cc: Waiting
+c76a72ca166d: Waiting
+7e83118b0013: Waiting
+7cf63256a31a: Waiting
+553af8aea0ef: Waiting
 49b6d50c12c6: Waiting
+d38ef705ae99: Waiting
+49b6d50c12c6: Waiting
+d38ef705ae99: Waiting
+4f4fb700ef54: Waiting
 eed7babd342b: Waiting
 a595a83100bb: Waiting
-49b6d50c12c6: Waiting
-0b0eb94ad256: Waiting
-4f4fb700ef54: Waiting
-7cf63256a31a: Waiting
+3bf439d12297: Waiting
 c28418afe4cc: Waiting
-553af8aea0ef: Waiting
-7e83118b0013: Waiting
 c76a72ca166d: Waiting
-3bf439d12297: Waiting
-553af8aea0ef: Waiting
 7e83118b0013: Waiting
-c76a72ca166d: Waiting
-3bf439d12297: Waiting
+7cf63256a31a: Waiting
+553af8aea0ef: Waiting
+49b6d50c12c6: Waiting
+d38ef705ae99: Waiting
+4f4fb700ef54: Waiting
 eed7babd342b: Waiting
 a595a83100bb: Waiting
-49b6d50c12c6: Waiting
-0b0eb94ad256: Waiting
-4f4fb700ef54: Waiting
-7cf63256a31a: Waiting
-c28418afe4cc: Waiting
-7cf63256a31a: Waiting
-c28418afe4cc: Waiting
-553af8aea0ef: Waiting
-7e83118b0013: Waiting
-c76a72ca166d: Waiting
 3bf439d12297: Waiting
+c28418afe4cc: Waiting
+c76a72ca166d: Waiting
+7e83118b0013: Waiting
+7cf63256a31a: Waiting
+553af8aea0ef: Waiting
 eed7babd342b: Waiting
 a595a83100bb: Waiting
+3bf439d12297: Waiting
+c28418afe4cc: Waiting
+c76a72ca166d: Waiting
+7e83118b0013: Waiting
+7cf63256a31a: Waiting
+553af8aea0ef: Waiting
 49b6d50c12c6: Waiting
-0b0eb94ad256: Waiting
+d38ef705ae99: Waiting
+4f4fb700ef54: Waiting
+49b6d50c12c6: Waiting
+d38ef705ae99: Waiting
+4f4fb700ef54: Waiting
+eed7babd342b: Waiting
+a595a83100bb: Waiting
+3bf439d12297: Waiting
+c28418afe4cc: Waiting
+c76a72ca166d: Waiting
+7e83118b0013: Waiting
+7cf63256a31a: Waiting
+553af8aea0ef: Waiting
+7e83118b0013: Waiting
+7cf63256a31a: Waiting
+553af8aea0ef: Waiting
+49b6d50c12c6: Waiting
+d38ef705ae99: Waiting
+4f4fb700ef54: Waiting
+eed7babd342b: Waiting
+a595a83100bb: Waiting
+3bf439d12297: Waiting
+c28418afe4cc: Waiting
+c76a72ca166d: Waiting
+d38ef705ae99: Waiting
+4f4fb700ef54: Waiting
+eed7babd342b: Waiting
+a595a83100bb: Waiting
+3bf439d12297: Waiting
+c28418afe4cc: Waiting
+c76a72ca166d: Waiting
+7e83118b0013: Waiting
+553af8aea0ef: Waiting
+49b6d50c12c6: Waiting
+c28418afe4cc: Waiting
+c76a72ca166d: Waiting
+553af8aea0ef: Waiting
+49b6d50c12c6: Waiting
+d38ef705ae99: Waiting
+4f4fb700ef54: Waiting
+eed7babd342b: Waiting
+a595a83100bb: Waiting
+3bf439d12297: Waiting
+c76a72ca166d: Waiting
+553af8aea0ef: Waiting
+49b6d50c12c6: Waiting
 4f4fb700ef54: Waiting
 c28418afe4cc: Waiting
-a595a83100bb: Waiting
-4f4fb700ef54: Waiting
-7cf63256a31a: Waiting
-a595a83100bb: Waiting
-4f4fb700ef54: Waiting
-7cf63256a31a: Waiting
-c28418afe4cc: Waiting
-0b0eb94ad256: Pushed
-49b6d50c12c6: Pushed
 4f4fb700ef54: Pushed
+49b6d50c12c6: Pushed
+d38ef705ae99: Pushed
 c76a72ca166d: Pushed
 3bf439d12297: Pushed
 7e83118b0013: Pushed
-553af8aea0ef: Pushed
-7cf63256a31a: Pushed
 a595a83100bb: Pushed
+7cf63256a31a: Pushed
+553af8aea0ef: Pushed
 c28418afe4cc: Pushed
 eed7babd342b: Pushed
-tools-1.1: digest: sha256:05dc15da71264f73133aca86236f55fc6c98b6c2dacd8f0817079ef653806e54 size: 856
+tools-1.1: digest: sha256:f6b8eddd48f1d32540ec2086cbbcf72ab211ff89bdfb9a6ad7ec713f39d1d429 size: 856
   pushed and scanned
 
 [7/8] Installing Jenkins...
 Release "jenkins" does not exist. Installing it now.
 NAME: jenkins
-LAST DEPLOYED: Thu Aug 20 19:34:55 2026
+LAST DEPLOYED: Fri Aug 21 15:05:42 2026
 NAMESPACE: jenkins
 STATUS: deployed
 REVISION: 1
@@ -2577,7 +2594,7 @@ partitioned roll out complete: 1 new pods have been updated...
 ==================================================
 Jenkins installed.
 
-  URL:      https://k8s-jenkins-jenkins-af144c33a9-1998056517.us-east-1.elb.amazonaws.com
+  URL:      https://k8s-jenkins-jenkins-af144c33a9-1922052640.us-east-1.elb.amazonaws.com
   User:     admin
   Password: <REDACTED - retrieve with: kubectl get secret jenkins -n jenkins -o jsonpath="{.data.jenkins-admin-password}" | base64 -d>
 
@@ -2598,11 +2615,13 @@ Applying configuration to the running Jenkins...
   cluster    : vm-order-prod-eks
   node group : vm-order-prod-eks-jenkins-nodes
   your IP    : 5.29.60.20/32
+  allowlist  : 5.29.60.20/32,192.30.252.0/22,185.199.108.0/22,140.82.112.0/20,143.55.64.0/20
+  repo       : nikgitnikgit/VMOrderPortal_Phase4_AWS_EKS_With_Jenkins-CI-CD
   certificate: arn:aws:acm:us-east-1:194013835959:certificate/6f18c8a8-adfd-49e9-83eb-5ecaee84c77b
   notify     : vmorderportal@gmail.com
 Release "jenkins" has been upgraded. Happy Helming!
 NAME: jenkins
-LAST DEPLOYED: Thu Aug 20 19:36:23 2026
+LAST DEPLOYED: Fri Aug 21 15:07:03 2026
 NAMESPACE: jenkins
 STATUS: deployed
 REVISION: 2
@@ -2643,25 +2662,27 @@ STEP 4/5: registering the GitHub webhook
 ==================================================
   Registering GitHub webhook
   repository : nikgitnikgit/VMOrderPortal_Phase4_AWS_EKS_With_Jenkins-CI-CD
-  target     : https://k8s-jenkins-jenkins-af144c33a9-1998056517.us-east-1.elb.amazonaws.com/github-webhook/
+  target     : https://k8s-jenkins-jenkins-af144c33a9-1922052640.us-east-1.elb.amazonaws.com/github-webhook/
 ==================================================
 
 [1/3] Removing stale hooks from previous cluster builds...
-  deleted hook 663978933
+  deleted hook 668586516
 
 [2/3] Creating the webhook...
-  created hook 668367257
+  created hook 668697869
 
-[3/3] Sending a test delivery...
-  last response: connection_error
+[3/3] Sending a test delivery (a new ALB can take a few minutes)...
+  attempt 1/20: connection_error — waiting for the ALB to accept traffic
+  attempt 2/20: connection_error — waiting for the ALB to accept traffic
+  last response: active
 
-Webhook registered. A push to main will now trigger application-ci.
+Webhook registered and delivering. A push to main triggers application-ci.
 Evidence: GitHub > Settings > Webhooks > Recent Deliveries
 
 STEP 5/5: verifying
 ==================================================
   Jenkins installation verification
-  2026-08-20T19:37:22Z
+  2026-08-21T15:08:34Z
 ==================================================
 
 Namespaces
