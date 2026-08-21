@@ -1,54 +1,53 @@
 LAST SEEN   TYPE      REASON                         OBJECT                                                MESSAGE
-16m         Normal    Scheduled                      pod/backend-f946f9688-88fwf                           Successfully assigned devops-app/backend-f946f9688-88fwf to ip-10-23-4-123.ec2.internal
-16m         Normal    NoPods                         poddisruptionbudget/backend                           No matching pods found
-16m         Normal    ScalingReplicaSet              deployment/backend                                    Scaled up replica set backend-f946f9688 from 0 to 2
-16m         Normal    SuccessfulCreate               replicaset/backend-f946f9688                          Created pod: backend-f946f9688-88fwf
-16m         Normal    Scheduled                      pod/backend-f946f9688-kvhnc                           Successfully assigned devops-app/backend-f946f9688-kvhnc to ip-10-23-4-80.ec2.internal
-16m         Normal    SuccessfulCreate               replicaset/backend-f946f9688                          Created pod: backend-f946f9688-kvhnc
-16m         Normal    Pulling                        pod/backend-f946f9688-kvhnc                           Pulling image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-backend:8c6d419fb5d5"
-16m         Normal    Pulling                        pod/backend-f946f9688-88fwf                           Pulling image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-backend:8c6d419fb5d5"
-16m         Normal    Created                        pod/backend-f946f9688-88fwf                           Container created
-16m         Normal    Started                        pod/backend-f946f9688-kvhnc                           Container started
-16m         Normal    Created                        pod/backend-f946f9688-kvhnc                           Container created
-16m         Normal    Pulled                         pod/backend-f946f9688-kvhnc                           Successfully pulled image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-backend:8c6d419fb5d5" in 4.374s (4.374s including waiting). Image size: 67926881 bytes.
-16m         Normal    Started                        pod/backend-f946f9688-88fwf                           Container started
-16m         Normal    Pulled                         pod/backend-f946f9688-88fwf                           Successfully pulled image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-backend:8c6d419fb5d5" in 4.488s (4.489s including waiting). Image size: 67926881 bytes.
-16m         Warning   Unhealthy                      pod/backend-f946f9688-kvhnc                           Startup probe failed: Get "http://10.23.4.177:5000/health": dial tcp 10.23.4.177:5000: connect: connection refused
-16m         Warning   FailedGetResourceMetric        horizontalpodautoscaler/backend                       failed to get cpu utilization: unable to get metrics for resource cpu: no metrics returned from resource metrics API
-16m         Warning   FailedComputeMetricsReplicas   horizontalpodautoscaler/backend                       invalid metrics (1 invalid out of 1), first error is: failed to get cpu resource metric value: failed to get cpu utilization: unable to get metrics for resource cpu: no metrics returned from resource metrics API
-16m         Normal    ScalingReplicaSet              deployment/worker                                     Scaled up replica set worker-c79d7c44 from 0 to 2
-16m         Normal    NoPods                         poddisruptionbudget/worker                            No matching pods found
-16m         Normal    SuccessfulCreate               replicaset/worker-c79d7c44                            Created pod: worker-c79d7c44-vdmzt
-16m         Normal    SuccessfulCreate               replicaset/worker-c79d7c44                            Created pod: worker-c79d7c44-7pkxj
-16m         Normal    Scheduled                      pod/worker-c79d7c44-vdmzt                             Successfully assigned devops-app/worker-c79d7c44-vdmzt to ip-10-23-4-123.ec2.internal
-16m         Normal    Scheduled                      pod/worker-c79d7c44-7pkxj                             Successfully assigned devops-app/worker-c79d7c44-7pkxj to ip-10-23-4-80.ec2.internal
-16m         Normal    Pulling                        pod/worker-c79d7c44-7pkxj                             Pulling image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-worker:8c6d419fb5d5"
-16m         Normal    Pulling                        pod/worker-c79d7c44-vdmzt                             Pulling image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-worker:8c6d419fb5d5"
-16m         Normal    Pulled                         pod/worker-c79d7c44-7pkxj                             Successfully pulled image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-worker:8c6d419fb5d5" in 1.85s (1.85s including waiting). Image size: 67174984 bytes.
-16m         Normal    Created                        pod/worker-c79d7c44-7pkxj                             Container created
-16m         Normal    Started                        pod/worker-c79d7c44-vdmzt                             Container started
-16m         Normal    Created                        pod/worker-c79d7c44-vdmzt                             Container created
-16m         Normal    Pulled                         pod/worker-c79d7c44-vdmzt                             Successfully pulled image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-worker:8c6d419fb5d5" in 1.888s (1.888s including waiting). Image size: 67174984 bytes.
-16m         Normal    Started                        pod/worker-c79d7c44-7pkxj                             Container started
-15m         Warning   FailedGetResourceMetric        horizontalpodautoscaler/backend                       failed to get cpu utilization: did not receive metrics for targeted pods (pods might be unready)
-15m         Warning   FailedComputeMetricsReplicas   horizontalpodautoscaler/backend                       invalid metrics (1 invalid out of 1), first error is: failed to get cpu resource metric value: failed to get cpu utilization: did not receive metrics for targeted pods (pods might be unready)
-16m         Normal    NoPods                         poddisruptionbudget/frontend                          No matching pods found
-16m         Normal    SuccessfulCreate               replicaset/frontend-7857d446d7                        Created pod: frontend-7857d446d7-262ct
-16m         Normal    Scheduled                      pod/frontend-7857d446d7-262ct                         Successfully assigned devops-app/frontend-7857d446d7-262ct to ip-10-23-4-80.ec2.internal
-16m         Normal    SuccessfulCreate               replicaset/frontend-7857d446d7                        Created pod: frontend-7857d446d7-n99vt
-16m         Normal    Scheduled                      pod/frontend-7857d446d7-n99vt                         Successfully assigned devops-app/frontend-7857d446d7-n99vt to ip-10-23-4-123.ec2.internal
-16m         Normal    ScalingReplicaSet              deployment/frontend                                   Scaled up replica set frontend-7857d446d7 from 0 to 2
-16m         Normal    Pulling                        pod/frontend-7857d446d7-n99vt                         Pulling image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-frontend:8c6d419fb5d5"
-16m         Normal    Pulling                        pod/frontend-7857d446d7-262ct                         Pulling image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-frontend:8c6d419fb5d5"
-16m         Normal    Started                        pod/frontend-7857d446d7-262ct                         Container started
-16m         Normal    Created                        pod/frontend-7857d446d7-262ct                         Container created
-16m         Normal    Pulled                         pod/frontend-7857d446d7-n99vt                         Successfully pulled image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-frontend:8c6d419fb5d5" in 1.74s (1.74s including waiting). Image size: 23104357 bytes.
-16m         Normal    Pulled                         pod/frontend-7857d446d7-262ct                         Successfully pulled image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-frontend:8c6d419fb5d5" in 1.639s (1.639s including waiting). Image size: 23104357 bytes.
-16m         Normal    Created                        pod/frontend-7857d446d7-n99vt                         Container created
-16m         Normal    Started                        pod/frontend-7857d446d7-n99vt                         Container started
-15m         Normal    SuccessfullyReconciled         targetgroupbinding/k8s-devopsap-frontend-7a7c9eb99c   Successfully reconciled
-16m         Normal    SuccessfullyReconciled         ingress/frontend                                      Successfully reconciled
-15m         Warning   FailedGetResourceMetric        horizontalpodautoscaler/frontend                      failed to get cpu utilization: unable to get metrics for resource cpu: no metrics returned from resource metrics API
-15m         Warning   FailedComputeMetricsReplicas   horizontalpodautoscaler/frontend                      invalid metrics (1 invalid out of 1), first error is: failed to get cpu resource metric value: failed to get cpu utilization: unable to get metrics for resource cpu: no metrics returned from resource metrics API
-15m         Warning   FailedGetResourceMetric        horizontalpodautoscaler/frontend                      failed to get cpu utilization: did not receive metrics for targeted pods (pods might be unready)
-15m         Warning   FailedComputeMetricsReplicas   horizontalpodautoscaler/frontend                      invalid metrics (1 invalid out of 1), first error is: failed to get cpu resource metric value: failed to get cpu utilization: did not receive metrics for targeted pods (pods might be unready)
+25m         Normal    SuccessfulCreate               replicaset/backend-7969f9bd8b                         Created pod: backend-7969f9bd8b-ntqmh
+25m         Normal    NoPods                         poddisruptionbudget/backend                           No matching pods found
+25m         Normal    Scheduled                      pod/backend-7969f9bd8b-ntqmh                          Successfully assigned devops-app/backend-7969f9bd8b-ntqmh to ip-10-23-4-63.ec2.internal
+25m         Normal    ScalingReplicaSet              deployment/backend                                    Scaled up replica set backend-7969f9bd8b from 0 to 2
+25m         Normal    SuccessfulCreate               replicaset/backend-7969f9bd8b                         Created pod: backend-7969f9bd8b-tl7r7
+25m         Normal    Scheduled                      pod/backend-7969f9bd8b-tl7r7                          Successfully assigned devops-app/backend-7969f9bd8b-tl7r7 to ip-10-23-4-182.ec2.internal
+25m         Normal    Pulling                        pod/backend-7969f9bd8b-tl7r7                          Pulling image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-backend:8a8f9f858d1e"
+25m         Normal    Pulling                        pod/backend-7969f9bd8b-ntqmh                          Pulling image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-backend:8a8f9f858d1e"
+25m         Normal    Created                        pod/backend-7969f9bd8b-ntqmh                          Container created
+25m         Normal    Pulled                         pod/backend-7969f9bd8b-ntqmh                          Successfully pulled image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-backend:8a8f9f858d1e" in 3.568s (3.568s including waiting). Image size: 67926650 bytes.
+25m         Normal    Started                        pod/backend-7969f9bd8b-ntqmh                          Container started
+25m         Normal    Pulled                         pod/backend-7969f9bd8b-tl7r7                          Successfully pulled image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-backend:8a8f9f858d1e" in 4.197s (4.197s including waiting). Image size: 67926650 bytes.
+25m         Normal    Created                        pod/backend-7969f9bd8b-tl7r7                          Container created
+25m         Normal    Started                        pod/backend-7969f9bd8b-tl7r7                          Container started
+25m         Warning   FailedComputeMetricsReplicas   horizontalpodautoscaler/backend                       invalid metrics (1 invalid out of 1), first error is: failed to get cpu resource metric value: failed to get cpu utilization: unable to get metrics for resource cpu: no metrics returned from resource metrics API
+25m         Warning   FailedGetResourceMetric        horizontalpodautoscaler/backend                       failed to get cpu utilization: unable to get metrics for resource cpu: no metrics returned from resource metrics API
+25m         Normal    Scheduled                      pod/worker-79f87b9bf8-2qn8s                           Successfully assigned devops-app/worker-79f87b9bf8-2qn8s to ip-10-23-4-182.ec2.internal
+25m         Normal    ScalingReplicaSet              deployment/worker                                     Scaled up replica set worker-79f87b9bf8 from 0 to 2
+25m         Normal    NoPods                         poddisruptionbudget/worker                            No matching pods found
+25m         Normal    SuccessfulCreate               replicaset/worker-79f87b9bf8                          Created pod: worker-79f87b9bf8-2qn8s
+25m         Normal    SuccessfulCreate               replicaset/worker-79f87b9bf8                          Created pod: worker-79f87b9bf8-9ssm5
+25m         Normal    Scheduled                      pod/worker-79f87b9bf8-9ssm5                           Successfully assigned devops-app/worker-79f87b9bf8-9ssm5 to ip-10-23-4-63.ec2.internal
+25m         Normal    Pulling                        pod/worker-79f87b9bf8-2qn8s                           Pulling image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-worker:8a8f9f858d1e"
+25m         Normal    Pulling                        pod/worker-79f87b9bf8-9ssm5                           Pulling image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-worker:8a8f9f858d1e"
+25m         Normal    Pulled                         pod/worker-79f87b9bf8-2qn8s                           Successfully pulled image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-worker:8a8f9f858d1e" in 2.098s (2.098s including waiting). Image size: 67174734 bytes.
+25m         Normal    Started                        pod/worker-79f87b9bf8-9ssm5                           Container started
+25m         Normal    Created                        pod/worker-79f87b9bf8-9ssm5                           Container created
+25m         Normal    Pulled                         pod/worker-79f87b9bf8-9ssm5                           Successfully pulled image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-worker:8a8f9f858d1e" in 2.277s (2.277s including waiting). Image size: 67174734 bytes.
+25m         Normal    Started                        pod/worker-79f87b9bf8-2qn8s                           Container started
+25m         Normal    Created                        pod/worker-79f87b9bf8-2qn8s                           Container created
+25m         Warning   FailedGetResourceMetric        horizontalpodautoscaler/backend                       failed to get cpu utilization: did not receive metrics for targeted pods (pods might be unready)
+25m         Warning   FailedComputeMetricsReplicas   horizontalpodautoscaler/backend                       invalid metrics (1 invalid out of 1), first error is: failed to get cpu resource metric value: failed to get cpu utilization: did not receive metrics for targeted pods (pods might be unready)
+24m         Normal    NoPods                         poddisruptionbudget/frontend                          No matching pods found
+24m         Normal    SuccessfulCreate               replicaset/frontend-bbd8b489c                         Created pod: frontend-bbd8b489c-ngdmw
+24m         Normal    Scheduled                      pod/frontend-bbd8b489c-ngdmw                          Successfully assigned devops-app/frontend-bbd8b489c-ngdmw to ip-10-23-4-63.ec2.internal
+24m         Normal    SuccessfulCreate               replicaset/frontend-bbd8b489c                         Created pod: frontend-bbd8b489c-wcbfm
+24m         Normal    Scheduled                      pod/frontend-bbd8b489c-wcbfm                          Successfully assigned devops-app/frontend-bbd8b489c-wcbfm to ip-10-23-4-182.ec2.internal
+24m         Normal    ScalingReplicaSet              deployment/frontend                                   Scaled up replica set frontend-bbd8b489c from 0 to 2
+24m         Normal    Pulling                        pod/frontend-bbd8b489c-wcbfm                          Pulling image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-frontend:8a8f9f858d1e"
+24m         Normal    Pulling                        pod/frontend-bbd8b489c-ngdmw                          Pulling image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-frontend:8a8f9f858d1e"
+24m         Normal    Started                        pod/frontend-bbd8b489c-wcbfm                          Container started
+24m         Normal    Created                        pod/frontend-bbd8b489c-ngdmw                          Container created
+24m         Normal    Started                        pod/frontend-bbd8b489c-ngdmw                          Container started
+24m         Normal    Pulled                         pod/frontend-bbd8b489c-wcbfm                          Successfully pulled image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-frontend:8a8f9f858d1e" in 1.457s (1.457s including waiting). Image size: 23104358 bytes.
+24m         Normal    Pulled                         pod/frontend-bbd8b489c-ngdmw                          Successfully pulled image "194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-frontend:8a8f9f858d1e" in 1.447s (1.447s including waiting). Image size: 23104358 bytes.
+24m         Normal    Created                        pod/frontend-bbd8b489c-wcbfm                          Container created
+24m         Normal    SuccessfullyReconciled         targetgroupbinding/k8s-devopsap-frontend-122412232c   Successfully reconciled
+24m         Normal    SuccessfullyReconciled         ingress/frontend                                      Successfully reconciled
+24m         Warning   FailedGetResourceMetric        horizontalpodautoscaler/frontend                      failed to get cpu utilization: unable to get metrics for resource cpu: no metrics returned from resource metrics API
+24m         Warning   FailedComputeMetricsReplicas   horizontalpodautoscaler/frontend                      invalid metrics (1 invalid out of 1), first error is: failed to get cpu resource metric value: failed to get cpu utilization: unable to get metrics for resource cpu: no metrics returned from resource metrics API
+24m         Warning   FailedGetResourceMetric        horizontalpodautoscaler/frontend                      failed to get cpu utilization: did not receive metrics for targeted pods (pods might be unready)
+24m         Warning   FailedComputeMetricsReplicas   horizontalpodautoscaler/frontend                      invalid metrics (1 invalid out of 1), first error is: failed to get cpu resource metric value: failed to get cpu utilization: did not receive metrics for targeted pods (pods might be unready)

@@ -7,4 +7,4 @@ Waiting for deployment "backend" rollout to finish: 1 old replicas are pending t
 deployment "backend" successfully rolled out
 
 --- image now running after rollback to revision 1 ---
-194013835959.dkr.ecr.us-east-1.amazonaws.com/vm-order-backend:8c6d419fb5d5
+<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/vm-order-backend:8c6d419fb5d5

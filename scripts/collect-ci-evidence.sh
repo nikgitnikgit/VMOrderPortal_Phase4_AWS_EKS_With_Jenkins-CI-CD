@@ -29,12 +29,31 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD="${1:-lastSuccessfulBuild}"
-JOB="${JENKINS_JOB:-application-ci}"
+# application-ci is a MULTIBRANCH job: the folder itself has no builds and no
+# artifacts, they live under the branch. The default used to be
+# "application-ci", which produced /job/application-ci/lastSuccessfulBuild --
+# a 404 on a folder. Override JENKINS_JOB to collect from a PR, e.g.
+#   JENKINS_JOB="application-ci/job/PR-1" ./scripts/collect-ci-evidence.sh
+JOB="${JENKINS_JOB:-application-ci/job/main}"
 DEST="$REPO_ROOT/evidence"
 
 : "${JENKINS_URL:?set JENKINS_URL}"
 : "${JENKINS_USER:?set JENKINS_USER}"
 : "${JENKINS_TOKEN:?set JENKINS_TOKEN}"
+
+# scripts/create-cert.sh issues a deliberately SELF-SIGNED certificate for the
+# Jenkins ALB, so curl cannot verify the chain and every request failed with
+# "SSL certificate problem: self-signed certificate". -k is required for this
+# project's own Jenkins. Set JENKINS_CA to a CA bundle instead if you ever put
+# a publicly trusted certificate in front of it.
+if [ -n "${JENKINS_CA:-}" ]; then
+    CURL_TLS=(--cacert "$JENKINS_CA")
+else
+    CURL_TLS=(-k)
+fi
+# -g (--globoff): the artifacts query is ?tree=artifacts[relativePath], and
+# curl otherwise reads [ ] as a glob range and dies with "bad range in URL".
+CURL=(curl -fsS -g "${CURL_TLS[@]}" -u "${JENKINS_USER}:${JENKINS_TOKEN}")
 
 mkdir -p "$DEST"
 BASE="${JENKINS_URL%/}/job/${JOB}/${BUILD}"
@@ -42,21 +61,28 @@ BASE="${JENKINS_URL%/}/job/${JOB}/${BUILD}"
 echo "Collecting from ${BASE}"
 
 # 1. The console log — this is what shows the scan actually gated the push.
-curl -fsS -u "${JENKINS_USER}:${JENKINS_TOKEN}" "${BASE}/consoleText" \
-    -o "${DEST}/ci-console.txt"
+"${CURL[@]}" "${BASE}/consoleText" -o "${DEST}/ci-console.txt"
 echo "  ci-console.txt"
 
 # 2. Every archived artifact (Trivy reports, SBOMs).
-ARTIFACTS=$(curl -fsS -u "${JENKINS_USER}:${JENKINS_TOKEN}" \
-    "${BASE}/api/json?tree=artifacts[relativePath]" \
+# Separate "the query failed" from "the build genuinely has no artifacts".
+# These used to collapse into one || true, so a curl failure was reported as
+# "no archived artifacts" -- the script blamed the build for its own error.
+if ! ART_JSON=$("${CURL[@]}" "${BASE}/api/json?tree=artifacts[relativePath]"); then
+    echo "" >&2
+    echo "ERROR: could not query artifacts from ${BASE}" >&2
+    echo "       Check JENKINS_JOB (multibranch jobs need .../job/<branch>)," >&2
+    echo "       the build number, and that the token is still valid." >&2
+    exit 1
+fi
+ARTIFACTS=$(printf '%s' "$ART_JSON" \
     | tr ',' '\n' | grep -o '"relativePath":"[^"]*"' | cut -d'"' -f4 || true)
 
 if [ -z "$ARTIFACTS" ]; then
-    echo "  WARNING: no archived artifacts on this build." >&2
+    echo "  WARNING: this build archived no artifacts (the query succeeded)." >&2
 else
     for a in $ARTIFACTS; do
-        curl -fsS -u "${JENKINS_USER}:${JENKINS_TOKEN}" \
-            "${BASE}/artifact/${a}" -o "${DEST}/$(basename "$a")"
+        "${CURL[@]}" "${BASE}/artifact/${a}" -o "${DEST}/$(basename "$a")"
         echo "  $(basename "$a")"
     done
 fi

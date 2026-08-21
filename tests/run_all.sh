@@ -695,6 +695,18 @@ t T14.54 "CI evidence collector exists and refuses to leak credentials" bash -c 
   grep -q "AKIA" scripts/collect-ci-evidence.sh &&
   grep -q "consoleText" scripts/collect-ci-evidence.sh'
 
+# The collector must be able to actually reach this project s Jenkins. It
+# failed on both counts: it addressed /job/application-ci/<build>, but that is
+# a MULTIBRANCH FOLDER with no builds or artifacts of its own (they live under
+# /job/application-ci/job/main), and it used plain curl against an ALB whose
+# certificate create-cert.sh deliberately self-signs, so every request died
+# with "SSL certificate problem: self-signed certificate".
+t T14.65 "CI evidence collector targets the branch job and tolerates the self-signed cert" bash -c '
+  grep -q "application-ci/job/main" scripts/collect-ci-evidence.sh &&
+  grep -qE "CURL_TLS=\(-k\)|--cacert" scripts/collect-ci-evidence.sh &&
+  grep -q "curl -fsS -g" scripts/collect-ci-evidence.sh &&
+  ! grep -q "JENKINS_JOB:-application-ci}" scripts/collect-ci-evidence.sh'
+
 # REVIEW FIX 4.4 (follow-up) — Jenkins and the application must not share a
 # certificate. Jenkins is the admin plane, restricted to one operator IP and
 # holding cluster access; the app is public. One private key across both means

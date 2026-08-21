@@ -1,0 +1,19 @@
+{
+  "ci_build": "1",
+  "ci_build_url": "http://jenkins:8080/job/application-ci/job/main/1/",
+  "git_commit": "8a8f9f858d1e9b4d28fbf2ff0e9ff436b6402685",
+  "git_branch": "main",
+  "image_tag": "8a8f9f858d1e",
+  "registry": "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com",
+  "images": {
+    "frontend": {
+      "digest": "sha256:a5c00155c8d7a812c963108221b0c6732ac4c58d9b00b32d28e645ee32638584"
+    },
+    "backend": {
+      "digest": "sha256:cfc4d568217d2434cd5c3711736934f41c9392d8848c4d66f5abc28782b170bf"
+    },
+    "worker": {
+      "digest": "sha256:adc88b63dd097d94b9e772148b5e3db80262c0540db2f31994e954826ded6863"
+    }
+  }
+}
